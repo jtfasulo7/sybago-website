@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sybago AI — Intelligent Business Automation</title>
+<meta name="description" content="Sybago AI automates your business backend with artificial intelligence. More leads, better reviews, less manual work.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #060609;
+  --bg2: #0a0a10;
+  --card: rgba(255,255,255,0.03);
+  --t1: #f0ece4;
+  --t2: rgba(240,236,228,0.5);
+  --t3: rgba(240,236,228,0.25);
+  --t4: rgba(240,236,228,0.08);
+  --gold: #c8a84e;
+  --gold-g: rgba(200,168,78,0.3);
+  --gold-b: #e4c96a;
+  --teal: #3edbd5;
+  --teal-g: rgba(62,219,213,0.15);
+  --ff-d: 'Playfair Display', Georgia, serif;
+  --ff-b: 'Outfit', sans-serif;
+  --eo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html { scrollbar-width: thin; scrollbar-color: var(--gold) var(--bg); }
+body { font-family: var(--ff-b); background: var(--bg); color: var(--t1); overflow-x: clip; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--gold); color: var(--bg); }
+
+/* ── LOADER ── */
+.loader { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; transition: opacity 0.8s var(--eo), visibility 0.8s; }
+.loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.loader-logo { font-family: var(--ff-d); font-size: 3rem; font-weight: 500; letter-spacing: 0.15em; opacity: 0; animation: fadeIn 1s 0.2s forwards; }
+.loader-bar { width: 120px; height: 1px; background: var(--t4); margin-top: 2rem; overflow: hidden; opacity: 0; animation: fadeIn 0.5s 0.5s forwards; }
+.loader-bar-fill { height: 100%; background: var(--gold); width: 0; animation: fillBar 2s 0.6s var(--eo) forwards; }
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes fillBar { to { width: 100%; } }
+
+/* ── NOISE ── */
+.noise { position: fixed; inset: 0; z-index: 9000; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat; background-size: 256px; }
+
+/* ── CURSOR ── */
+.cursor-dot { position: fixed; width: 8px; height: 8px; background: var(--gold); border-radius: 50%; pointer-events: none; z-index: 10000; mix-blend-mode: difference; }
+.cursor-ring { position: fixed; width: 40px; height: 40px; border: 1px solid var(--gold); border-radius: 50%; pointer-events: none; z-index: 10000; transition: transform 0.4s var(--eo), opacity 0.3s; opacity: 0.4; }
+.cursor-ring.hovering { transform: translate(-50%, -50%) scale(1.8); opacity: 0.15; }
+
+/* ── NAV ── */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1.5rem 3rem; display: flex; align-items: center; justify-content: space-between; transition: background 0.5s, backdrop-filter 0.5s; }
+nav.scrolled { background: rgba(6,6,9,0.9); backdrop-filter: blur(20px); }
+.logo { font-family: var(--ff-d); font-size: 1.4rem; font-weight: 500; letter-spacing: 0.12em; color: var(--t1); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+.logo-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 var(--gold-g); } 50%{ box-shadow: 0 0 20px 5px var(--gold-g); } }
+.nav-links { display: flex; gap: 2.5rem; align-items: center; list-style: none; }
+.nav-links a { font-size: 0.72rem; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t2); text-decoration: none; transition: color 0.3s; position: relative; }
+.nav-links a::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 1px; background: var(--gold); transition: width 0.4s var(--eo); }
+.nav-links a:hover { color: var(--t1); }
+.nav-links a:hover::after { width: 100%; }
+.nav-cta { font-size: 0.72rem !important; font-weight: 600 !important; color: var(--bg) !important; background: var(--gold); padding: 0.7rem 1.8rem; text-decoration: none; transition: background 0.3s, transform 0.3s var(--eo); letter-spacing: 0.15em !important; text-transform: uppercase; }
+.nav-cta:hover { background: var(--gold-b); transform: translateY(-1px); }
+.nav-cta::after { display: none !important; }
+.nav-toggle { display: none; background: none; border: none; cursor: pointer; width: 28px; height: 18px; position: relative; }
+.nav-toggle span { display: block; width: 100%; height: 1px; background: var(--t1); position: absolute; left: 0; transition: all 0.3s; }
+.nav-toggle span:nth-child(1) { top: 0; }
+.nav-toggle span:nth-child(2) { top: 50%; }
+.nav-toggle span:nth-child(3) { bottom: 0; }
+
+/* ── HERO ── */
+.hero { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.hero-lines { position: absolute; inset: 0; pointer-events: none; }
+.hero-lines .vl { position: absolute; width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, var(--t4), transparent); }
+.hero-content { text-align: center; z-index: 2; max-width: 900px; padding: 0 2rem; }
+.hero-badge { display: inline-flex; align-items: center; gap: 0.6rem; border: 1px solid rgba(200,168,78,0.2); padding: 0.5rem 1.2rem; margin-bottom: 2.5rem; font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); opacity: 0; animation: fadeIn 1s 2.8s forwards; }
+.hero-badge .bd { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: pulse 2s infinite; }
+.hero h1 { font-family: var(--ff-d); font-size: clamp(2.8rem, 6vw, 5.5rem); font-weight: 400; line-height: 1.1; letter-spacing: -0.01em; margin-bottom: 1.5rem; }
+.hero h1 .lw { display: block; overflow: hidden; }
+.hero h1 .li { display: block; transform: translateY(110%); animation: slideUp 1.2s var(--eo) forwards; }
+.hero h1 .li:nth-child(1) { animation-delay: 2.9s; }
+.hero h1 .li:nth-child(2) { animation-delay: 3.05s; }
+.hero h1 .li:nth-child(3) { animation-delay: 3.2s; }
+@keyframes slideUp { to { transform: translateY(0); } }
+.hero h1 em { font-style: italic; color: var(--gold); }
+.hero-sub { font-size: 1.05rem; line-height: 1.7; color: var(--t2); font-weight: 300; max-width: 560px; margin: 0 auto 3rem; opacity: 0; animation: fadeIn 1s 3.4s forwards; }
+.hero-actions { display: flex; gap: 1.5rem; justify-content: center; align-items: center; opacity: 0; animation: fadeIn 1s 3.6s forwards; }
+.btn-p { display: inline-flex; align-items: center; gap: 0.6rem; background: var(--gold); color: var(--bg); font-family: var(--ff-b); font-size: 0.73rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; padding: 1rem 2.5rem; border: none; cursor: pointer; text-decoration: none; position: relative; overflow: hidden; transition: transform 0.3s var(--eo); }
+.btn-p::before { content:''; position: absolute; inset: 0; background: var(--gold-b); transform: translateX(-101%); transition: transform 0.5s var(--eo); }
+.btn-p:hover::before { transform: translateX(0); }
+.btn-p:hover { transform: translateY(-1px); }
+.btn-p span, .btn-p svg { position: relative; z-index: 1; }
+.btn-p svg { width: 14px; height: 14px; }
+.btn-g { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--t1); font-size: 0.73rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; text-decoration: none; transition: color 0.3s; padding: 1rem 0; }
+.btn-g:hover { color: var(--gold); }
+.scroll-cue { position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.8rem; opacity: 0; animation: fadeIn 1s 4s forwards; }
+.scroll-cue span { font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--t3); }
+.scroll-cue .sl { width: 1px; height: 40px; background: linear-gradient(to bottom, var(--gold), transparent); animation: sPulse 2s infinite; }
+@keyframes sPulse { 0%,100%{ opacity:0.3; } 50%{ opacity:1; } }
+
+/* ═══════════════════════════════════════════════════
+   SCROLL-DRIVEN EXPERIENCE — the "autobody" section
+   ═══════════════════════════════════════════════════ */
+.scroll-outer { position: relative; height: 500vh; }
+.scroll-sticky {
+  position: sticky; top: 0; height: 100vh; overflow: hidden;
+  background: var(--bg);
+}
+
+/* Background glow orbs */
+.scroll-sticky::before {
+  content: ''; position: absolute; width: 700px; height: 700px; border-radius: 50%;
+  background: radial-gradient(circle, var(--gold-g) 0%, transparent 70%);
+  top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.12; filter: blur(80px); pointer-events: none; z-index: 0;
+}
+.scroll-sticky::after {
+  content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%;
+  background: radial-gradient(circle, var(--teal-g) 0%, transparent 70%);
+  top: 30%; right: 5%; opacity: 0.08; filter: blur(60px); pointer-events: none; z-index: 0;
+}
+
+/* Top heading */
+.scroll-top {
+  position: absolute; top: 6vh; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 5; width: 100%;
+}
+.scroll-top .ov { font-size: 0.68rem; letter-spacing: 0.35em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.6rem; display: block; }
+.scroll-top h2 { font-family: var(--ff-d); font-size: 1.8rem; font-weight: 400; }
+.scroll-top .sub { font-size: 0.8rem; color: var(--t3); margin-top: 0.4rem; font-weight: 300; }
+
+/* Left: step indicators */
+.steps-nav {
+  position: absolute; left: 3rem; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 1.8rem; z-index: 5;
+}
+.si { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; opacity: 0.25; transition: opacity 0.6s var(--eo); }
+.si.active { opacity: 1; }
+.si-circle {
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--t3); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  position: relative; transition: border-color 0.6s, box-shadow 0.6s;
+}
+.si.active .si-circle { border-color: var(--gold); box-shadow: 0 0 20px -5px var(--gold-g); }
+.si-circle svg { width: 16px; height: 16px; stroke: var(--t3); fill: none; stroke-width: 1.5; transition: stroke 0.6s; }
+.si.active .si-circle svg { stroke: var(--gold); }
+.si-label { font-size: 0.65rem; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--t3); transition: color 0.6s; white-space: nowrap; }
+.si.active .si-label { color: var(--t1); }
+
+/* Center: building visualization */
+.vis-center {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 420px; height: 420px; z-index: 2;
+}
+.vis-center canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vis-center svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Right: content panels */
+.panels {
+  position: absolute; right: 3rem; top: 50%; transform: translateY(-50%);
+  width: 360px; z-index: 5;
+}
+.panel {
+  position: absolute; top: 0; left: 0; width: 100%;
+  opacity: 0; transform: translateY(25px);
+  transition: opacity 0.7s var(--eo), transform 0.7s var(--eo);
+  pointer-events: none;
+}
+.panel.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.panel .num { font-family: var(--ff-d); font-size: 0.75rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.8rem; }
+.panel h3 { font-family: var(--ff-d); font-size: 2rem; font-weight: 500; line-height: 1.2; margin-bottom: 1rem; }
+.panel p { font-size: 0.9rem; line-height: 1.8; color: var(--t2); font-weight: 300; margin-bottom: 1.8rem; }
+.panel .stat { display: flex; align-items: baseline; gap: 0.7rem; }
+.panel .stat-v { font-family: var(--ff-d); font-size: 3rem; font-weight: 400; color: var(--gold); line-height: 1; }
+.panel .stat-l { font-size: 0.75rem; letter-spacing: 0.1em; color: var(--t2); text-transform: uppercase; }
+
+/* ── SECTIONS ── */
+.section { padding: 10rem 3rem; position: relative; }
+.sh { text-align: center; max-width: 700px; margin: 0 auto 5rem; }
+.sh .ov { font-size: 0.68rem; letter-spacing: 0.35em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; display: block; }
+.sh h2 { font-family: var(--ff-d); font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 400; line-height: 1.2; margin-bottom: 1.5rem; }
+.sh p { font-size: 1rem; line-height: 1.8; color: var(--t2); font-weight: 300; }
+
+/* ── SERVICES ── */
+.sgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; max-width: 1200px; margin: 0 auto; }
+.scard {
+  background: var(--card); border: 1px solid rgba(255,255,255,0.04); padding: 3rem 2.5rem;
+  position: relative; overflow: hidden; transition: all 0.6s var(--eo);
+  opacity: 0; transform: translateY(40px);
+}
+.scard.revealed { opacity: 1; transform: translateY(0); }
+.scard::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0; transition: opacity 0.6s; }
+.scard:hover::before { opacity: 1; }
+.scard:hover { background: rgba(255,255,255,0.05); transform: translateY(-4px); }
+.scard-icon { width: 48px; height: 48px; margin-bottom: 1.8rem; position: relative; }
+.scard-icon svg { width: 100%; height: 100%; stroke: var(--gold); fill: none; stroke-width: 1; }
+.scard-icon::after { content:''; position: absolute; width: 48px; height: 48px; border-radius: 50%; background: var(--gold-g); filter: blur(20px); top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0; transition: opacity 0.6s; }
+.scard:hover .scard-icon::after { opacity: 1; }
+.scard h3 { font-family: var(--ff-d); font-size: 1.35rem; font-weight: 500; margin-bottom: 0.8rem; }
+.scard p { font-size: 0.88rem; line-height: 1.7; color: var(--t2); font-weight: 300; }
+.scard .tag { display: inline-block; margin-top: 1.3rem; font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(200,168,78,0.2); padding: 0.35rem 0.9rem; }
+
+/* ── METRICS ── */
+.metrics { background: var(--bg2); position: relative; }
+.metrics::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(200,168,78,0.3), transparent); }
+.mgrid { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 1100px; margin: 0 auto; }
+.met { text-align: center; padding: 3rem 2rem; position: relative; opacity: 0; transform: translateY(30px); }
+.met.revealed { opacity: 1; transform: translateY(0); transition: all 0.8s var(--eo); }
+.met::after { content:''; position: absolute; right: 0; top: 20%; height: 60%; width: 1px; background: var(--t4); }
+.met:last-child::after { display: none; }
+.met-v { font-family: var(--ff-d); font-size: clamp(2.5rem, 4vw, 3.8rem); font-weight: 400; color: var(--gold); line-height: 1; margin-bottom: 0.6rem; }
+.met-l { font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--t2); }
+
+/* ── PROCESS ── */
+.psteps { max-width: 900px; margin: 0 auto; position: relative; }
+.psteps::before { content:''; position: absolute; left: 24px; top: 0; bottom: 0; width: 1px; background: var(--t4); }
+.ps { display: flex; gap: 2.5rem; padding: 2.5rem 0; position: relative; opacity: 0; transform: translateX(-30px); }
+.ps.revealed { opacity: 1; transform: translateX(0); transition: all 0.8s var(--eo); }
+.ps-n { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--ff-d); font-size: 1.1rem; color: var(--gold); flex-shrink: 0; background: var(--bg); position: relative; z-index: 2; }
+.ps-b h3 { font-family: var(--ff-d); font-size: 1.45rem; font-weight: 500; margin-bottom: 0.6rem; }
+.ps-b p { font-size: 0.92rem; line-height: 1.8; color: var(--t2); font-weight: 300; }
+
+/* ── TESTIMONIAL ── */
+.testi { background: var(--bg2); }
+.tcard { max-width: 800px; margin: 0 auto; text-align: center; opacity: 0; transform: translateY(30px); }
+.tcard.revealed { opacity: 1; transform: translateY(0); transition: all 1s var(--eo); }
+.tcard blockquote { font-family: var(--ff-d); font-size: clamp(1.3rem, 2.5vw, 1.9rem); font-weight: 400; font-style: italic; line-height: 1.6; margin-bottom: 2rem; position: relative; }
+.tcard blockquote::before { content: '\201C'; font-size: 5rem; color: var(--gold); opacity: 0.25; position: absolute; top: -2.5rem; left: 50%; transform: translateX(-50%); font-family: var(--ff-d); line-height: 1; }
+.tcard cite { font-size: 0.82rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--t2); font-style: normal; }
+.tcard cite strong { color: var(--t1); font-weight: 500; }
+
+/* ── CTA ── */
+.cta-s { text-align: center; position: relative; overflow: hidden; }
+.cta-s::before { content:''; position: absolute; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, var(--gold-g), transparent 70%); top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0.12; filter: blur(100px); }
+.cta-s h2 { font-family: var(--ff-d); font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 400; line-height: 1.2; margin-bottom: 1.5rem; position: relative; }
+.cta-s h2 em { font-family: var(--ff-d); color: var(--gold); font-style: italic; }
+.cta-s p { font-size: 1rem; color: var(--t2); font-weight: 300; max-width: 500px; margin: 0 auto 3rem; position: relative; }
+
+/* ── FOOTER ── */
+footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
+.ft-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 3rem; }
+.ft-brand { max-width: 300px; }
+.ft-brand .logo { margin-bottom: 1rem; }
+.ft-brand p { font-size: 0.85rem; line-height: 1.7; color: var(--t2); font-weight: 300; }
+.ft-links { display: flex; gap: 4rem; }
+.ft-col h4 { font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 1.2rem; font-weight: 500; }
+.ft-col a { display: block; font-size: 0.85rem; color: var(--t2); text-decoration: none; margin-bottom: 0.7rem; font-weight: 300; transition: color 0.3s; }
+.ft-col a:hover { color: var(--gold); }
+.ft-btm { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--t4); display: flex; justify-content: space-between; }
+.ft-btm span { font-size: 0.72rem; color: var(--t3); font-weight: 300; }
+
+/* ── REVEAL ── */
+.reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s var(--eo); }
+.reveal.revealed { opacity: 1; transform: translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .steps-nav { left: 2rem; }
+  .si-label { display: none; }
+  .vis-center { width: 300px; height: 300px; }
+  .panels { right: 2rem; width: 320px; }
+  .sgrid { grid-template-columns: repeat(2, 1fr); }
+  .mgrid { grid-template-columns: repeat(2, 1fr); }
+  .ft-inner { flex-direction: column; }
+}
+@media (max-width: 768px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .nav-toggle { display: block; }
+  .section { padding: 6rem 1.5rem; }
+  .sgrid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 2.5rem; }
+  .scroll-outer { height: 400vh; }
+  .steps-nav { left: 1rem; }
+  .vis-center { display: none; }
+  .panels { right: auto; left: 50%; transform: translate(-50%, -50%); width: 90%; text-align: center; }
+  .panel .stat { justify-content: center; }
+  .ft-links { flex-direction: column; gap: 2rem; }
+  .mgrid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <div class="loader-logo">SYBAGO</div>
+  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+</div>
+
+<div class="noise"></div>
+<div class="cursor-dot" id="cDot"></div>
+<div class="cursor-ring" id="cRing"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="logo"><span class="logo-dot"></span>SYBAGO</a>
+  <ul class="nav-links">
+    <li><a href="#services">Services</a></li>
+    <li><a href="#process">Process</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#contact" class="nav-cta">Get Started</a></li>
+  </ul>
+  <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-lines">
+    <div class="vl" style="left:10%"></div>
+    <div class="vl" style="left:25%"></div>
+    <div class="vl" style="left:50%"></div>
+    <div class="vl" style="left:75%"></div>
+    <div class="vl" style="left:90%"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-badge"><span class="bd"></span>Now Accepting New Clients</div>
+    <h1>
+      <span class="lw"><span class="li">Your Business,</span></span>
+      <span class="lw"><span class="li"><em>Automated</em></span></span>
+      <span class="lw"><span class="li">with Intelligence</span></span>
+    </h1>
+    <p class="hero-sub">We wire AI into the backbone of your business. More leads captured, better reviews earned, and hours of manual work eliminated &mdash; all running on autopilot.</p>
+    <div class="hero-actions">
+      <a href="#contact" class="btn-p"><span>Book a Discovery Call</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+      <a href="#services" class="btn-g">See How It Works</a>
+    </div>
+  </div>
+  <div class="scroll-cue"><span>Scroll to Explore</span><div class="sl"></div></div>
+</section>
+
+<!-- SCROLL EXPERIENCE -->
+<section class="scroll-outer" id="scrollOuter">
+  <div class="scroll-sticky" id="scrollSticky">
+
+    <div class="scroll-top">
+      <span class="ov">The Sybago System</span>
+      <h2>How We Transform Your Business</h2>
+      <p class="sub">Scroll to see each layer of automation</p>
+    </div>
+
+    <div class="steps-nav" id="stepsNav">
+      <div class="si active" data-step="0">
+        <div class="si-circle"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <span class="si-label">Foundation</span>
+      </div>
+      <div class="si" data-step="1">
+        <div class="si-circle"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+        <span class="si-label">Lead Engine</span>
+      </div>
+      <div class="si" data-step="2">
+        <div class="si-circle"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <span class="si-label">Reviews</span>
+      </div>
+      <div class="si" data-step="3">
+        <div class="si-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+        <span class="si-label">Automation</span>
+      </div>
+      <div class="si" data-step="4">
+        <div class="si-circle"><svg viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+        <span class="si-label">Results</span>
+      </div>
+    </div>
+
+    <!-- CENTER: Building Visualization -->
+    <div class="vis-center" id="visCenter">
+      <canvas id="pCanvas"></canvas>
+      <svg viewBox="0 0 500 500" id="bSvg">
+        <!-- Grid floor -->
+        <g opacity="0.08">
+          <line x1="100" y1="400" x2="400" y2="400" stroke="#c8a84e" stroke-width="0.5"/>
+          <line x1="120" y1="420" x2="380" y2="420" stroke="#c8a84e" stroke-width="0.3"/>
+          <line x1="140" y1="440" x2="360" y2="440" stroke="#c8a84e" stroke-width="0.2"/>
+        </g>
+        <!-- Building base -->
+        <g id="bBase">
+          <rect x="160" y="150" width="180" height="250" rx="2" fill="none" stroke="rgba(240,236,228,0.15)" stroke-width="1" id="bWall"/>
+          <rect x="220" y="340" width="60" height="60" rx="1" fill="none" stroke="rgba(240,236,228,0.2)" stroke-width="1"/>
+          <rect x="180" y="175" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="232" y="175" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="284" y="175" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="180" y="230" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="232" y="230" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="284" y="230" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="180" y="285" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="232" y="285" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <rect x="284" y="285" width="35" height="35" rx="1" fill="none" stroke="rgba(240,236,228,0.1)" stroke-width="0.5"/>
+          <line x1="155" y1="150" x2="345" y2="150" stroke="rgba(240,236,228,0.15)" stroke-width="1"/>
+          <rect x="195" y="130" width="110" height="20" rx="2" fill="none" stroke="rgba(240,236,228,0.12)" stroke-width="0.5"/>
+        </g>
+        <!-- Layer 1: Leads -->
+        <g id="L1" opacity="0">
+          <path d="M50 200 L140 240 L140 270 L125 270 L125 240 L35 200 Z" fill="none" stroke="#c8a84e" stroke-width="0.8" stroke-dasharray="4 2"/>
+          <circle cx="40" cy="195" r="4" fill="#c8a84e" opacity="0.8"><animate attributeName="cx" values="40;133" dur="2.5s" repeatCount="indefinite"/><animate attributeName="cy" values="195;252" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.8;0" dur="2.5s" repeatCount="indefinite"/></circle>
+          <circle cx="60" cy="210" r="3" fill="#c8a84e" opacity="0.6"><animate attributeName="cx" values="55;133" dur="3s" repeatCount="indefinite"/><animate attributeName="cy" values="210;252" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0" dur="3s" repeatCount="indefinite"/></circle>
+          <circle cx="45" cy="220" r="3.5" fill="#c8a84e" opacity="0.7"><animate attributeName="cx" values="45;133" dur="2.2s" repeatCount="indefinite"/><animate attributeName="cy" values="220;258" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;0" dur="2.2s" repeatCount="indefinite"/></circle>
+          <circle cx="55" cy="175" r="6" fill="none" stroke="#c8a84e" stroke-width="0.8"/><path d="M45 188 Q55 193 65 188" fill="none" stroke="#c8a84e" stroke-width="0.8"/>
+          <circle cx="80" cy="168" r="5" fill="none" stroke="#c8a84e" stroke-width="0.6" opacity="0.5"/>
+          <line x1="140" y1="255" x2="158" y2="255" stroke="#c8a84e" stroke-width="1"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/></line>
+          <rect x="180" y="230" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.08"/>
+          <rect x="232" y="230" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.05"/>
+        </g>
+        <!-- Layer 2: Reviews -->
+        <g id="L2" opacity="0">
+          <g transform="translate(370, 130)"><polygon points="0,-14 3.5,-5 14,-5 5.5,1.5 8.5,12 0,6.5 -8.5,12 -5.5,1.5 -14,-5 -3.5,-5" fill="#c8a84e" opacity="0.9" transform="scale(0.75)"><animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite"/></polygon></g>
+          <g transform="translate(395, 152)"><polygon points="0,-14 3.5,-5 14,-5 5.5,1.5 8.5,12 0,6.5 -8.5,12 -5.5,1.5 -14,-5 -3.5,-5" fill="#c8a84e" opacity="0.6" transform="scale(0.55)"/></g>
+          <g transform="translate(410, 115)"><polygon points="0,-14 3.5,-5 14,-5 5.5,1.5 8.5,12 0,6.5 -8.5,12 -5.5,1.5 -14,-5 -3.5,-5" fill="#c8a84e" opacity="0.5" transform="scale(0.5)"/></g>
+          <g transform="translate(425, 140)"><polygon points="0,-14 3.5,-5 14,-5 5.5,1.5 8.5,12 0,6.5 -8.5,12 -5.5,1.5 -14,-5 -3.5,-5" fill="#c8a84e" opacity="0.4" transform="scale(0.45)"/></g>
+          <g transform="translate(375, 165)"><polygon points="0,-14 3.5,-5 14,-5 5.5,1.5 8.5,12 0,6.5 -8.5,12 -5.5,1.5 -14,-5 -3.5,-5" fill="#c8a84e" opacity="0.45" transform="scale(0.45)"/></g>
+          <rect x="355" y="180" width="75" height="26" rx="4" fill="rgba(200,168,78,0.08)" stroke="#c8a84e" stroke-width="0.5"/>
+          <text x="370" y="197" font-family="Outfit" font-size="10" fill="#c8a84e" font-weight="500">5.0</text>
+          <text x="390" y="197" font-family="Outfit" font-size="8" fill="rgba(200,168,78,0.5)">avg</text>
+          <line x1="435" y1="200" x2="435" y2="175" stroke="#3edbd5" stroke-width="0.8" opacity="0.5"/><polyline points="430,180 435,175 440,180" fill="none" stroke="#3edbd5" stroke-width="0.8" opacity="0.5"/>
+          <rect x="284" y="175" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.08"/>
+        </g>
+        <!-- Layer 3: Automation circuits -->
+        <g id="L3" opacity="0">
+          <path d="M155 200 L125 200 L125 310 L155 310" fill="none" stroke="#3edbd5" stroke-width="0.7" stroke-dasharray="3 3" opacity="0.4"><animate attributeName="stroke-dashoffset" values="0;-12" dur="2s" repeatCount="indefinite"/></path>
+          <path d="M345 200 L375 200 L375 360 L345 360" fill="none" stroke="#3edbd5" stroke-width="0.7" stroke-dasharray="3 3" opacity="0.4"><animate attributeName="stroke-dashoffset" values="0;-12" dur="2s" repeatCount="indefinite"/></path>
+          <circle cx="125" cy="200" r="3" fill="#3edbd5" opacity="0.7"/><circle cx="125" cy="255" r="2" fill="#3edbd5" opacity="0.4"/><circle cx="125" cy="310" r="3" fill="#3edbd5" opacity="0.7"/>
+          <circle cx="375" cy="200" r="3" fill="#3edbd5" opacity="0.7"/><circle cx="375" cy="280" r="2" fill="#3edbd5" opacity="0.4"/><circle cx="375" cy="360" r="3" fill="#3edbd5" opacity="0.7"/>
+          <g transform="translate(250, 90)">
+            <circle r="20" fill="none" stroke="#3edbd5" stroke-width="0.7" opacity="0.5"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite"/></circle>
+            <circle r="9" fill="none" stroke="#3edbd5" stroke-width="0.7" opacity="0.7"/>
+            <line x1="0" y1="-20" x2="0" y2="-25" stroke="#3edbd5" stroke-width="1.2" opacity="0.5"/>
+            <line x1="20" y1="0" x2="25" y2="0" stroke="#3edbd5" stroke-width="1.2" opacity="0.5"/>
+            <line x1="0" y1="20" x2="0" y2="25" stroke="#3edbd5" stroke-width="1.2" opacity="0.5"/>
+            <line x1="-20" y1="0" x2="-25" y2="0" stroke="#3edbd5" stroke-width="1.2" opacity="0.5"/>
+          </g>
+          <rect x="180" y="175" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.04"/><rect x="232" y="175" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.03"/>
+          <rect x="284" y="175" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.04"/><rect x="180" y="230" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.03"/>
+          <rect x="232" y="230" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.04"/><rect x="284" y="230" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.03"/>
+          <rect x="180" y="285" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.04"/><rect x="232" y="285" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.03"/>
+          <rect x="284" y="285" width="35" height="35" rx="1" fill="#3edbd5" opacity="0.04"/>
+        </g>
+        <!-- Layer 4: Results glow -->
+        <g id="L4" opacity="0">
+          <g transform="translate(365, 390)">
+            <line x1="0" y1="0" x2="0" y2="-70" stroke="rgba(240,236,228,0.08)" stroke-width="0.5"/>
+            <line x1="0" y1="0" x2="90" y2="0" stroke="rgba(240,236,228,0.08)" stroke-width="0.5"/>
+            <polyline points="5,-5 18,-14 30,-10 45,-28 58,-25 72,-50 85,-65" fill="none" stroke="#c8a84e" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="85" cy="-65" r="3" fill="#c8a84e"><animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></circle>
+          </g>
+          <line x1="250" y1="145" x2="250" y2="75" stroke="#c8a84e" stroke-width="0.8" opacity="0.5"><animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/></line>
+          <line x1="205" y1="145" x2="185" y2="80" stroke="#c8a84e" stroke-width="0.5" opacity="0.3"><animate attributeName="opacity" values="0.1;0.4;0.1" dur="1.8s" repeatCount="indefinite"/></line>
+          <line x1="295" y1="145" x2="315" y2="80" stroke="#c8a84e" stroke-width="0.5" opacity="0.3"><animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" repeatCount="indefinite"/></line>
+          <rect x="160" y="150" width="180" height="250" rx="2" fill="none" stroke="#c8a84e" stroke-width="1.2" opacity="0.35"/>
+          <rect x="180" y="175" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.1"/>
+          <rect x="232" y="175" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.13"/>
+          <rect x="284" y="175" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.1"/>
+          <rect x="180" y="230" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.13"/>
+          <rect x="232" y="230" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.16"/>
+          <rect x="284" y="230" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.13"/>
+          <rect x="180" y="285" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.1"/>
+          <rect x="232" y="285" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.13"/>
+          <rect x="284" y="285" width="35" height="35" rx="1" fill="#c8a84e" opacity="0.1"/>
+          <rect x="220" y="340" width="60" height="60" rx="1" fill="#c8a84e" opacity="0.18"/>
+          <rect x="195" y="130" width="110" height="20" rx="2" fill="#c8a84e" opacity="0.12" stroke="#c8a84e" stroke-width="0.5"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- RIGHT: Content Panels -->
+    <div class="panels" id="panels">
+      <div class="panel active" data-step="0">
+        <div class="num">Step 01</div>
+        <h3>We Audit Your Business</h3>
+        <p>Every automation begins with understanding. We map your customer journey, workflows, and revenue leaks to design a system built specifically for you.</p>
+        <div class="stat"><span class="stat-v">72</span><span class="stat-l">hour turnaround</span></div>
+      </div>
+      <div class="panel" data-step="1">
+        <div class="num">Step 02</div>
+        <h3>AI Lead Engine</h3>
+        <p>Intelligent capture forms, chatbots, and follow-up sequences that work 24/7. Every lead is qualified, scored, and routed before they lose interest.</p>
+        <div class="stat"><span class="stat-v">3.2x</span><span class="stat-l">lead increase</span></div>
+      </div>
+      <div class="panel" data-step="2">
+        <div class="num">Step 03</div>
+        <h3>Reputation Automation</h3>
+        <p>Automated review requests at the perfect moment. Smart routing ensures happy customers leave public reviews while concerns are handled privately.</p>
+        <div class="stat"><span class="stat-v">4.8</span><span class="stat-l">star rating achieved</span></div>
+      </div>
+      <div class="panel" data-step="3">
+        <div class="num">Step 04</div>
+        <h3>Backend Automation</h3>
+        <p>Invoicing, scheduling, data entry, customer follow-ups &mdash; we replace the repetitive tasks that drain your team's time and energy.</p>
+        <div class="stat"><span class="stat-v">20+</span><span class="stat-l">hours saved weekly</span></div>
+      </div>
+      <div class="panel" data-step="4">
+        <div class="num">Step 05</div>
+        <h3>Measure &amp; Scale</h3>
+        <p>Real-time dashboards show exactly what's working. We optimize continuously, expanding results and refining what can improve.</p>
+        <div class="stat"><span class="stat-v">40%</span><span class="stat-l">revenue growth</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="section" id="services">
+  <div class="sh reveal">
+    <span class="ov">What We Build</span>
+    <h2>Automation That Runs While You Sleep</h2>
+    <p>We don't just consult. We build, deploy, and manage the AI systems that transform how your business operates day-to-day.</p>
+  </div>
+  <div class="sgrid">
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M25 5 L45 15 L45 35 L25 45 L5 35 L5 15 Z"/><line x1="25" y1="5" x2="25" y2="45"/><line x1="5" y1="15" x2="45" y2="35"/><line x1="45" y1="15" x2="5" y2="35"/></svg></div>
+      <h3>AI Lead Capture</h3>
+      <p>Smart forms and conversational chatbots that qualify prospects in real-time, routing them into your pipeline with full context.</p>
+      <span class="tag">Lead Generation</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><polygon points="25,5 30,18 44,20 34,30 36,44 25,38 14,44 16,30 6,20 20,18"/></svg></div>
+      <h3>Review Automation</h3>
+      <p>Perfectly-timed review requests that boost your online reputation. Smart sentiment routing handles feedback before it goes public.</p>
+      <span class="tag">Reputation</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><rect x="8" y="8" width="14" height="14" rx="2"/><rect x="28" y="8" width="14" height="14" rx="2"/><rect x="8" y="28" width="14" height="14" rx="2"/><rect x="28" y="28" width="14" height="14" rx="2"/><line x1="22" y1="15" x2="28" y2="15"/><line x1="15" y1="22" x2="15" y2="28"/><line x1="35" y1="22" x2="35" y2="28"/><line x1="22" y1="35" x2="28" y2="35"/></svg></div>
+      <h3>Workflow Automation</h3>
+      <p>Connect your tools into seamless workflows. Appointments, invoices, follow-ups, and reports — all without human intervention.</p>
+      <span class="tag">Operations</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M10 40 L10 25 L20 25 L20 40"/><path d="M22 40 L22 18 L32 18 L32 40"/><path d="M34 40 L34 10 L44 10 L44 40"/><line x1="5" y1="40" x2="48" y2="40"/></svg></div>
+      <h3>Analytics Dashboards</h3>
+      <p>Real-time visibility into every automation. Track leads, reviews, task completion, and ROI from one unified dashboard.</p>
+      <span class="tag">Intelligence</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="18"/><path d="M25 7 Q35 20 25 25 Q15 30 25 43"/><line x1="7" y1="25" x2="43" y2="25"/><ellipse cx="25" cy="25" rx="18" ry="8"/></svg></div>
+      <h3>CRM Integration</h3>
+      <p>We plug into your existing CRM, POS, and communication tools. No ripping and replacing — just intelligent connections.</p>
+      <span class="tag">Integration</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M15 35 Q25 25 35 35"/><path d="M10 28 Q25 15 40 28"/><path d="M5 21 Q25 5 45 21"/><circle cx="25" cy="40" r="3" fill="#c8a84e"/></svg></div>
+      <h3>AI Voice &amp; SMS</h3>
+      <p>Automated confirmations, missed-call text-backs, and AI voice agents that handle routine phone inquiries 24/7.</p>
+      <span class="tag">Communication</span>
+    </div>
+  </div>
+</section>
+
+<!-- METRICS -->
+<section class="section metrics" id="results">
+  <div class="sh reveal">
+    <span class="ov">Proven Results</span>
+    <h2>Numbers That Speak</h2>
+  </div>
+  <div class="mgrid">
+    <div class="met"><div class="met-v" data-target="320" data-suffix="%">0%</div><div class="met-l">Avg Lead Increase</div></div>
+    <div class="met"><div class="met-v" data-target="4.8" data-suffix=" Stars" data-decimal="true">0</div><div class="met-l">Avg Review Rating</div></div>
+    <div class="met"><div class="met-v" data-target="20" data-suffix="hrs/wk">0</div><div class="met-l">Time Saved</div></div>
+    <div class="met"><div class="met-v" data-target="40" data-suffix="%">0%</div><div class="met-l">Revenue Growth</div></div>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section class="section" id="process">
+  <div class="sh reveal">
+    <span class="ov">Our Process</span>
+    <h2>From Audit to Autopilot<br>in Four Weeks</h2>
+  </div>
+  <div class="psteps">
+    <div class="ps"><div class="ps-n">1</div><div class="ps-b"><h3>Discovery Call</h3><p>We learn your business inside-out: your customer journey, pain points, tools, and goals. No generic pitch — just listening.</p></div></div>
+    <div class="ps"><div class="ps-n">2</div><div class="ps-b"><h3>Custom Blueprint</h3><p>Within 72 hours, you receive a detailed automation roadmap showing exactly what we'll build, the expected impact, and timeline.</p></div></div>
+    <div class="ps"><div class="ps-n">3</div><div class="ps-b"><h3>Build &amp; Deploy</h3><p>We build your automations, integrate with your existing stack, and test everything rigorously before flipping the switch.</p></div></div>
+    <div class="ps"><div class="ps-n">4</div><div class="ps-b"><h3>Optimize &amp; Scale</h3><p>Ongoing monitoring, A/B testing, and expansion. Your system gets smarter and more effective every month.</p></div></div>
+  </div>
+</section>
+
+<!-- TESTIMONIAL -->
+<section class="section testi">
+  <div class="tcard">
+    <blockquote>Sybago took our messy, manual operations and turned them into a machine. We went from chasing leads to having them land in our inbox, pre-qualified and ready to close.</blockquote>
+    <cite><strong>Coming Soon</strong> &mdash; Early Client Testimonials</cite>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta-s" id="contact">
+  <div class="sh reveal">
+    <span class="ov">Ready to Automate?</span>
+    <h2>Let's Build Your <em>Unfair Advantage</em></h2>
+    <p>Book a free discovery call. We'll map your biggest automation opportunities and show you exactly what's possible.</p>
+  </div>
+  <a href="mailto:hello@sybago.ai" class="btn-p" style="position:relative"><span>Book Discovery Call</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-inner">
+    <div class="ft-brand">
+      <a href="#" class="logo"><span class="logo-dot"></span>SYBAGO</a>
+      <p>AI-powered business automation. More leads, better reviews, less busywork.</p>
+    </div>
+    <div class="ft-links">
+      <div class="ft-col"><h4>Services</h4><a href="#services">Lead Capture</a><a href="#services">Review Automation</a><a href="#services">Workflow Automation</a><a href="#services">AI Voice & SMS</a></div>
+      <div class="ft-col"><h4>Company</h4><a href="#process">Our Process</a><a href="#results">Results</a><a href="#contact">Contact</a></div>
+    </div>
+  </div>
+  <div class="ft-btm"><span>&copy; 2026 Sybago AI. All rights reserved.</span><span>sybago.ai</span></div>
+</footer>
+
+<script>
+// ── LOADER ──
+window.addEventListener('load', () => setTimeout(() => document.getElementById('loader').classList.add('hidden'), 2600));
+
+// ── CURSOR ──
+const cDot = document.getElementById('cDot'), cRing = document.getElementById('cRing');
+let mx=0, my=0, rx=0, ry=0;
+if ('ontouchstart' in window) { cDot.style.display='none'; cRing.style.display='none'; }
+else {
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; cDot.style.left=mx-4+'px'; cDot.style.top=my-4+'px'; });
+  (function loop(){ rx+=(mx-rx)*0.12; ry+=(my-ry)*0.12; cRing.style.left=rx-20+'px'; cRing.style.top=ry-20+'px'; requestAnimationFrame(loop); })();
+  document.querySelectorAll('a,button,.scard,.si').forEach(el => {
+    el.addEventListener('mouseenter', () => cRing.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => cRing.classList.remove('hovering'));
+  });
+}
+
+// ── NAV SCROLL ──
+window.addEventListener('scroll', () => document.getElementById('nav').classList.toggle('scrolled', scrollY > 80), { passive: true });
+
+// ── SCROLL EXPERIENCE ──
+const scrollOuter = document.getElementById('scrollOuter');
+const layers = [document.getElementById('L1'), document.getElementById('L2'), document.getElementById('L3'), document.getElementById('L4')];
+const panels = document.querySelectorAll('.panel');
+const sis = document.querySelectorAll('.si');
+const bWall = document.getElementById('bWall');
+
+function updateScroll() {
+  const rect = scrollOuter.getBoundingClientRect();
+  const total = scrollOuter.offsetHeight - window.innerHeight;
+  const scrolled = -rect.top;
+  const p = Math.max(0, Math.min(1, scrolled / total));
+  const step = Math.min(4, Math.floor(p * 5));
+
+  sis.forEach((s, i) => s.classList.toggle('active', i <= step));
+  panels.forEach((pan, i) => pan.classList.toggle('active', i === step));
+
+  layers.forEach((layer, i) => {
+    const start = (i + 1) * 0.2;
+    const lp = Math.max(0, Math.min(1, (p - start) / 0.15));
+    layer.setAttribute('opacity', lp);
+  });
+
+  // Building wall brightens
+  if (bWall) {
+    const o = 0.15 + p * 0.4;
+    bWall.setAttribute('stroke', `rgba(240,236,228,${o})`);
+  }
+}
+window.addEventListener('scroll', updateScroll, { passive: true });
+updateScroll();
+
+// ── PARTICLES ──
+const canvas = document.getElementById('pCanvas'), ctx = canvas.getContext('2d');
+let parts = [];
+function resizeC() { const v = document.getElementById('visCenter'); if(!v) return; canvas.width = v.offsetWidth; canvas.height = v.offsetHeight; }
+function initP() { parts = []; for(let i=0;i<35;i++) parts.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.3, vy:(Math.random()-0.5)*0.3, r:Math.random()*1.5+0.5, o:Math.random()*0.25+0.05 }); }
+function drawP() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  parts.forEach(p => {
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>canvas.width) p.vx*=-1;
+    if(p.y<0||p.y>canvas.height) p.vy*=-1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=`rgba(200,168,78,${p.o})`; ctx.fill();
+  });
+  for(let i=0;i<parts.length;i++) for(let j=i+1;j<parts.length;j++) {
+    const dx=parts[i].x-parts[j].x, dy=parts[i].y-parts[j].y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<80){ ctx.beginPath(); ctx.moveTo(parts[i].x,parts[i].y); ctx.lineTo(parts[j].x,parts[j].y); ctx.strokeStyle=`rgba(200,168,78,${0.05*(1-d/80)})`; ctx.lineWidth=0.5; ctx.stroke(); }
+  }
+  requestAnimationFrame(drawP);
+}
+resizeC(); initP(); drawP();
+window.addEventListener('resize', () => { resizeC(); initP(); });
+
+// ── SCROLL REVEAL ──
+const rObs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('revealed'); }), { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+document.querySelectorAll('.reveal,.scard,.met,.ps,.tcard').forEach(el => rObs.observe(el));
+document.querySelectorAll('.scard').forEach((c,i) => c.style.transitionDelay = i*0.1+'s');
+document.querySelectorAll('.met').forEach((m,i) => m.style.transitionDelay = i*0.15+'s');
+document.querySelectorAll('.ps').forEach((s,i) => s.style.transitionDelay = i*0.2+'s');
+
+// ── COUNTER ANIMATION ──
+const cObs = new IntersectionObserver(entries => entries.forEach(e => {
+  if(e.isIntersecting && !e.target.dataset.counted) {
+    e.target.dataset.counted='true';
+    const el=e.target.querySelector('.met-v'), target=parseFloat(el.dataset.target), suffix=el.dataset.suffix||'', dec=el.dataset.decimal==='true', dur=2000, start=performance.now();
+    (function tick(now){ const prog=Math.min((now-start)/dur,1), eased=1-Math.pow(1-prog,4), cur=dec?(target*eased).toFixed(1):Math.floor(target*eased); el.textContent=cur+suffix; if(prog<1)requestAnimationFrame(tick); })(start);
+  }
+}), { threshold: 0.5 });
+document.querySelectorAll('.met').forEach(m => cObs.observe(m));
+
+// ── SMOOTH SCROLL ──
+document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const t=document.querySelector(a.getAttribute('href')); if(t) t.scrollIntoView({ behavior:'smooth', block:'start' }); }));
+
+// ── STEP CLICK ──
+sis.forEach((s, i) => s.addEventListener('click', () => {
+  const total = scrollOuter.offsetHeight - window.innerHeight;
+  window.scrollTo({ top: scrollOuter.offsetTop + total*(i/5), behavior:'smooth' });
+}));
+</script>
+</body>
+</html>
