@@ -272,6 +272,46 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
   .ft-links { flex-direction: column; gap: 2rem; }
   .mgrid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ── CHAT WIDGET ── */
+.cw-root { position: fixed; bottom: 24px; right: 24px; z-index: 9500; font-family: var(--ff-b); }
+.cw-bubble { width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 1px solid rgba(47,103,121,0.2); box-shadow: 0 10px 30px rgba(47,103,121,0.25), 0 0 0 0 var(--gold-g); cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: transform 0.35s var(--eo), box-shadow 0.35s var(--eo); animation: pulse 3s infinite; }
+.cw-bubble img { width: 42px; height: 42px; object-fit: contain; border-radius: 50%; }
+.cw-bubble:hover { transform: translateY(-2px) scale(1.05); }
+.cw-panel { position: absolute; bottom: 78px; right: 0; width: 360px; max-width: calc(100vw - 32px); height: 480px; max-height: calc(100vh - 120px); background: #fff; border: 1px solid rgba(47,103,121,0.15); border-radius: 16px; box-shadow: 0 20px 60px rgba(17,17,17,0.18); display: flex; flex-direction: column; opacity: 0; transform: translateY(8px) scale(0.98); transform-origin: bottom right; pointer-events: none; transition: opacity 0.25s var(--eo), transform 0.3s var(--eo); overflow: hidden; }
+.cw-root.open .cw-panel, .cw-root.hover .cw-panel { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.cw-header { padding: 14px 16px; border-bottom: 1px solid var(--t4); display: flex; align-items: center; gap: 10px; background: linear-gradient(180deg, rgba(47,103,121,0.04), transparent); }
+.cw-header img { width: 28px; height: 28px; border-radius: 50%; }
+.cw-header-text { flex: 1; }
+.cw-header-title { font-size: 0.85rem; font-weight: 700; color: var(--t1); letter-spacing: 0.02em; }
+.cw-header-sub { font-size: 0.7rem; color: var(--t2); display: flex; align-items: center; gap: 6px; }
+.cw-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+.cw-close { background: none; border: none; color: var(--t3); cursor: pointer; padding: 4px; font-size: 18px; line-height: 1; }
+.cw-close:hover { color: var(--t1); }
+.cw-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+.cw-greeting { margin: auto 0; text-align: center; padding: 20px 10px; }
+.cw-greeting h4 { font-size: 1.1rem; font-weight: 700; color: var(--t1); margin-bottom: 6px; letter-spacing: -0.01em; }
+.cw-greeting p { font-size: 0.8rem; color: var(--t2); line-height: 1.5; }
+.cw-msg { max-width: 85%; padding: 9px 13px; border-radius: 14px; font-size: 0.85rem; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; animation: cwIn 0.25s var(--eo); }
+@keyframes cwIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.cw-msg.user { align-self: flex-end; background: var(--gold); color: #fff; border-bottom-right-radius: 4px; }
+.cw-msg.bot { align-self: flex-start; background: #f2f4f5; color: var(--t1); border-bottom-left-radius: 4px; }
+.cw-typing { align-self: flex-start; display: flex; gap: 4px; padding: 10px 14px; background: #f2f4f5; border-radius: 14px; border-bottom-left-radius: 4px; }
+.cw-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--t3); animation: cwBlink 1.2s infinite; }
+.cw-typing span:nth-child(2) { animation-delay: 0.15s; }
+.cw-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cwBlink { 0%,60%,100%{ opacity: 0.3; } 30%{ opacity: 1; transform: translateY(-2px); } }
+.cw-input-row { border-top: 1px solid var(--t4); padding: 10px 12px; display: flex; gap: 8px; align-items: center; background: #fff; }
+.cw-input { flex: 1; border: 1px solid var(--t4); background: #fafafa; border-radius: 20px; padding: 9px 14px; font-family: inherit; font-size: 0.85rem; color: var(--t1); outline: none; transition: border-color 0.2s, background 0.2s; }
+.cw-input:focus { border-color: var(--gold); background: #fff; }
+.cw-send { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--gold); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, background 0.2s; flex-shrink: 0; }
+.cw-send:hover:not(:disabled) { background: var(--gold-b); transform: scale(1.05); }
+.cw-send:disabled { opacity: 0.4; cursor: not-allowed; }
+.cw-send svg { width: 16px; height: 16px; }
+@media (max-width: 600px) {
+  .cw-root { bottom: 16px; right: 16px; }
+  .cw-panel { width: calc(100vw - 32px); height: 70vh; }
+}
 </style>
 </head>
 <body>
@@ -668,5 +708,121 @@ sis.forEach((s, i) => s.addEventListener('click', () => {
 // ── GHL CALENDAR EMBED SCRIPT (required for iframe rendering) ──
 </script>
 <script src="https://link.msgsndr.com/js/form_embed.js" type="text/javascript"></script>
+<!-- CHAT WIDGET -->
+<div class="cw-root" id="cwRoot">
+  <div class="cw-panel" id="cwPanel" role="dialog" aria-label="Sybago chat">
+    <div class="cw-header">
+      <img src="logo.png" alt="Sybago">
+      <div class="cw-header-text">
+        <div class="cw-header-title">Sybago AI</div>
+        <div class="cw-header-sub"><span class="cw-dot"></span>Typically replies instantly</div>
+      </div>
+      <button class="cw-close" id="cwClose" aria-label="Close">×</button>
+    </div>
+    <div class="cw-body" id="cwBody">
+      <div class="cw-greeting" id="cwGreeting">
+        <h4>How can we help you today?</h4>
+        <p>Ask about our pay-per-show guarantee, what we build, or how the process works.</p>
+      </div>
+    </div>
+    <form class="cw-input-row" id="cwForm">
+      <input class="cw-input" id="cwInput" type="text" placeholder="Type your message…" autocomplete="off" maxlength="2000">
+      <button class="cw-send" id="cwSend" type="submit" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-7-8-1z"/></svg>
+      </button>
+    </form>
+  </div>
+  <button class="cw-bubble" id="cwBubble" aria-label="Open chat">
+    <img src="logo.png" alt="Sybago">
+  </button>
+</div>
+
+<script>
+(function(){
+  const root = document.getElementById('cwRoot');
+  const bubble = document.getElementById('cwBubble');
+  const panel = document.getElementById('cwPanel');
+  const closeBtn = document.getElementById('cwClose');
+  const body = document.getElementById('cwBody');
+  const greeting = document.getElementById('cwGreeting');
+  const form = document.getElementById('cwForm');
+  const input = document.getElementById('cwInput');
+  const sendBtn = document.getElementById('cwSend');
+
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const history = [];
+  let hoverTimer = null;
+
+  function openPanel(){ root.classList.add('open'); setTimeout(() => input.focus(), 250); }
+  function closePanel(){ root.classList.remove('open'); root.classList.remove('hover'); }
+
+  bubble.addEventListener('click', (e) => { e.stopPropagation(); root.classList.contains('open') ? closePanel() : openPanel(); });
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
+
+  if (!isTouch) {
+    root.addEventListener('mouseenter', () => {
+      clearTimeout(hoverTimer);
+      if (!root.classList.contains('open')) root.classList.add('hover');
+    });
+    root.addEventListener('mouseleave', () => {
+      hoverTimer = setTimeout(() => root.classList.remove('hover'), 350);
+    });
+  }
+
+  function addMsg(role, text){
+    if (greeting && greeting.parentNode) greeting.remove();
+    const div = document.createElement('div');
+    div.className = 'cw-msg ' + (role === 'user' ? 'user' : 'bot');
+    div.textContent = text;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    return div;
+  }
+
+  function addTyping(){
+    const t = document.createElement('div');
+    t.className = 'cw-typing';
+    t.innerHTML = '<span></span><span></span><span></span>';
+    body.appendChild(t);
+    body.scrollTop = body.scrollHeight;
+    return t;
+  }
+
+  async function send(text){
+    addMsg('user', text);
+    history.push({ role: 'user', content: text });
+    sendBtn.disabled = true;
+    const typing = addTyping();
+    try {
+      const r = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      });
+      typing.remove();
+      if (!r.ok) throw new Error('bad response');
+      const data = await r.json();
+      const reply = data.reply || "Sorry, something went wrong. Please try again.";
+      addMsg('bot', reply);
+      history.push({ role: 'assistant', content: reply });
+    } catch (err) {
+      typing.remove();
+      addMsg('bot', "I'm having trouble connecting right now. Please try again in a moment — or book a discovery call using the calendar above.");
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    send(text);
+  });
+})();
+</script>
+
 </body>
 </html>
