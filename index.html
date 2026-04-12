@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sybago AI — Intelligent Business Automation</title>
 <meta name="description" content="Sybago AI automates your business backend with artificial intelligence. More leads, better reviews, less manual work.">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -85,7 +87,7 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
 /* ═══════════════════════════════════════════════════
    SCROLL-DRIVEN EXPERIENCE — the "autobody" section
    ═══════════════════════════════════════════════════ */
-.scroll-outer { position: relative; height: 500vh; }
+.scroll-outer { position: relative; height: 300vh; }
 .scroll-sticky {
   position: sticky; top: 0; height: 100vh; overflow: hidden;
   background: var(--bg);
@@ -117,7 +119,7 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
   position: absolute; left: 3rem; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 1.8rem; z-index: 5;
 }
-.si { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; opacity: 0.25; transition: opacity 0.6s var(--eo); }
+.si { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; opacity: 0.25; transition: opacity 0.4s ease; }
 .si.active { opacity: 1; }
 .si-circle {
   width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--t3); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -144,8 +146,8 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
 }
 .panel {
   position: absolute; top: 0; left: 0; width: 100%;
-  opacity: 0; transform: translateY(25px);
-  transition: opacity 0.7s var(--eo), transform 0.7s var(--eo);
+  opacity: 0; transform: translateY(15px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
   pointer-events: none;
 }
 .panel.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -258,11 +260,15 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
   .hero h1 { font-size: clamp(1.5rem, 6vw, 2rem); }
   .hero-offer p { font-size: 0.9rem; }
   .hero-calendar iframe { height: 450px; }
-  .scroll-outer { height: 400vh; }
-  .steps-nav { left: 1rem; }
+  .scroll-outer { height: 250vh; }
+  .steps-nav { left: 50%; top: auto; bottom: 2rem; transform: translateX(-50%); flex-direction: row; gap: 1rem; }
+  .si-circle { width: 32px; height: 32px; }
+  .si-circle svg { width: 14px; height: 14px; }
   .vis-center { display: none; }
-  .panels { right: auto; left: 50%; transform: translate(-50%, -50%); width: 90%; text-align: center; }
+  .panels { right: auto; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 85%; text-align: center; }
   .panel .stat { justify-content: center; }
+  .panel h3 { font-size: 1.5rem; }
+  .panel p { font-size: 0.85rem; line-height: 1.7; }
   .ft-links { flex-direction: column; gap: 2rem; }
   .mgrid { grid-template-columns: 1fr 1fr; }
 }
@@ -532,14 +538,6 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
     <div class="ps"><div class="ps-n">2</div><div class="ps-b"><h3>Custom Blueprint</h3><p>Within 72 hours, you receive a detailed automation roadmap showing exactly what we'll build, the expected impact, and timeline.</p></div></div>
     <div class="ps"><div class="ps-n">3</div><div class="ps-b"><h3>Build &amp; Deploy</h3><p>We build your automations, integrate with your existing stack, and test everything rigorously before flipping the switch.</p></div></div>
     <div class="ps"><div class="ps-n">4</div><div class="ps-b"><h3>Optimize &amp; Scale</h3><p>Ongoing monitoring, A/B testing, and expansion. Your system gets smarter and more effective every month.</p></div></div>
-  </div>
-</section>
-
-<!-- TESTIMONIAL -->
-<section class="section testi">
-  <div class="tcard">
-    <blockquote>Sybago took our messy, manual operations and turned them into a machine. We went from chasing leads to having them land in our inbox, pre-qualified and ready to close.</blockquote>
-    <cite><strong>Coming Soon</strong> &mdash; Early Client Testimonials</cite>
   </div>
 </section>
 
