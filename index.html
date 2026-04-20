@@ -70,8 +70,9 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
 .hero-offer { margin-bottom: 1.2rem; }
 .hero-offer p { font-size: 0.95rem; line-height: 1.7; color: var(--t2); font-weight: 400; }
 .hero-offer strong { color: var(--t1); font-weight: 600; }
-.hero-offer .guarantee { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.8rem; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
-.hero-offer .guarantee svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 2; }
+.hero-offer .trust-strip { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.9rem 1.6rem; margin-top: 1rem; }
+.hero-offer .trust-badge { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); font-weight: 700; white-space: nowrap; }
+.hero-offer .trust-badge svg { width: 16px; height: 16px; stroke: var(--gold); fill: none; stroke-width: 2; flex-shrink: 0; }
 .hero-subcaption { font-family: var(--ff-b); font-size: 1rem; font-style: normal; font-weight: 600; color: var(--gold); }
 .hero-calendar { width: 100%; max-width: 820px; position: relative; overflow: hidden; border-radius: 8px; }
 .hero-calendar::before { content: ''; position: absolute; inset: -1px; border: 1px solid rgba(47,103,121,0.15); border-radius: 8px; pointer-events: none; z-index: 1; }
@@ -341,10 +342,14 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
       <p class="hero-subhead">Built for roofers, remodelers, and general contractors. Live in 72 hours.</p>
       <div class="hero-offer">
         <p>We install the 3-system AI stack &mdash; receptionist, reviews, reactivator &mdash; on your business in <strong>72 hours</strong>. One contractor per zip code. <strong>30 days or your money back.</strong></p>
-        <span class="guarantee"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11.5 14.5 16 10"/></svg>30-Day Money-Back Guarantee</span>
+        <div class="trust-strip">
+          <span class="trust-badge"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11.5 14.5 16 10"/></svg>30-Day Money-Back</span>
+          <span class="trust-badge"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Live in 72 Hours</span>
+          <span class="trust-badge"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>One Per Zip Code</span>
+        </div>
       </div>
     </div>
-    <p class="hero-cta-line">Book a free call below!</p>
+    <p class="hero-cta-line">Get your 72-hour plan below &rarr;</p>
     <div class="hero-calendar">
       <iframe
         src="https://api.leadconnectorhq.com/widget/booking/9ZverwYhZv566mMoV6dc"
