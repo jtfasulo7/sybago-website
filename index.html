@@ -211,13 +211,6 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
 
 /* ── TESTIMONIAL ── */
 .testi { background: var(--bg2); }
-.tcard { max-width: 800px; margin: 0 auto; text-align: center; opacity: 0; transform: translateY(30px); }
-.tcard.revealed { opacity: 1; transform: translateY(0); transition: all 1s var(--eo); }
-.tcard blockquote { font-family: var(--ff-d); font-size: clamp(1.3rem, 2.5vw, 1.9rem); font-weight: 400; font-style: italic; line-height: 1.6; margin-bottom: 2rem; position: relative; }
-.tcard blockquote::before { content: '\201C'; font-size: 5rem; color: var(--gold); opacity: 0.25; position: absolute; top: -2.5rem; left: 50%; transform: translateX(-50%); font-family: var(--ff-d); line-height: 1; }
-.tcard cite { font-size: 0.82rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--t2); font-style: normal; }
-.tcard cite strong { color: var(--t1); font-weight: 500; }
-
 /* ── CTA ── */
 .cta-s { text-align: center; position: relative; overflow: hidden; }
 .cta-s::before { content:''; position: absolute; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, var(--gold-g), transparent 70%); top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0.12; filter: blur(100px); }
@@ -678,7 +671,7 @@ window.addEventListener('resize', () => { resizeC(); initP(); });
 
 // ── SCROLL REVEAL ──
 const rObs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('revealed'); }), { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
-document.querySelectorAll('.reveal,.scard,.met,.ps,.tcard').forEach(el => rObs.observe(el));
+document.querySelectorAll('.reveal,.scard,.met,.ps').forEach(el => rObs.observe(el));
 document.querySelectorAll('.scard').forEach((c,i) => c.style.transitionDelay = i*0.1+'s');
 document.querySelectorAll('.met').forEach((m,i) => m.style.transitionDelay = i*0.15+'s');
 document.querySelectorAll('.ps').forEach((s,i) => s.style.transitionDelay = i*0.2+'s');
