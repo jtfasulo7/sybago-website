@@ -171,7 +171,7 @@ nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.8rem 
 .sh p { font-size: 1rem; line-height: 1.8; color: var(--t2); font-weight: 300; }
 
 /* ── SERVICES ── */
-.sgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; max-width: 1200px; margin: 0 auto; }
+.sgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; max-width: 1200px; margin: 0 auto; }
 .scard {
   background: var(--card); border: 1px solid rgba(255,255,255,0.04); padding: 3rem 2.5rem;
   position: relative; overflow: hidden; transition: all 0.6s var(--eo);
@@ -532,46 +532,34 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
 <!-- SERVICES -->
 <section class="section" id="services">
   <div class="sh reveal">
-    <span class="ov">What We Build</span>
-    <h2>Automation That Runs While You Sleep</h2>
-    <p>We don't just consult. We build, deploy, and manage the AI systems that transform how your business operates day-to-day.</p>
+    <span class="ov">The Stack</span>
+    <h2>Four Systems That Capture Everything You're Losing</h2>
+    <p>Every missed call. Every dead lead. Every closed job. All captured, answered, and followed up &mdash; on autopilot.</p>
   </div>
   <div class="sgrid">
     <div class="scard">
-      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M25 5 L45 15 L45 35 L25 45 L5 35 L5 15 Z"/><line x1="25" y1="5" x2="25" y2="45"/><line x1="5" y1="15" x2="45" y2="35"/><line x1="45" y1="15" x2="5" y2="35"/></svg></div>
-      <h3>AI Lead Capture</h3>
-      <p>Smart forms and conversational chatbots that qualify prospects in real-time, routing them into your pipeline with full context.</p>
-      <span class="tag">Lead Generation</span>
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M8 12 Q8 8 12 8 L38 8 Q42 8 42 12 L42 30 Q42 34 38 34 L22 34 L14 42 L14 34 L12 34 Q8 34 8 30 Z"/><line x1="15" y1="17" x2="35" y2="17"/><line x1="15" y1="23" x2="32" y2="23"/><line x1="15" y1="29" x2="28" y2="29"/></svg></div>
+      <h3>Answer Every Call</h3>
+      <p>You miss a call, your customer gets a text in 3 seconds. Most call back. The rest book straight from the text. Voicemail is dead.</p>
+      <span class="tag">Missed Call Text Back</span>
+    </div>
+    <div class="scard">
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M10 20 A15 15 0 0 1 38 20"/><polyline points="32 14 38 20 44 14"/><path d="M40 30 A15 15 0 0 1 12 30"/><polyline points="18 36 12 30 6 36"/></svg></div>
+      <h3>Rebook Every Dead Lead</h3>
+      <p>Every lead sitting cold in your CRM gets a personal text. Most ignore it. A handful book. That handful pays for the whole system.</p>
+      <span class="tag">Database Reactivation</span>
     </div>
     <div class="scard">
       <div class="scard-icon"><svg viewBox="0 0 50 50"><polygon points="25,5 30,18 44,20 34,30 36,44 25,38 14,44 16,30 6,20 20,18"/></svg></div>
-      <h3>Review Automation</h3>
-      <p>Perfectly-timed review requests that boost your online reputation. Smart sentiment routing handles feedback before it goes public.</p>
-      <span class="tag">Reputation</span>
+      <h3>Get 5-Star Reviews on Autopilot</h3>
+      <p>Every finished job triggers a review request at the perfect moment. Happy customers leave 5 stars. Unhappy ones route to you privately &mdash; before they go public.</p>
+      <span class="tag">Review Automation</span>
     </div>
     <div class="scard">
-      <div class="scard-icon"><svg viewBox="0 0 50 50"><rect x="8" y="8" width="14" height="14" rx="2"/><rect x="28" y="8" width="14" height="14" rx="2"/><rect x="8" y="28" width="14" height="14" rx="2"/><rect x="28" y="28" width="14" height="14" rx="2"/><line x1="22" y1="15" x2="28" y2="15"/><line x1="15" y1="22" x2="15" y2="28"/><line x1="35" y1="22" x2="35" y2="28"/><line x1="22" y1="35" x2="28" y2="35"/></svg></div>
-      <h3>Workflow Automation</h3>
-      <p>Connect your tools into seamless workflows. Appointments, invoices, follow-ups, and reports — all without human intervention.</p>
-      <span class="tag">Operations</span>
-    </div>
-    <div class="scard">
-      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M10 40 L10 25 L20 25 L20 40"/><path d="M22 40 L22 18 L32 18 L32 40"/><path d="M34 40 L34 10 L44 10 L44 40"/><line x1="5" y1="40" x2="48" y2="40"/></svg></div>
-      <h3>Analytics Dashboards</h3>
-      <p>Real-time visibility into every automation. Track leads, reviews, task completion, and ROI from one unified dashboard.</p>
-      <span class="tag">Intelligence</span>
-    </div>
-    <div class="scard">
-      <div class="scard-icon"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="18"/><path d="M25 7 Q35 20 25 25 Q15 30 25 43"/><line x1="7" y1="25" x2="43" y2="25"/><ellipse cx="25" cy="25" rx="18" ry="8"/></svg></div>
-      <h3>CRM Integration</h3>
-      <p>We plug into your existing CRM, POS, and communication tools. No ripping and replacing — just intelligent connections.</p>
-      <span class="tag">Integration</span>
-    </div>
-    <div class="scard">
-      <div class="scard-icon"><svg viewBox="0 0 50 50"><path d="M15 35 Q25 25 35 35"/><path d="M10 28 Q25 15 40 28"/><path d="M5 21 Q25 5 45 21"/><circle cx="25" cy="40" r="3" fill="#2F6779"/></svg></div>
-      <h3>AI Voice &amp; SMS</h3>
-      <p>Automated confirmations, missed-call text-backs, and AI voice agents that handle routine phone inquiries 24/7.</p>
-      <span class="tag">Communication</span>
+      <div class="scard-icon"><svg viewBox="0 0 50 50"><rect x="5" y="10" width="40" height="32" rx="2"/><line x1="5" y1="18" x2="45" y2="18"/><circle cx="10" cy="14" r="1" fill="#2F6779"/><circle cx="14" cy="14" r="1" fill="#2F6779"/><circle cx="18" cy="14" r="1" fill="#2F6779"/><rect x="10" y="23" width="12" height="14" rx="1"/><rect x="25" y="23" width="15" height="5" rx="1"/><rect x="25" y="31" width="15" height="5" rx="1"/></svg></div>
+      <h3>Your Intelligent Website</h3>
+      <p>Custom-built to book calls, answer questions, and qualify leads 24/7. Wired into everything above so your site works even when your phone's off.</p>
+      <span class="tag">The Front Door</span>
     </div>
   </div>
 </section>
