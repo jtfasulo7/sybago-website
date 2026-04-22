@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact Us — Sybago AI</title>
+<meta name="description" content="Get in touch with Sybago. Send us your details, and opt in to receive customer care or marketing SMS messages from SYBAGO LLC.">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --card: rgba(0,0,0,0.03);
+  --t1: #111111;
+  --t2: rgba(17,17,17,0.72);
+  --t3: rgba(17,17,17,0.45);
+  --t4: rgba(17,17,17,0.08);
+  --gold: #2F6779;
+  --gold-g: rgba(47,103,121,0.2);
+  --gold-b: #3a7d93;
+  --success: #2fb158;
+  --danger: #d63232;
+}
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--t1); -webkit-font-smoothing: antialiased; line-height: 1.6; }
+
+nav { position: sticky; top: 0; z-index: 50; padding: 0.9rem 2rem; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--t4); }
+.logo { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+.logo img { height: 32px; width: auto; border-radius: 8px; }
+.logo span { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.08em; color: var(--t1); text-transform: uppercase; }
+
+main { max-width: 760px; margin: 0 auto; padding: 4rem 1.75rem 6rem; }
+
+.page-header { text-align: center; margin-bottom: 3rem; }
+.page-header .overline { font-size: 0.72rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 0.9rem; display: block; }
+.page-header h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; margin-bottom: 1rem; }
+.page-header .hero-sub { font-size: 1.05rem; color: var(--t2); max-width: 560px; margin: 0 auto; }
+
+form { background: var(--bg); border: 1px solid var(--t4); border-radius: 14px; padding: 2.5rem 2rem; box-shadow: 0 20px 60px rgba(47,103,121,0.08); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.field { display: flex; flex-direction: column; margin-bottom: 1rem; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 0.82rem; font-weight: 600; color: var(--t1); letter-spacing: 0.04em; margin-bottom: 0.42rem; }
+.field label .req { color: var(--gold); margin-left: 2px; }
+.field label .opt { color: var(--t3); font-weight: 400; margin-left: 6px; font-size: 0.74rem; letter-spacing: 0; }
+.field input, .field textarea {
+  font-family: inherit; font-size: 0.98rem; color: var(--t1);
+  background: var(--bg); border: 1px solid var(--t4); border-radius: 8px;
+  padding: 0.78rem 0.95rem; width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus, .field textarea:focus {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-g);
+}
+.field textarea { min-height: 110px; resize: vertical; font-family: inherit; }
+.field .hint { font-size: 0.77rem; color: var(--t3); margin-top: 0.35rem; }
+
+.consent-section { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--t4); }
+.consent-section h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: -0.01em; }
+.consent-section p.lead { font-size: 0.88rem; color: var(--t2); margin-bottom: 1.2rem; }
+
+.consent-box {
+  display: flex; align-items: flex-start; gap: 0.85rem;
+  background: var(--bg2); border: 1px solid var(--t4); border-radius: 10px;
+  padding: 1rem 1.1rem; margin-bottom: 0.85rem;
+  cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.consent-box:hover { border-color: var(--gold); background: rgba(47,103,121,0.04); }
+.consent-box input[type="checkbox"] {
+  flex-shrink: 0; margin-top: 0.28rem;
+  width: 20px; height: 20px; accent-color: var(--gold);
+  cursor: pointer;
+}
+.consent-box .text {
+  font-size: 0.82rem; line-height: 1.55; color: var(--t2);
+}
+.consent-box .text strong { color: var(--t1); font-weight: 700; display: block; margin-bottom: 4px; font-size: 0.88rem; letter-spacing: 0.02em; text-transform: uppercase; }
+.consent-box .text a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.consent-box .text a:hover { color: var(--gold-b); }
+
+.legal-row { font-size: 0.78rem; color: var(--t3); margin-top: 1.2rem; text-align: center; }
+.legal-row a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.legal-row a:hover { color: var(--gold-b); }
+
+.submit-wrap { margin-top: 1.75rem; text-align: center; }
+button.submit {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  background: var(--gold); color: #fff;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 1.05rem 2.5rem; border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, transform 0.15s;
+  font-family: inherit;
+}
+button.submit:hover:not(:disabled) { background: var(--gold-b); transform: translateY(-1px); }
+button.submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.form-status { margin-top: 1rem; font-size: 0.9rem; text-align: center; display: none; padding: 0.85rem 1rem; border-radius: 8px; }
+.form-status.success { display: block; background: rgba(47,177,88,0.1); border: 1px solid var(--success); color: #1a7a3d; }
+.form-status.error { display: block; background: rgba(214,50,50,0.08); border: 1px solid var(--danger); color: #9a1f1f; }
+
+.honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+footer { background: var(--bg2); padding: 4rem 2rem 2rem; border-top: 1px solid var(--t4); margin-top: 4rem; }
+.ft-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 3rem; flex-wrap: wrap; }
+.ft-brand { max-width: 300px; }
+.ft-brand .logo { margin-bottom: 1rem; }
+.ft-brand p { font-size: 0.85rem; line-height: 1.7; color: var(--t2); font-weight: 300; }
+.ft-links { display: flex; gap: 4rem; flex-wrap: wrap; }
+.ft-col h4 { font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 1.2rem; font-weight: 600; }
+.ft-col a { display: block; font-size: 0.85rem; color: var(--t2); text-decoration: none; margin-bottom: 0.7rem; font-weight: 400; transition: color 0.3s; }
+.ft-col a:hover { color: var(--gold); }
+.ft-btm { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--t4); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.ft-btm span { font-size: 0.72rem; color: var(--t3); font-weight: 400; }
+
+@media (max-width: 640px) {
+  nav { padding: 0.8rem 1.2rem; }
+  main { padding: 2.5rem 1.25rem 4rem; }
+  form { padding: 1.75rem 1.25rem; }
+  .row { grid-template-columns: 1fr; gap: 0; }
+  .ft-links { gap: 2.2rem; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+</nav>
+
+<main>
+  <div class="page-header">
+    <span class="overline">Contact Us</span>
+    <h1>Get in touch with Sybago</h1>
+    <p class="hero-sub">Tell us about your business and we'll reply within one business day. If you'd like to receive SMS messages from Sybago, check one or both of the consent boxes below.</p>
+  </div>
+
+  <form id="contactForm" novalidate>
+    <div class="row">
+      <div class="field">
+        <label for="firstName">First name <span class="req">*</span></label>
+        <input type="text" id="firstName" name="firstName" required autocomplete="given-name" maxlength="80">
+      </div>
+      <div class="field">
+        <label for="lastName">Last name <span class="opt">(optional)</span></label>
+        <input type="text" id="lastName" name="lastName" autocomplete="family-name" maxlength="80">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="email">Email <span class="req">*</span></label>
+      <input type="email" id="email" name="email" required autocomplete="email" maxlength="160">
+    </div>
+
+    <div class="field">
+      <label for="phone">Phone number <span class="opt">(required only if opting in to SMS below)</span></label>
+      <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="32" placeholder="(555) 555-5555">
+      <span class="hint">Include area code. US numbers only.</span>
+    </div>
+
+    <div class="field">
+      <label for="business">Business name <span class="opt">(optional)</span></label>
+      <input type="text" id="business" name="business" autocomplete="organization" maxlength="160">
+    </div>
+
+    <div class="field">
+      <label for="message">How can we help? <span class="opt">(optional)</span></label>
+      <textarea id="message" name="message" maxlength="2000" placeholder="Tell us what you're looking for..."></textarea>
+    </div>
+
+    <div class="honeypot" aria-hidden="true">
+      <label for="company_website">Don't fill this out if you're human</label>
+      <input type="text" id="company_website" name="company_website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <div class="consent-section">
+      <h2>SMS communication preferences</h2>
+      <p class="lead">Optional. Check either, both, or neither. A phone number is required if you opt in.</p>
+
+      <label class="consent-box" for="consentCare">
+        <input type="checkbox" id="consentCare" name="consentCare" value="1">
+        <span class="text">
+          <strong>Customer care SMS</strong>
+          By providing a telephone number, clicking this button, and submitting the form, you are consenting to be contacted by SMS text message from SYBAGO LLC, regarding account issues and outages (customer care), (our message frequency may vary). Message &amp; data rates apply. Reply STOP to unsubscribe from further messaging from SYBAGO LLC. Reply HELP for more information. See our <a href="/privacy-policy">Privacy Policy</a> (containing our SMS Terms) at the bottom of the page for more information.
+        </span>
+      </label>
+
+      <label class="consent-box" for="consentMarketing">
+        <input type="checkbox" id="consentMarketing" name="consentMarketing" value="1">
+        <span class="text">
+          <strong>Marketing SMS</strong>
+          By providing a telephone number, clicking this button, and submitting the form, you are consenting to be contacted by SMS text message from SYBAGO LLC, regarding new offers (marketing), (our message frequency may vary). Message &amp; data rates apply. Reply STOP to unsubscribe from further messaging from SYBAGO LLC. Reply HELP for more information. See our <a href="/privacy-policy">Privacy Policy</a> (containing our SMS Terms) at the bottom of the form for more information.
+        </span>
+      </label>
+
+      <p class="legal-row">
+        Consent is provided exclusively for SYBAGO LLC to contact the user based on the selection, not any other third parties mentioned on the site. SMS opt-in data is not shared or sold to third parties for promotional or marketing purposes. View our <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms">Terms &amp; Conditions</a>.
+      </p>
+    </div>
+
+    <div class="submit-wrap">
+      <button type="submit" class="submit" id="submitBtn">
+        <span>Send Message</span>
+      </button>
+      <div class="form-status" id="formStatus"></div>
+    </div>
+  </form>
+</main>
+
+<footer>
+  <div class="ft-inner">
+    <div class="ft-brand">
+      <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+      <p>AI-powered business automation. Built for service pros.</p>
+    </div>
+    <div class="ft-links">
+      <div class="ft-col">
+        <h4>Company</h4>
+        <a href="/">Home</a>
+        <a href="/#process">Our Process</a>
+        <a href="/contact-us">Contact Us</a>
+      </div>
+      <div class="ft-col">
+        <h4>Legal</h4>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms">Terms &amp; Conditions</a>
+      </div>
+    </div>
+  </div>
+  <div class="ft-btm">
+    <span>&copy; 2026 Sybago LLC. All rights reserved.</span>
+    <span>sybago.ai</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const form = document.getElementById('contactForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const status = document.getElementById('formStatus');
+
+  function showStatus(type, message) {
+    status.className = 'form-status ' + type;
+    status.textContent = message;
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    status.className = 'form-status';
+    status.textContent = '';
+
+    const honeypot = document.getElementById('company_website').value;
+    if (honeypot) { return; }
+
+    const data = {
+      firstName: form.firstName.value.trim(),
+      lastName: form.lastName.value.trim(),
+      email: form.email.value.trim(),
+      phone: form.phone.value.trim(),
+      business: form.business.value.trim(),
+      message: form.message.value.trim(),
+      consentCare: form.consentCare.checked,
+      consentMarketing: form.consentMarketing.checked,
+    };
+
+    if (!data.firstName || !data.email) {
+      showStatus('error', 'Please fill in your first name and email.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      showStatus('error', 'Please enter a valid email address.');
+      return;
+    }
+    if ((data.consentCare || data.consentMarketing) && !data.phone) {
+      showStatus('error', 'Phone number is required if you opt in to SMS messages.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.querySelector('span').textContent = 'Sending...';
+
+    try {
+      const resp = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Something went wrong.');
+      }
+      showStatus('success', 'Thanks — we got your message and will be in touch shortly.');
+      form.reset();
+    } catch (err) {
+      showStatus('error', err.message || 'We could not send your message. Please try again later.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.querySelector('span').textContent = 'Send Message';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
