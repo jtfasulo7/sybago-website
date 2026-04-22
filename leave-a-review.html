@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leave a Review — Sybago AI</title>
+<meta name="description" content="Share your experience with Sybago. Rate your experience 1-5 stars and leave a short review.">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --t1: #111111;
+  --t2: rgba(17,17,17,0.72);
+  --t3: rgba(17,17,17,0.45);
+  --t4: rgba(17,17,17,0.08);
+  --gold: #2F6779;
+  --gold-g: rgba(47,103,121,0.2);
+  --gold-b: #3a7d93;
+  --star: #f5b623;
+  --star-empty: rgba(17,17,17,0.15);
+  --success: #2fb158;
+  --danger: #d63232;
+}
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--t1); -webkit-font-smoothing: antialiased; line-height: 1.6; }
+
+nav { position: sticky; top: 0; z-index: 50; padding: 0.9rem 2rem; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--t4); }
+.logo { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+.logo img { height: 32px; width: auto; border-radius: 8px; }
+.logo span { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.08em; color: var(--t1); text-transform: uppercase; }
+
+main { max-width: 640px; margin: 0 auto; padding: 4rem 1.75rem 6rem; }
+
+.page-header { text-align: center; margin-bottom: 2.5rem; }
+.page-header .overline { font-size: 0.72rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 0.9rem; display: block; }
+.page-header h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; margin-bottom: 0.8rem; }
+.page-header .hero-sub { font-size: 1rem; color: var(--t2); max-width: 480px; margin: 0 auto; }
+
+form { background: var(--bg); border: 1px solid var(--t4); border-radius: 14px; padding: 2.5rem 2rem; box-shadow: 0 20px 60px rgba(47,103,121,0.08); }
+
+.stars-wrap { text-align: center; margin-bottom: 2rem; }
+.stars-wrap .label { font-size: 0.82rem; font-weight: 600; color: var(--t1); letter-spacing: 0.04em; margin-bottom: 0.8rem; display: block; }
+.stars {
+  display: inline-flex; gap: 0.25rem; direction: rtl;
+  justify-content: center;
+}
+.stars input { position: absolute; opacity: 0; pointer-events: none; }
+.stars label {
+  cursor: pointer; padding: 0.25rem; display: inline-flex;
+  transition: transform 0.15s ease;
+}
+.stars label svg { width: 54px; height: 54px; display: block; }
+.stars label svg path { fill: var(--star-empty); stroke: var(--star-empty); stroke-width: 1; transition: fill 0.15s, stroke 0.15s; }
+.stars label:hover { transform: scale(1.12); }
+.stars label:hover svg path,
+.stars label:hover ~ label svg path,
+.stars input:checked ~ label svg path,
+.stars input:checked + label svg path {
+  fill: var(--star); stroke: var(--star);
+}
+.stars-caption { font-size: 0.85rem; color: var(--t3); margin-top: 0.6rem; min-height: 1.2em; transition: color 0.2s; }
+.stars-caption.rated { color: var(--t1); font-weight: 600; }
+
+.field { display: flex; flex-direction: column; margin-bottom: 1rem; }
+.field label { font-size: 0.82rem; font-weight: 600; color: var(--t1); letter-spacing: 0.04em; margin-bottom: 0.42rem; }
+.field label .req { color: var(--gold); margin-left: 2px; }
+.field label .opt { color: var(--t3); font-weight: 400; margin-left: 6px; font-size: 0.74rem; letter-spacing: 0; }
+.field input, .field textarea {
+  font-family: inherit; font-size: 0.98rem; color: var(--t1);
+  background: var(--bg); border: 1px solid var(--t4); border-radius: 8px;
+  padding: 0.78rem 0.95rem; width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus, .field textarea:focus {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-g);
+}
+.field textarea { min-height: 140px; resize: vertical; font-family: inherit; line-height: 1.6; }
+
+.submit-wrap { margin-top: 1.75rem; text-align: center; }
+button.submit {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  background: var(--gold); color: #fff;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 1.05rem 2.5rem; border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s, transform 0.15s;
+  font-family: inherit;
+}
+button.submit:hover:not(:disabled) { background: var(--gold-b); transform: translateY(-1px); }
+button.submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.form-status { margin-top: 1rem; font-size: 0.9rem; text-align: center; display: none; padding: 0.85rem 1rem; border-radius: 8px; }
+.form-status.success { display: block; background: rgba(47,177,88,0.1); border: 1px solid var(--success); color: #1a7a3d; }
+.form-status.error { display: block; background: rgba(214,50,50,0.08); border: 1px solid var(--danger); color: #9a1f1f; }
+
+.thank-you { display: none; text-align: center; padding: 3rem 2rem; }
+.thank-you.visible { display: block; }
+.thank-you .big-star { width: 90px; height: 90px; margin: 0 auto 1.2rem; display: block; fill: var(--star); }
+.thank-you h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.7rem; letter-spacing: -0.01em; }
+.thank-you p { font-size: 1rem; color: var(--t2); margin-bottom: 1.5rem; }
+.thank-you a { color: var(--gold); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+footer { background: var(--bg2); padding: 4rem 2rem 2rem; border-top: 1px solid var(--t4); margin-top: 4rem; }
+.ft-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 3rem; flex-wrap: wrap; }
+.ft-brand { max-width: 300px; }
+.ft-brand .logo { margin-bottom: 1rem; }
+.ft-brand p { font-size: 0.85rem; line-height: 1.7; color: var(--t2); font-weight: 300; }
+.ft-links { display: flex; gap: 4rem; flex-wrap: wrap; }
+.ft-col h4 { font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 1.2rem; font-weight: 600; }
+.ft-col a { display: block; font-size: 0.85rem; color: var(--t2); text-decoration: none; margin-bottom: 0.7rem; font-weight: 400; transition: color 0.3s; }
+.ft-col a:hover { color: var(--gold); }
+.ft-btm { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--t4); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.ft-btm span { font-size: 0.72rem; color: var(--t3); font-weight: 400; }
+
+@media (max-width: 640px) {
+  nav { padding: 0.8rem 1.2rem; }
+  main { padding: 2.5rem 1.25rem 4rem; }
+  form { padding: 1.75rem 1.25rem; }
+  .stars label svg { width: 44px; height: 44px; }
+  .ft-links { gap: 2.2rem; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+</nav>
+
+<main>
+  <div class="page-header">
+    <span class="overline">Feedback</span>
+    <h1>Leave a Review</h1>
+    <p class="hero-sub">How was your experience with Sybago? Rate us and share your thoughts below.</p>
+  </div>
+
+  <form id="reviewForm" novalidate>
+    <div class="stars-wrap">
+      <span class="label">Your rating</span>
+      <div class="stars" role="radiogroup" aria-label="Rating from 1 to 5 stars">
+        <input type="radio" id="star5" name="rating" value="5" required><label for="star5" aria-label="5 stars"><svg viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg></label>
+        <input type="radio" id="star4" name="rating" value="4"><label for="star4" aria-label="4 stars"><svg viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg></label>
+        <input type="radio" id="star3" name="rating" value="3"><label for="star3" aria-label="3 stars"><svg viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg></label>
+        <input type="radio" id="star2" name="rating" value="2"><label for="star2" aria-label="2 stars"><svg viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg></label>
+        <input type="radio" id="star1" name="rating" value="1"><label for="star1" aria-label="1 star"><svg viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg></label>
+      </div>
+      <div class="stars-caption" id="starsCaption">Click to rate</div>
+    </div>
+
+    <div class="field">
+      <label for="name">Your name <span class="req">*</span></label>
+      <input type="text" id="name" name="name" required autocomplete="name" maxlength="120">
+    </div>
+
+    <div class="field">
+      <label for="email">Email <span class="opt">(optional, so we can follow up)</span></label>
+      <input type="email" id="email" name="email" autocomplete="email" maxlength="160">
+    </div>
+
+    <div class="field">
+      <label for="review">Your review <span class="req">*</span></label>
+      <textarea id="review" name="review" required maxlength="4000" placeholder="Tell us what you liked, or where we can improve..."></textarea>
+    </div>
+
+    <div class="submit-wrap">
+      <button type="submit" class="submit" id="submitBtn">
+        <span>Submit Review</span>
+      </button>
+      <div class="form-status" id="formStatus"></div>
+    </div>
+  </form>
+
+  <div class="thank-you" id="thankYou">
+    <svg class="big-star" viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z"/></svg>
+    <h2>Thank you for the review!</h2>
+    <p>We really appreciate you taking the time. We read every one.</p>
+    <a href="/">← Back to sybago.ai</a>
+  </div>
+</main>
+
+<footer>
+  <div class="ft-inner">
+    <div class="ft-brand">
+      <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+      <p>AI-powered business automation. Built for service pros.</p>
+    </div>
+    <div class="ft-links">
+      <div class="ft-col">
+        <h4>Company</h4>
+        <a href="/">Home</a>
+        <a href="/#process">Our Process</a>
+        <a href="/contact-us">Contact Us</a>
+        <a href="/leave-a-review">Leave a Review</a>
+      </div>
+      <div class="ft-col">
+        <h4>Legal</h4>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms">Terms &amp; Conditions</a>
+      </div>
+    </div>
+  </div>
+  <div class="ft-btm">
+    <span>&copy; 2026 Sybago LLC. All rights reserved.</span>
+    <span>sybago.ai</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const form = document.getElementById('reviewForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const status = document.getElementById('formStatus');
+  const thankYou = document.getElementById('thankYou');
+  const starsCaption = document.getElementById('starsCaption');
+
+  const RATING_WORDS = {
+    1: 'Poor',
+    2: 'Fair',
+    3: 'Good',
+    4: 'Very Good',
+    5: 'Excellent',
+  };
+
+  document.querySelectorAll('.stars input').forEach((input) => {
+    input.addEventListener('change', (e) => {
+      const v = parseInt(e.target.value, 10);
+      starsCaption.textContent = RATING_WORDS[v] + ' — ' + v + (v === 1 ? ' star' : ' stars');
+      starsCaption.classList.add('rated');
+    });
+  });
+
+  function showStatus(type, message) {
+    status.className = 'form-status ' + type;
+    status.textContent = message;
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    status.className = 'form-status';
+    status.textContent = '';
+
+    const ratingInput = document.querySelector('.stars input:checked');
+    const data = {
+      name: form.name.value.trim(),
+      email: form.email.value.trim(),
+      rating: ratingInput ? parseInt(ratingInput.value, 10) : 0,
+      review: form.review.value.trim(),
+    };
+
+    if (!data.rating) {
+      showStatus('error', 'Please select a star rating.');
+      return;
+    }
+    if (!data.name) {
+      showStatus('error', 'Please enter your name.');
+      return;
+    }
+    if (!data.review) {
+      showStatus('error', 'Please write a few words about your experience.');
+      return;
+    }
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      showStatus('error', 'Please enter a valid email address.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.querySelector('span').textContent = 'Submitting...';
+
+    try {
+      const resp = await fetch('/api/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Something went wrong.');
+      }
+      form.style.display = 'none';
+      thankYou.classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      showStatus('error', err.message || 'We could not submit your review. Please try again later.');
+      submitBtn.disabled = false;
+      submitBtn.querySelector('span').textContent = 'Submit Review';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
