@@ -57,7 +57,8 @@ body { font-family: var(--ff-b); background: var(--bg); color: var(--t1); overfl
 .cursor-ring.hovering { transform: translate(-50%, -50%) scale(1.8); opacity: 0.15; }
 
 /* ── URGENCY BANNER ── */
-.urgency-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 101; background: var(--gold); color: #fff; text-align: center; padding: 0.45rem 1rem; font-family: var(--ff-b); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.urgency-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 101; background: var(--gold); color: #fff; text-align: center; padding: 0.45rem 1rem; font-family: var(--ff-b); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.banner-icon { width: 0.9em; height: 0.9em; flex-shrink: 0; vertical-align: middle; }
 
 /* ── NAV ── */
 nav { position: fixed; top: 30px; left: 0; right: 0; z-index: 100; padding: 0.8rem 2rem; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--t4); }
@@ -254,7 +255,7 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
   .hero-calendar iframe { height: 600px; }
 }
 @media (max-width: 768px) {
-  .urgency-banner { font-size: 0.58rem; padding: 0.3rem 0.5rem; letter-spacing: 0.05em; }
+  .urgency-banner { font-size: 0.62rem; padding: 0.3rem 0.5rem; letter-spacing: 0.04em; }
   nav { padding: 1rem 1.2rem; }
   .section { padding: 6rem 1.5rem; }
   .sgrid { grid-template-columns: 1fr; }
@@ -321,7 +322,7 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
 <div class="cursor-ring" id="cRing"></div>
 
 <!-- NAV -->
-<div class="urgency-banner">TO COMPLETE YOUR APPLICATION DO NOT LEAVE THIS PAGE!</div>
+<div class="urgency-banner"><svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> TO COMPLETE YOUR APPLICATION DO NOT LEAVE THIS PAGE!</div>
 <nav id="nav">
   <a href="#" class="logo"><img src="logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
 </nav>
