@@ -67,7 +67,7 @@ nav { position: fixed; top: 30px; left: 0; right: 0; z-index: 100; padding: 0.8r
 @keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 var(--gold-g); } 50%{ box-shadow: 0 0 20px 5px var(--gold-g); } }
 
 /* ── HERO ── */
-.hero { position: relative; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; padding: 5.5rem 3rem 4rem; }
+.hero { position: relative; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; padding: 6.5rem 3rem 4rem; }
 .hero-lines { position: absolute; inset: 0; pointer-events: none; }
 .hero-lines .vl { position: absolute; width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, var(--t4), transparent); }
 .hero-content { display: flex; flex-direction: column; align-items: center; gap: 1.2rem; z-index: 2; max-width: 900px; width: 100%; text-align: center; }
@@ -249,12 +249,13 @@ footer { padding: 4rem 3rem 2rem; border-top: 1px solid var(--t4); }
   .ft-inner { flex-direction: column; }
 }
 @media (max-width: 900px) {
-  .hero { padding: 5rem 1.5rem 3rem; gap: 1.5rem; }
+  .hero { padding: 6rem 1.5rem 3rem; gap: 1.5rem; }
   .hero-content { gap: 1rem; }
   .hero-calendar iframe { height: 600px; }
 }
 @media (max-width: 768px) {
-  nav { padding: 0.8rem 1.2rem; }
+  .urgency-banner { font-size: 0.58rem; padding: 0.3rem 0.5rem; letter-spacing: 0.05em; }
+  nav { padding: 1rem 1.2rem; }
   .section { padding: 6rem 1.5rem; }
   .sgrid { grid-template-columns: 1fr; }
   .hero h1 { font-size: clamp(1.5rem, 6vw, 2rem); }
