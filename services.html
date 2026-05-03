@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Services & Pricing — Sybago AI</title>
+<meta name="description" content="Done-for-you AI websites, automation, and booking systems for local service businesses. Plans from $149/month.">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:#ffffff;
+  --bg2:#f7f8fa;
+  --t1:#0f1419;
+  --t2:rgba(15,20,25,0.62);
+  --t3:rgba(15,20,25,0.38);
+  --t4:rgba(15,20,25,0.10);
+  --teal:#2F6779;
+  --teal-d:#244e5b;
+  --teal-l:#3a7d93;
+  --teal-bg:#2F6779;
+  --teal-tint:rgba(47,103,121,0.08);
+  --eo:cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html { scroll-behavior:smooth; }
+body {
+  font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background:var(--bg);
+  color:var(--t1);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:clip;
+}
+::selection { background:var(--teal); color:#fff; }
+
+a { text-decoration:none; color:inherit; }
+
+/* ── URGENCY BANNER ── */
+.urgency-banner {
+  position:fixed; top:0; left:0; right:0; z-index:101;
+  background:var(--teal); color:#fff;
+  text-align:center; padding:0.45rem 1rem;
+  font-size:0.8rem; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  display:flex; align-items:center; justify-content:center; gap:0.4rem;
+}
+.banner-icon { width:0.9em; height:0.9em; flex-shrink:0; }
+
+/* ── NAV ── */
+nav {
+  position:fixed; top:30px; left:0; right:0; z-index:100;
+  padding:0.85rem 2rem;
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--t4);
+}
+.logo { display:flex; align-items:center; gap:0.6rem; }
+.logo img { height:30px; width:auto; border-radius:6px; }
+.logo span {
+  font-size:1.05rem; font-weight:800; letter-spacing:0.18em;
+  color:var(--t1); text-transform:uppercase;
+}
+.nav-cta {
+  background:var(--t1); color:#fff;
+  font-size:0.78rem; font-weight:700; letter-spacing:0.08em;
+  padding:0.7rem 1.2rem; border-radius:10px;
+  transition:background 0.25s var(--eo), transform 0.2s var(--eo);
+}
+.nav-cta:hover { background:var(--teal); transform:translateY(-1px); }
+
+/* ── HERO ── */
+.hero {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:100vh;
+  padding-top:88px;
+  position:relative;
+}
+
+.hero-left {
+  display:flex; flex-direction:column; justify-content:center;
+  padding:5rem 5rem 5rem 6rem;
+  background:var(--bg);
+}
+.hero-eyebrow {
+  display:inline-flex; align-items:center; gap:0.45rem;
+  font-size:0.7rem; font-weight:700;
+  letter-spacing:0.32em; text-transform:uppercase;
+  color:var(--teal); margin-bottom:1.5rem;
+}
+.hero-eyebrow::before {
+  content:''; width:24px; height:1px; background:var(--teal);
+}
+.hero-left h1 {
+  font-size:clamp(2.2rem, 4.4vw, 3.8rem);
+  font-weight:800; line-height:1.05;
+  letter-spacing:-0.025em;
+  color:var(--t1);
+  margin-bottom:1.4rem;
+}
+.hero-left h1 em { font-style:normal; color:var(--teal); }
+.hero-left .sub {
+  font-size:1.05rem; line-height:1.6;
+  color:var(--t2); max-width:480px;
+  margin-bottom:2.2rem;
+}
+.cta-row { display:flex; gap:0.85rem; flex-wrap:wrap; }
+.btn {
+  display:inline-flex; align-items:center; gap:0.55rem;
+  padding:1rem 1.6rem;
+  font-size:0.85rem; font-weight:700; letter-spacing:0.06em;
+  border-radius:12px;
+  cursor:pointer; border:none;
+  transition:transform 0.2s var(--eo), background 0.25s var(--eo), box-shadow 0.25s var(--eo);
+}
+.btn-primary {
+  background:var(--t1); color:#fff;
+  box-shadow:0 14px 30px -16px rgba(15,20,25,0.55);
+}
+.btn-primary:hover { background:var(--teal); transform:translateY(-2px); box-shadow:0 18px 40px -16px rgba(47,103,121,0.55); }
+.btn-secondary {
+  background:#fff; color:var(--t1);
+  border:1px solid var(--t4);
+}
+.btn-secondary:hover { border-color:var(--teal); color:var(--teal); transform:translateY(-2px); }
+
+/* ── HERO RIGHT (teal panel + mock UI) ── */
+.hero-right {
+  position:relative;
+  background:var(--teal-bg);
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  padding:4rem 3rem;
+}
+/* Subtle textural overlay for depth */
+.hero-right::before {
+  content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(120% 80% at 70% 20%, rgba(255,255,255,0.10), transparent 55%),
+    radial-gradient(80% 60% at 20% 90%, rgba(255,255,255,0.05), transparent 50%);
+  pointer-events:none;
+}
+.hero-right::after {
+  content:''; position:absolute; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size:256px;
+  opacity:0.06;
+  mix-blend-mode:overlay;
+  pointer-events:none;
+}
+
+.mock-stage {
+  position:relative;
+  width:100%;
+  max-width:560px;
+  aspect-ratio:5/4;
+}
+
+/* Big browser window */
+.mock-window {
+  position:absolute;
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 30px 70px -20px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.4);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.mock-bar {
+  height:30px;
+  background:#f1f3f6;
+  border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; gap:6px;
+  padding:0 14px;
+}
+.mock-bar i {
+  width:11px; height:11px; border-radius:50%;
+  background:#e6594c; display:block;
+}
+.mock-bar i:nth-child(2) { background:#f4be4d; }
+.mock-bar i:nth-child(3) { background:#5fc463; }
+.mock-bar .mock-url {
+  flex:1; height:18px;
+  background:#fff; border-radius:5px;
+  margin-left:10px;
+  border:1px solid #e5e7eb;
+}
+
+.window-main {
+  position:absolute;
+  top:6%; left:14%;
+  width:74%;
+  aspect-ratio:16/10;
+  z-index:1;
+}
+.window-main .mock-body {
+  flex:1;
+  padding:14px 16px;
+  display:grid;
+  grid-template-columns:1.4fr 1fr;
+  gap:12px;
+}
+.chart-bar {
+  background:#fff;
+  border:1px solid #ececf2;
+  border-radius:8px;
+  padding:14px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.chart-bar .lbl {
+  height:10px; width:55%;
+  background:#e3e6eb; border-radius:3px;
+}
+.chart-bar .bars {
+  flex:1; display:flex; align-items:flex-end; gap:7px;
+  padding-top:6px;
+}
+.chart-bar .bars span {
+  flex:1; border-radius:3px 3px 0 0;
+  background:linear-gradient(180deg, var(--teal-l), var(--teal));
+}
+.chart-bar .bars span:nth-child(1) { height:42%; opacity:0.85; }
+.chart-bar .bars span:nth-child(2) { height:68%; }
+.chart-bar .bars span:nth-child(3) { height:30%; opacity:0.85; }
+.chart-bar .bars span:nth-child(4) { height:88%; }
+.chart-bar .bars span:nth-child(5) { height:55%; opacity:0.85; }
+.chart-bar .bars span:nth-child(6) { height:75%; }
+.chart-pie {
+  background:#fff;
+  border:1px solid #ececf2;
+  border-radius:8px;
+  padding:14px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+}
+.chart-pie .lbl { height:8px; width:60%; background:#e3e6eb; border-radius:3px; align-self:flex-start; }
+.chart-pie .pie {
+  width:64px; height:64px; border-radius:50%;
+  background:conic-gradient(var(--teal) 0 42%, var(--teal-l) 42% 70%, #c8d3da 70% 100%);
+  flex-shrink:0;
+}
+.chart-pie .legend { width:100%; display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+.chart-pie .legend i { display:flex; align-items:center; gap:6px; font-style:normal; font-size:9px; color:#6b7480; font-weight:600; letter-spacing:0.04em; }
+.chart-pie .legend i::before { content:''; width:8px; height:8px; border-radius:2px; background:var(--teal); }
+.chart-pie .legend i:nth-child(2)::before { background:var(--teal-l); }
+.chart-pie .legend i:nth-child(3)::before { background:#c8d3da; }
+
+/* Smaller front panel */
+.window-mini {
+  position:absolute;
+  top:30%; right:0;
+  width:34%;
+  aspect-ratio:9/12;
+  z-index:2;
+}
+.window-mini .mock-body {
+  flex:1;
+  padding:12px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.mini-tile {
+  background:#f7f9fc;
+  border:1px solid #ececf2;
+  border-radius:7px;
+  flex:1;
+  position:relative;
+  overflow:hidden;
+}
+.mini-tile.image { background:linear-gradient(135deg, var(--teal-l), var(--teal)); flex:2; }
+.mini-tile.image::before {
+  content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 30% 60%, rgba(255,255,255,0.4), transparent 35%),
+    radial-gradient(circle at 70% 30%, rgba(255,255,255,0.18), transparent 30%);
+}
+.mini-tile.bars { display:flex; flex-direction:column; gap:5px; padding:10px; }
+.mini-tile.bars span {
+  display:block; height:6px; border-radius:3px;
+  background:#e3e6eb;
+}
+.mini-tile.bars span:nth-child(1) { width:65%; }
+.mini-tile.bars span:nth-child(2) { width:90%; background:var(--teal); opacity:0.7; }
+.mini-tile.bars span:nth-child(3) { width:50%; }
+
+/* Chat bubble */
+.chat-bubble {
+  position:absolute;
+  bottom:-5%; right:8%;
+  z-index:3;
+  background:#fff;
+  border-radius:14px;
+  padding:10px 14px;
+  display:flex; align-items:center; gap:10px;
+  box-shadow:0 18px 40px -10px rgba(0,0,0,0.3);
+  max-width:60%;
+}
+.chat-avatar {
+  width:30px; height:30px; border-radius:50%;
+  background:linear-gradient(135deg, var(--teal-l), var(--teal));
+  flex-shrink:0;
+}
+.chat-text {
+  font-size:0.72rem;
+  color:var(--t1);
+  font-weight:500;
+  line-height:1.35;
+}
+
+/* ── SECTION SHELL ── */
+section.s {
+  padding:6rem 2rem;
+}
+.section-inner {
+  max-width:1200px; margin:0 auto;
+}
+.section-eyebrow {
+  font-size:0.72rem; font-weight:700;
+  letter-spacing:0.36em; text-transform:uppercase;
+  color:var(--teal); text-align:center;
+  margin-bottom:1.1rem;
+}
+.section-title {
+  font-size:clamp(1.8rem, 3.2vw, 2.8rem);
+  font-weight:800; line-height:1.1;
+  letter-spacing:-0.02em;
+  color:var(--t1); text-align:center;
+  margin-bottom:1rem;
+}
+.section-sub {
+  font-size:1rem; line-height:1.6;
+  color:var(--t2); text-align:center;
+  max-width:620px; margin:0 auto 4rem;
+}
+
+/* ── WHAT WE DO ── */
+.what-grid {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:1.25rem;
+}
+.what-card {
+  background:var(--bg);
+  border:1px solid var(--t4);
+  border-radius:16px;
+  padding:2rem 1.6rem;
+  transition:border-color 0.25s var(--eo), transform 0.25s var(--eo), box-shadow 0.25s var(--eo);
+}
+.what-card:hover {
+  border-color:var(--teal);
+  transform:translateY(-4px);
+  box-shadow:0 22px 50px -28px rgba(47,103,121,0.5);
+}
+.what-card .ic {
+  width:42px; height:42px; border-radius:11px;
+  background:var(--teal-tint);
+  color:var(--teal);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:1.2rem;
+}
+.what-card .ic svg { width:22px; height:22px; }
+.what-card h3 {
+  font-size:1.05rem; font-weight:700;
+  letter-spacing:-0.01em;
+  margin-bottom:0.55rem;
+  color:var(--t1);
+}
+.what-card p {
+  font-size:0.9rem; line-height:1.55;
+  color:var(--t2);
+}
+
+/* ── PRICING ── */
+.pricing-bg { background:var(--bg2); }
+.pricing-grid {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:1.4rem;
+  align-items:stretch;
+}
+.plan {
+  background:#fff;
+  border:1px solid var(--t4);
+  border-radius:18px;
+  padding:2.4rem 2rem 2.2rem;
+  display:flex; flex-direction:column;
+  position:relative;
+  transition:transform 0.3s var(--eo), box-shadow 0.3s var(--eo), border-color 0.25s var(--eo);
+}
+.plan:hover {
+  transform:translateY(-4px);
+  box-shadow:0 30px 60px -28px rgba(15,20,25,0.25);
+}
+.plan.popular {
+  border-color:var(--teal);
+  box-shadow:0 30px 60px -28px rgba(47,103,121,0.4);
+  background:linear-gradient(180deg, #fff 0%, rgba(47,103,121,0.04) 100%);
+}
+.plan.popular::before {
+  content:'Most popular';
+  position:absolute; top:-13px; left:50%;
+  transform:translateX(-50%);
+  background:var(--teal); color:#fff;
+  font-size:0.66rem; font-weight:700;
+  letter-spacing:0.18em; text-transform:uppercase;
+  padding:0.4rem 0.85rem; border-radius:999px;
+  white-space:nowrap;
+}
+.plan-name {
+  font-size:0.7rem; font-weight:800;
+  letter-spacing:0.32em; text-transform:uppercase;
+  color:var(--teal);
+  margin-bottom:1.2rem;
+}
+.plan-price { display:flex; align-items:baseline; gap:0.35rem; margin-bottom:0.4rem; }
+.plan-price .num {
+  font-size:3rem; font-weight:800;
+  letter-spacing:-0.025em;
+  color:var(--t1);
+}
+.plan-price .per {
+  font-size:0.95rem; color:var(--t2); font-weight:500;
+}
+.plan-tag {
+  font-size:0.85rem; color:var(--t2);
+  margin-bottom:1.8rem;
+}
+.plan ul {
+  list-style:none;
+  display:flex; flex-direction:column; gap:0.7rem;
+  margin-bottom:2.2rem;
+  flex:1;
+}
+.plan ul li {
+  display:flex; align-items:flex-start; gap:0.7rem;
+  font-size:0.92rem; line-height:1.45;
+  color:var(--t1);
+}
+.plan ul li svg {
+  width:17px; height:17px;
+  color:var(--teal);
+  flex-shrink:0;
+  margin-top:2px;
+}
+.plan .btn {
+  width:100%;
+  justify-content:center;
+}
+.plan.popular .btn-secondary {
+  background:var(--teal); color:#fff; border-color:var(--teal);
+}
+.plan.popular .btn-secondary:hover {
+  background:var(--teal-d); border-color:var(--teal-d); color:#fff;
+}
+
+/* ── FOOTER ── */
+footer {
+  background:var(--t1); color:#fff;
+  padding:3rem 2rem 2.5rem;
+  text-align:center;
+}
+footer .ft-inner { max-width:1200px; margin:0 auto; }
+footer .logo { justify-content:center; margin-bottom:1.2rem; }
+footer .logo span { color:#fff; }
+footer .ft-links {
+  display:flex; flex-wrap:wrap; justify-content:center;
+  gap:1.4rem; font-size:0.85rem;
+  margin-bottom:1.2rem;
+}
+footer .ft-links a {
+  color:rgba(255,255,255,0.7);
+  transition:color 0.2s var(--eo);
+}
+footer .ft-links a:hover { color:#fff; }
+footer .ft-copy {
+  font-size:0.78rem; color:rgba(255,255,255,0.45);
+  letter-spacing:0.04em;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 980px) {
+  .hero { grid-template-columns:1fr; min-height:auto; }
+  .hero-left { padding:3rem 1.5rem; align-items:center; text-align:center; }
+  .hero-left .sub { margin-left:auto; margin-right:auto; }
+  .hero-eyebrow { justify-content:center; }
+  .hero-right { padding:3rem 1.5rem; min-height:60vh; }
+  .what-grid { grid-template-columns:repeat(2, 1fr); }
+  .pricing-grid { grid-template-columns:1fr; max-width:480px; margin:0 auto; }
+}
+@media (max-width: 600px) {
+  .hero-left { padding:2.5rem 1.25rem; }
+  .hero-left h1 { font-size:2.1rem; }
+  .what-grid { grid-template-columns:1fr; }
+  section.s { padding:4.5rem 1.25rem; }
+  .nav-cta { padding:0.6rem 0.95rem; font-size:0.7rem; }
+  nav { padding:0.7rem 1rem; }
+  .hero-right { padding:2.5rem 1rem; min-height:auto; aspect-ratio:1/1; }
+}
+</style>
+</head>
+<body>
+
+<div class="urgency-banner">
+  <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+  Limited spots open · book a free audit today
+</div>
+
+<nav>
+  <a class="logo" href="/">
+    <img src="logo.png" alt="Sybago AI">
+    <span>Sybago</span>
+  </a>
+  <a class="nav-cta" href="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP" target="_blank" rel="noopener">
+    Book a call
+  </a>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Sybago Services</div>
+    <h1>Automate your local business with <em>AI websites.</em></h1>
+    <p class="sub">
+      With Sybago, you can completely automate your local business&rsquo;
+      appointment setting process with our custom websites.
+    </p>
+    <div class="cta-row">
+      <a href="#pricing" class="btn btn-primary">
+        <span>Begin</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP" target="_blank" rel="noopener" class="btn btn-secondary">
+        Get a free website audit
+      </a>
+    </div>
+  </div>
+
+  <div class="hero-right" aria-hidden="true">
+    <div class="mock-stage">
+      <!-- Big browser dashboard window -->
+      <div class="mock-window window-main">
+        <div class="mock-bar">
+          <i></i><i></i><i></i>
+          <div class="mock-url"></div>
+        </div>
+        <div class="mock-body">
+          <div class="chart-bar">
+            <div class="lbl"></div>
+            <div class="bars">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="chart-pie">
+            <div class="lbl"></div>
+            <div class="pie"></div>
+            <div class="legend"><i>Bookings</i><i>Reviews</i><i>Reactivation</i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Small foreground window -->
+      <div class="mock-window window-mini">
+        <div class="mock-bar"><i></i><i></i><i></i></div>
+        <div class="mock-body">
+          <div class="mini-tile image"></div>
+          <div class="mini-tile bars">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat bubble -->
+      <div class="chat-bubble">
+        <div class="chat-avatar"></div>
+        <div class="chat-text">Welcome back Zach, how<br>can we help you today?</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHAT WE DO ── -->
+<section class="s">
+  <div class="section-inner">
+    <p class="section-eyebrow">What we do</p>
+    <h2 class="section-title">Done-for-you automation, built for service businesses.</h2>
+    <p class="section-sub">
+      Four systems that work together to capture leads, fill the calendar, and earn 5-star reviews
+      while you focus on the job.
+    </p>
+
+    <div class="what-grid">
+      <div class="what-card">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M8 12h4"/><path d="M8 14h2"/>
+          </svg>
+        </div>
+        <h3>AI Websites</h3>
+        <p>Custom-designed sites built to convert visitors into booked appointments. Not a template.</p>
+      </div>
+
+      <div class="what-card">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 012.07 4.18 2 2 0 014.06 2h3a2 2 0 012 1.72c.13.96.37 1.9.7 2.81a2 2 0 01-.45 2.11L8 10a16 16 0 006 6l1.36-1.36a2 2 0 012.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </div>
+        <h3>Missed-call Recovery</h3>
+        <p>Every voicemail gets an instant SMS back. We turn missed calls into booked appointments.</p>
+      </div>
+
+      <div class="what-card">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <h3>Review Engine</h3>
+        <p>Automatic 5-star review requests sent to happy customers — Google, Facebook, everywhere it matters.</p>
+      </div>
+
+      <div class="what-card">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <h3>Lead Reactivation</h3>
+        <p>Old leads in your CRM get re-engaged automatically. Revenue from the names you forgot.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="s pricing-bg" id="pricing">
+  <div class="section-inner">
+    <p class="section-eyebrow">Pricing</p>
+    <h2 class="section-title">Choose a Plan</h2>
+    <p class="section-sub">
+      Every plan is month-to-month. No setup fees, no contracts, no hidden integrations.
+    </p>
+
+    <div class="pricing-grid">
+      <!-- BASIC -->
+      <div class="plan">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">
+          <span class="num">$149</span>
+          <span class="per">/ month</span>
+        </div>
+        <p class="plan-tag">Everything a local business needs to start booking online.</p>
+        <ul>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Custom Website Design</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Live Chat Widget</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Missed-Call Text-Back</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Calendar Booking System</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Google Review Automation</span>
+          </li>
+        </ul>
+        <a href="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP" target="_blank" rel="noopener" class="btn btn-secondary">
+          Get started
+        </a>
+      </div>
+
+      <!-- PRO -->
+      <div class="plan popular">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">
+          <span class="num">$199</span>
+          <span class="per">/ month</span>
+        </div>
+        <p class="plan-tag">For growing businesses that need to manage more than they can call back.</p>
+        <ul>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Everything in Basic</strong></span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Customer Management App</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Dead-Lead Reactivation</span>
+          </li>
+        </ul>
+        <a href="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP" target="_blank" rel="noopener" class="btn btn-secondary">
+          Get started
+        </a>
+      </div>
+
+      <!-- ENTERPRISE -->
+      <div class="plan">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price">
+          <span class="num">$399</span>
+          <span class="per">/ month</span>
+        </div>
+        <p class="plan-tag">A complete operating system for high-volume service businesses.</p>
+        <ul>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Everything in Pro</strong></span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Payment Processing</span>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>AI Appointment Booking Bot</span>
+          </li>
+        </ul>
+        <a href="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP" target="_blank" rel="noopener" class="btn btn-secondary">
+          Get started
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="ft-inner">
+    <a class="logo" href="/">
+      <img src="logo.png" alt="Sybago AI">
+      <span>Sybago</span>
+    </a>
+    <div class="ft-links">
+      <a href="/">Home</a>
+      <a href="/services.html">Services & Pricing</a>
+      <a href="/contact-us.html">Contact</a>
+      <a href="/privacy-policy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+    <p class="ft-copy">© 2026 Sybago LLC. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>
