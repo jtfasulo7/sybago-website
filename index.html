@@ -90,48 +90,8 @@ nav { position: fixed; top: 30px; left: 0; right: 0; z-index: 100; padding: 0.8r
 .hero-ribbon { display: inline-flex; align-items: center; gap: 0.55rem; background: linear-gradient(135deg, var(--gold), var(--gold-b)); color: #fff; padding: 0.55rem 1.3rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 1.2rem; box-shadow: 0 10px 28px rgba(47,103,121,0.28); }
 .hero-ribbon svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; flex-shrink: 0; }
 .hero-ribbon .ribbon-value { color: rgba(255,255,255,0.75); font-weight: 600; padding-left: 0.55rem; margin-left: 0.55rem; border-left: 1px solid rgba(255,255,255,0.3); }
-.hero h1 {
-  font-family: var(--ff-b);
-  font-size: clamp(2rem, 4.4vw, 3.8rem);
-  font-weight: 900;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
-  margin-bottom: 0.9rem;
-  /* Layered halos lift the white type off the canvas paths.
-     Pure white at low opacity = subtle luminosity; blurred copies
-     widen the readable hot-spot so the headline always wins against
-     whatever path crosses behind it. */
-  text-shadow:
-    0 0 1px  rgba(255,255,255,0.50),
-    0 1px 0  rgba(0,0,0,0.85),
-    0 4px 18px rgba(0,0,0,0.80),
-    0 0 36px rgba(255,255,255,0.10);
-}
-.hero h1 em {
-  font-style: normal;
-  color: var(--gold);
-  /* Teal accents glow more than the white words so they pop a step
-     forward — they're the load-bearing words in the sentence. */
-  text-shadow:
-    0 0 1px  rgba(47,103,121,0.7),
-    0 0 22px rgba(47,103,121,0.55),
-    0 0 56px rgba(47,103,121,0.35);
-}
-
-/* Soft radial vignette behind the hero content. Pure CSS, costs nothing
-   per frame, but darkens the canvas paths exactly where the headline
-   sits — gives the text section apparent depth without touching the
-   text itself. */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(60% 50% at 50% 38%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.30) 35%, rgba(0,0,0,0) 75%);
-}
-.hero > * { position: relative; z-index: 1; }
+.hero h1 { font-family: var(--ff-b); font-size: clamp(1.8rem, 3.4vw, 2.8rem); font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 0.9rem; }
+.hero h1 em { font-style: normal; color: var(--gold); }
 .hero-subhead { font-size: 0.95rem; color: var(--t2); font-weight: 500; letter-spacing: 0.02em; margin-bottom: 1.5rem; }
 .hero-offer { margin-bottom: 1.2rem; }
 .hero-offer p { font-size: 0.95rem; line-height: 1.7; color: var(--t2); font-weight: 400; }
