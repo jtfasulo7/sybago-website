@@ -1,4 +1,8 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/services",      "destination": "/pricing", "statusCode": 308 },
+    { "source": "/services.html", "destination": "/pricing", "statusCode": 308 }
+  ]
 }
