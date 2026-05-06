@@ -171,6 +171,20 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
   display:flex;align-items:center;gap:.5rem;
 }
 .hero-byline strong{color:var(--t1);font-weight:600}
+.hero-guarantee{
+  display:inline-flex;align-items:center;gap:.6rem;
+  font-size:.82rem;color:var(--t2);
+  margin-bottom:.95rem;
+  padding:.6rem .85rem;
+  border:1px solid rgba(77,191,122,0.30);
+  background:rgba(77,191,122,0.06);
+  border-radius:6px;
+  font-weight:500;
+  letter-spacing:.005em;
+}
+.hero-guarantee svg{width:14px;height:14px;stroke:#4dbf7a;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.hero-guarantee strong{color:var(--t1);font-weight:700}
+@media (max-width:520px){.hero-guarantee{font-size:.76rem}}
 
 /* Hero photo placeholder */
 .hero-photo{
@@ -573,6 +587,10 @@ details[open] .faq-q .icon{
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>
     </div>
+    <p class="hero-guarantee">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span><strong>30-day money-back guarantee.</strong> Cancel and keep the website.</span>
+    </p>
     <p class="hero-byline">Built by <strong>JT Fasulo</strong> — small team, real results.</p>
   </div>
   <!-- PLACEHOLDER: Photo of JT — to be uploaded -->
@@ -887,6 +905,7 @@ details[open] .faq-q .icon{
         <ul>
           <li><a href="/pricing">Pricing</a></li>
           <li><a href="#trades">Trades We Serve</a></li>
+          <li><a href="/about">About</a></li>
           <li><a href="#faq">FAQ</a></li>
           <li><a href="#book" class="js-cta" data-utm="footer-nav-book">Book A Call</a></li>
         </ul>

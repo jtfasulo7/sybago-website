@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>About — Sybago — Built by an engineer, not an agency.</title>
+<meta name="description" content="Sybago is a small operation built by JT Fasulo, a mechanical engineer turned founder. The story behind the company, the offer, and the 30-day money-back guarantee.">
+
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#000;
+  --bg-2:#0b0b0c;
+  --bg-3:#121214;
+  --t1:#fff;
+  --t2:rgba(255,255,255,0.66);
+  --t3:rgba(255,255,255,0.42);
+  --t4:rgba(255,255,255,0.10);
+  --line:rgba(255,255,255,0.08);
+  --teal:#2F6779;
+  --teal-b:#3a7d93;
+  --teal-d:#244e5b;
+  --teal-g:rgba(47,103,121,0.20);
+  --teal-tint:rgba(47,103,121,0.10);
+  --good:#4dbf7a;
+  --good-tint:rgba(77,191,122,0.10);
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo:cubic-bezier(.16,1,.3,1);
+}
+
+html{scrollbar-width:thin;scrollbar-color:var(--teal) #111;scroll-behavior:smooth}
+body{
+  font-family:var(--ff);
+  background:var(--bg);color:var(--t1);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;overflow-x:clip;line-height:1.55;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--teal);color:#fff}
+
+.fp-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;display:block;width:100%;height:100%}
+
+/* Nav */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 1.6rem;
+  background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+.nav-logo{display:flex;align-items:center;gap:.55rem}
+.nav-logo img{height:28px;width:auto;border-radius:6px}
+.nav-logo span{font-size:.95rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+.nav-cta{
+  font-size:.7rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  background:var(--teal);color:#fff;
+  padding:.65rem 1.05rem;border-radius:6px;
+  transition:background .25s var(--eo),transform .25s var(--eo);
+}
+.nav-cta:hover{background:var(--teal-b);transform:translateY(-1px)}
+@media (max-width:380px){
+  .nav{padding:.85rem 1rem}
+  .nav-logo span{display:none}
+  .nav-cta{padding:.55rem .9rem;font-size:.65rem}
+}
+
+/* Section scaffolding */
+.section{position:relative;z-index:1;padding:6rem 1.6rem;max-width:1240px;margin:0 auto}
+@media (max-width:720px){.section{padding:4rem 1.2rem}}
+.eyebrow{
+  display:inline-block;
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);
+  margin-bottom:1rem;
+}
+h1,h2,h3{font-family:var(--ff);font-weight:800;letter-spacing:-.015em;line-height:1.08}
+h2{font-size:clamp(1.85rem,4.2vw,2.95rem)}
+h3{font-size:clamp(1.2rem,2vw,1.55rem)}
+
+/* Buttons */
+.btn-primary{
+  display:inline-flex;align-items:center;gap:.55rem;
+  font-size:.78rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  padding:1.05rem 1.85rem;border-radius:6px;
+  cursor:pointer;border:none;
+  background:var(--teal);color:#fff;
+  transition:background .25s var(--eo),transform .25s var(--eo);
+  white-space:nowrap;
+}
+.btn-primary:hover{background:var(--teal-b);transform:translateY(-1px)}
+.btn-primary svg{width:14px;height:14px}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:.55rem;
+  font-size:.78rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  padding:1.05rem 1.85rem;border-radius:6px;
+  cursor:pointer;
+  background:transparent;color:var(--t1);border:1px solid var(--t4);
+  transition:background .25s var(--eo),color .25s var(--eo),border-color .25s var(--eo);
+  white-space:nowrap;
+}
+.btn-secondary:hover{border-color:var(--teal-b);color:var(--teal-b)}
+.btn-secondary svg{width:14px;height:14px}
+
+/* Hero */
+.hero{
+  position:relative;z-index:1;
+  padding:7.5rem 1.6rem 3rem;
+  max-width:1240px;margin:0 auto;
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:3.4rem;align-items:center;
+}
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;padding-top:6.4rem;gap:2.4rem}
+}
+.hero-copy{max-width:640px}
+.hero h1{
+  font-size:clamp(2rem,4.8vw,3.6rem);
+  font-weight:800;line-height:1.04;
+  letter-spacing:-.02em;
+  margin-bottom:1.1rem;
+}
+.hero h1 em{font-style:normal;color:var(--teal-b)}
+.hero-sub{
+  font-size:clamp(1rem,1.4vw,1.15rem);
+  color:var(--t2);
+  max-width:48ch;line-height:1.55;
+}
+
+.hero-photo{
+  position:relative;
+  aspect-ratio:4/5;
+  border:1px dashed var(--t4);
+  background:linear-gradient(180deg,rgba(47,103,121,0.06),rgba(47,103,121,0));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  min-height:340px;
+}
+.hero-photo .ph{
+  text-align:center;color:var(--t3);
+  font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;
+  padding:1.4rem;
+}
+.hero-photo .ph strong{color:var(--t1);display:block;font-weight:700;margin-bottom:.4rem;letter-spacing:.2em}
+.hero-photo::before{content:'';position:absolute;width:20px;height:20px;border:1px solid var(--teal-b);top:14px;left:14px;border-right:none;border-bottom:none}
+.hero-photo::after {content:'';position:absolute;width:20px;height:20px;border:1px solid var(--teal-b);bottom:14px;right:14px;border-left:none;border-top:none}
+@media (max-width:980px){.hero-photo{aspect-ratio:5/4;min-height:280px;max-width:520px;margin:0 auto}}
+
+/* Story (paragraph block) */
+.story{
+  max-width:780px;margin:0 auto;
+  padding:4.5rem 1.6rem 2rem;
+  position:relative;z-index:1;
+}
+.story p{
+  font-size:clamp(1.05rem,1.45vw,1.18rem);
+  color:var(--t1);
+  line-height:1.7;
+  margin-bottom:1.4rem;
+  font-weight:400;
+}
+.story p strong{color:var(--t1);font-weight:700}
+.story p em{font-style:italic;color:var(--t1)}
+.story h2{
+  font-size:clamp(1.6rem,3.4vw,2.4rem);
+  margin:3.2rem 0 1.4rem;
+  letter-spacing:-.015em;
+  line-height:1.12;
+}
+.story h2 em{font-style:normal;color:var(--teal-b)}
+.story .pull{
+  position:relative;
+  margin:3rem 0;
+  padding:2.2rem 1.8rem 2.2rem 2.6rem;
+  background:var(--bg-2);
+  border-left:3px solid var(--teal-b);
+  border-radius:0 8px 8px 0;
+  font-size:clamp(1.1rem,1.65vw,1.32rem);
+  line-height:1.55;
+  color:var(--t1);
+  font-weight:500;
+  letter-spacing:-.005em;
+  font-style:italic;
+}
+.story .pull strong{color:var(--teal-b);font-weight:700;font-style:normal}
+.story .pull-attr{
+  display:block;
+  margin-top:1rem;
+  font-size:.7rem;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:var(--t3);
+  font-weight:600;font-style:normal;
+}
+
+/* Why $297 — slim, narrow */
+.why-price{
+  max-width:780px;margin:0 auto;
+  padding:1rem 1.6rem 2rem;
+  position:relative;z-index:1;
+}
+.why-price p{
+  font-size:clamp(1.05rem,1.45vw,1.18rem);
+  color:var(--t1);
+  line-height:1.7;
+  margin-bottom:1.4rem;
+}
+
+/* Guarantee — prominent block */
+.guarantee{
+  background:linear-gradient(135deg,rgba(77,191,122,0.10),rgba(47,103,121,0.05));
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  position:relative;z-index:1;
+}
+.guarantee-inner{
+  max-width:880px;margin:0 auto;
+  padding:5rem 1.6rem;
+  text-align:center;
+}
+.guarantee-shield{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:64px;height:64px;
+  border:1.5px solid var(--good);
+  border-radius:50%;
+  background:var(--good-tint);
+  color:var(--good);
+  margin-bottom:1.6rem;
+}
+.guarantee-shield svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.guarantee-inner h2{
+  font-size:clamp(1.85rem,4.2vw,2.95rem);
+  margin-bottom:1.5rem;
+  letter-spacing:-.015em;line-height:1.08;
+}
+.guarantee-inner h2 em{font-style:normal;color:var(--good)}
+.guarantee-inner p{
+  font-size:clamp(1rem,1.4vw,1.15rem);
+  color:var(--t2);
+  line-height:1.65;
+  max-width:60ch;margin:0 auto 1.2rem;
+}
+.guarantee-inner p strong{color:var(--t1);font-weight:600}
+
+/* Values */
+.values-head{text-align:center;max-width:760px;margin:0 auto 3.4rem}
+.values-head h2{margin-bottom:.8rem}
+.values-head p{color:var(--t2);font-size:1.02rem}
+.values-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:1.4rem;
+}
+@media (max-width:720px){.values-grid{grid-template-columns:1fr}}
+.value{
+  background:var(--bg-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:1.8rem 1.6rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.value:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.value-num{
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);
+  margin-bottom:.7rem;
+}
+.value h3{font-size:1.2rem;margin-bottom:.55rem;letter-spacing:-.005em}
+.value p{color:var(--t2);font-size:.96rem;line-height:1.65}
+
+/* Closing CTA */
+.close-cta{
+  background:linear-gradient(135deg,rgba(47,103,121,0.14),rgba(47,103,121,0.04));
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.close-cta .inner{max-width:920px;margin:0 auto;padding:5.4rem 1.6rem;text-align:center}
+.close-cta h2{font-size:clamp(2.2rem,5.4vw,3.6rem);margin-bottom:.6rem;line-height:1.04}
+.close-cta .takeit{font-size:.95rem;color:var(--t3);margin-top:1.2rem;font-weight:500}
+
+/* Booking */
+.book-section{
+  padding:5.4rem 1.6rem;
+  max-width:980px;margin:0 auto;
+  position:relative;z-index:1;
+  scroll-margin-top:80px;
+}
+.book-head{text-align:center;margin-bottom:2.4rem}
+.book-head .eyebrow{margin-bottom:.6rem}
+.book-head h2{font-size:clamp(1.7rem,3.2vw,2.4rem);margin-bottom:.5rem}
+.book-head p{color:var(--t2);font-size:1rem;max-width:55ch;margin:0 auto}
+.book-frame{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f9f9f9}
+.book-frame iframe{width:100%;height:760px;min-height:600px;border:none;display:block;background:#f9f9f9}
+
+/* Footer */
+.footer{
+  background:var(--bg-2);
+  border-top:1px solid var(--line);
+  position:relative;z-index:1;
+  padding:4rem 1.6rem 2rem;
+}
+.footer-inner{max-width:1240px;margin:0 auto}
+.footer-cta-row{
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;
+  gap:1.2rem;
+  padding-bottom:2.6rem;
+  border-bottom:1px solid var(--line);
+  margin-bottom:2.6rem;
+}
+.footer-cta-row .copy{font-size:1.15rem;font-weight:600;color:var(--t1)}
+.footer-cta-row .copy span{display:block;color:var(--t3);font-size:.85rem;font-weight:500;margin-top:.2rem}
+.footer-grid{
+  display:grid;
+  grid-template-columns:1.4fr 1fr 1fr 1fr;
+  gap:2.2rem;margin-bottom:2.6rem;
+}
+@media (max-width:880px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.8rem}}
+@media (max-width:520px){.footer-grid{grid-template-columns:1fr}}
+.footer-brand .nav-logo{margin-bottom:.85rem}
+.footer-brand p{color:var(--t3);font-size:.85rem;max-width:32ch;line-height:1.6}
+.footer-col h4{
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--t2);margin-bottom:.95rem;
+}
+.footer-col ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem}
+.footer-col a{color:var(--t3);font-size:.9rem;transition:color .2s}
+.footer-col a:hover{color:var(--teal-b)}
+.footer-bottom{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;
+  padding-top:1.6rem;border-top:1px solid var(--line);
+  font-size:.74rem;letter-spacing:.04em;color:var(--t3);
+}
+.footer-bottom .legal{display:flex;gap:1.2rem}
+.footer-bottom .legal a:hover{color:var(--teal-b)}
+.footer-line{
+  text-align:center;
+  font-size:.78rem;color:var(--t3);
+  margin-top:1.2rem;
+  letter-spacing:.04em;
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<canvas class="fp-canvas" id="fpCanvas" aria-hidden="true"></canvas>
+
+<header class="nav">
+  <a href="/" class="nav-logo" aria-label="Sybago — home">
+    <img src="logo.png" alt="">
+    <span>SYBAGO</span>
+  </a>
+  <a href="#book" class="nav-cta js-cta" data-utm="header-nav">Book A Call</a>
+</header>
+
+<main>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">About</div>
+    <h1>Built by an <em>engineer</em>, not an agency.</h1>
+    <p class="hero-sub">Sybago is a small operation. That's the point. The story behind it, the offer, and why every client gets a 30-day money-back guarantee.</p>
+  </div>
+  <!-- PLACEHOLDER: Photo of JT (About page) — to be uploaded -->
+  <div class="hero-photo" role="img" aria-label="Photo of JT Fasulo (placeholder)">
+    <div class="ph">
+      <strong>Photo of JT</strong>
+      goes here<br><span style="color:var(--t3)">Casual, real, not stock.<br>4:5 portrait crop.</span>
+    </div>
+  </div>
+</section>
+
+<!-- The story -->
+<section class="story">
+  <p>Two obsessions, basically my whole life: <strong>software</strong> and <strong>running my own business</strong>. I graduated with a mechanical engineering degree, but I knew the day I picked up my diploma I was going to work for myself.</p>
+
+  <p>When AI started to get <em>actually</em> good, I saw the opportunity I'd been waiting for. Not "AI for AI's sake." AI for the boring, dreaded, no-thinking-required tasks every business has to do every day. Texting back missed calls. Asking customers for reviews. Following up with old leads.</p>
+
+  <p>I named the company <strong>Sybago</strong> — a play on Sebago Lake in Maine, where I was born. I figured I'd build a quiet, useful little software business that helped people get their time back.</p>
+
+  <h2>Then the Facebook ads <em>started.</em></h2>
+
+  <p>The week I incorporated Sybago, my feed turned into a marketing-agency knife fight. <em>"We'll scale your agency with our proven lead gen system." "We'll automate your pipeline." "We'll optimize your funnel."</em> Nothing but jargon. I still get dozens of these every day. I've never clicked one.</p>
+
+  <p>Then it hit me: <em>if I feel this way about these agencies, the service-business owners they're targeting must hate them twice as much.</em></p>
+
+  <p>I dug into it and found something interesting. Service-business owners — roofers, HVAC techs, plumbers, electricians, landscapers — are some of the most-marketed-to people in the entire United States. Look it up. Their inboxes, their DMs, their voicemails — under siege.</p>
+
+  <p>So I decided to do something most agencies would call stupid.</p>
+
+  <div class="pull">
+    "I'll build you a functional website. I'll put AI into your business that <strong>texts back every missed call within 30 seconds</strong>, <strong>automatically asks your customers for Google reviews</strong> so you get found more easily, and <strong>texts your old leads</strong> with a special offer to bring them back. $297 a month. If you see no change in your business after 30 days, I'll give you every cent back and you keep the website."
+    <span class="pull-attr">— JT, on the offer</span>
+  </div>
+
+  <p>That's it. No upfront fees. No hidden fluff. No bullsh*t.</p>
+</section>
+
+<!-- Why $297 -->
+<section class="why-price">
+  <h2 style="font-size:clamp(1.6rem,3.4vw,2.4rem);margin:1.5rem 0 1.4rem;letter-spacing:-.015em;line-height:1.12">Why <em style="color:var(--teal-b);font-style:normal">$297</em>.</h2>
+
+  <p>Most marketing agencies will charge you $2,000 a month and your left kidney for something that might not even work.</p>
+
+  <p>I want to keep you for five years. Not four months.</p>
+
+  <p>$297 is the price where the math works for both of us at scale — I can run a sustainable small operation if a couple hundred contractors stick with me long-term, and you can afford to actually try it without a $24,000 annual commitment.</p>
+
+  <p>If anyone tells you it's "too cheap to be real" — fine. Skip the demo. We'll be here.</p>
+</section>
+
+<!-- The guarantee -->
+<section class="guarantee">
+  <div class="guarantee-inner">
+    <div class="guarantee-shield" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+    </div>
+    <h2>30 days. <em>Money back.</em><br>You keep the website.</h2>
+    <p>If your phone doesn't ring more, your reviews don't go up, or none of the systems do anything for you in the first 30 days — <strong>I refund every dollar you've paid. You keep the website we built.</strong> We part as friends.</p>
+    <p>The reason I can offer this: the systems work. The reason most agencies <em>can't</em> offer this: theirs don't.</p>
+  </div>
+</section>
+
+<!-- Values -->
+<section class="section">
+  <div class="values-head">
+    <div class="eyebrow">Values</div>
+    <h2>Four things we don't break.</h2>
+    <p>Not corporate values. Just rules I'd want a vendor to follow if I were on the other side of the table.</p>
+  </div>
+  <div class="values-grid">
+    <div class="value">
+      <div class="value-num">01</div>
+      <h3>No Bullshit</h3>
+      <p>We say what we mean. If we can't help you, we'll tell you on the demo call before you sign up.</p>
+    </div>
+    <div class="value">
+      <div class="value-num">02</div>
+      <h3>One Honest Price</h3>
+      <p>$297. Not $297 + "platform fee" + "onboarding fee" + "success fee." Just $297, every month, until you tell us to stop.</p>
+    </div>
+    <div class="value">
+      <div class="value-num">03</div>
+      <h3>Earn It Every Month</h3>
+      <p>Month-to-month, no contracts, 30-day money-back. We don't trap customers with contracts. We keep them by being worth it.</p>
+    </div>
+    <div class="value">
+      <div class="value-num">04</div>
+      <h3>Built By Someone Who Uses It</h3>
+      <p>Sybago is built on the same systems we sell you. If something breaks, I feel it before you do.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Closing CTA -->
+<section class="close-cta">
+  <div class="inner">
+    <h2>Want to see it for yourself?</h2>
+    <a href="#book" class="btn-primary js-cta" data-utm="about-page" style="margin-top:1.6rem">
+      Book A Call
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+    <p class="takeit">A free 20-minute demo with me. No pitch deck. No follow-up spam.</p>
+  </div>
+</section>
+
+<!-- Booking -->
+<section class="book-section" id="book">
+  <div class="book-head">
+    <div class="eyebrow">Book a free 20-minute call</div>
+    <h2>Pick a time. We'll show you the rest.</h2>
+    <p>Live client accounts, real text messages from real leads, and exactly what your version would look like. No pitch deck.</p>
+  </div>
+  <div class="book-frame">
+    <iframe
+      src="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP"
+      id="FsCLXfMJ7yiiM7zMb2nP_about"
+      scrolling="no"
+      title="Book a Strategy Call with Sybago"
+      loading="lazy"
+    ></iframe>
+  </div>
+</section>
+
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-inner">
+
+    <div class="footer-cta-row">
+      <div class="copy">
+        Ready to get started?
+        <span>Eight days from this call to a live system.</span>
+      </div>
+      <a href="#book" class="btn-primary js-cta" data-utm="footer-top">
+        Book A Call
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="/" class="nav-logo" aria-label="Sybago — home">
+          <img src="logo.png" alt="">
+          <span>SYBAGO</span>
+        </a>
+        <p>A website + lead-follow-up system for service contractors. $297/mo, no contracts, 30-day money-back.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Sybago</h4>
+        <ul>
+          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="/#trades">Trades We Serve</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/#faq">FAQ</a></li>
+          <li><a href="#book" class="js-cta" data-utm="footer-nav-book">Book A Call</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Account</h4>
+        <ul>
+          <li><a href="https://app.gohighlevel.com" target="_blank" rel="noopener">Log In</a></li>
+          <li><a href="/leave-a-review.html">Leave a Review</a></li>
+          <li><a href="/contact-us.html">Contact</a></li>
+          <li><a href="tel:[PHONE]">Call / Text Us</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Follow JT</h4>
+        <ul>
+          <li><a href="#" target="_blank" rel="noopener">Instagram</a></li>
+          <li><a href="#" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="#" target="_blank" rel="noopener">TikTok</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-cta-row" style="border-bottom:none;padding-bottom:0;margin-bottom:0">
+      <div class="copy">
+        Want to learn more?
+        <span>Same call, same calendar. We're not picky.</span>
+      </div>
+      <a href="#book" class="btn-secondary js-cta" data-utm="footer-bottom">
+        Book A Call
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> Sybago. Built by people who answer their phones.</span>
+      <div class="legal">
+        <a href="/privacy-policy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+      </div>
+    </div>
+
+    <p class="footer-line">Small team, big results. Real human on the other end of the call.</p>
+
+  </div>
+</footer>
+
+<script src="https://api.leadconnectorhq.com/js/form_embed.js" type="text/javascript"></script>
+
+<script>
+document.querySelectorAll('.js-cta').forEach(el => {
+  el.addEventListener('click', () => {
+    const utm = el.getAttribute('data-utm') || 'unknown';
+    if (typeof gtag === 'function') {
+      gtag('event', 'cta_click', {
+        utm_source:'website', utm_medium:'cta',
+        utm_campaign:'book-a-call', utm_content:utm,
+      });
+    }
+  });
+});
+document.getElementById('year').textContent = new Date().getFullYear();
+
+(function(){
+  const canvas = document.getElementById('fpCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const VB_W = 696, VB_H = 316;
+  const COUNT = 36;
+  const POSITION = -1;
+  const paths = [];
+  for (let i = 0; i < COUNT; i++) {
+    paths.push({
+      x1: 380 - i*5*POSITION, y1: 189 + i*6,
+      x2: 312 - i*5*POSITION, y2: 216 - i*6,
+      x3: 152 - i*5*POSITION, y3: 343 - i*6,
+      x4: 616 - i*5*POSITION, y4: 470 - i*6,
+      x5: 684 - i*5*POSITION, y5: 875 - i*6,
+      width: 0.5 + i*0.03, baseA: 0.10 + i*0.03,
+      dashLen: 220 + Math.random()*340, gapLen: 1800 + Math.random()*600,
+      speed: 30 + Math.random()*30, phase: Math.random()*4000,
+      oPhase: Math.random()*Math.PI*2, oFreq: 0.0004 + Math.random()*0.0005,
+    });
+  }
+  let cssW=0, cssH=0;
+  function resize(){
+    cssW = window.innerWidth; cssH = window.innerHeight;
+    canvas.width  = Math.max(1, Math.floor(cssW*dpr));
+    canvas.height = Math.max(1, Math.floor(cssH*dpr));
+  }
+  let last = performance.now(), raf=0;
+  function frame(now){
+    const dt = Math.min(0.05, (now-last)/1000); last = now;
+    const sx = cssW/VB_W, sy = cssH/VB_H;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,cssW,cssH);
+    ctx.lineCap='round';
+    for (const p of paths){
+      p.phase += p.speed*dt;
+      ctx.beginPath();
+      ctx.moveTo(-p.x1*sx, -p.y1*sy);
+      ctx.bezierCurveTo(-p.x1*sx,-p.y1*sy, -p.x2*sx,p.y2*sy, p.x3*sx,p.y3*sy);
+      ctx.bezierCurveTo(p.x4*sx,p.y4*sy, p.x5*sx,p.y5*sy, p.x5*sx,p.y5*sy);
+      const pulse = 0.5 + 0.5*Math.sin(p.oPhase + now*p.oFreq);
+      const alpha = (p.baseA*(0.4 + 0.6*pulse)).toFixed(3);
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.lineWidth = p.width;
+      ctx.setLineDash([p.dashLen, p.gapLen]);
+      ctx.lineDashOffset = -p.phase;
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    raf = requestAnimationFrame(frame);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  raf = requestAnimationFrame((now) => { last = now; frame(now); });
+})();
+</script>
+
+</body>
+</html>

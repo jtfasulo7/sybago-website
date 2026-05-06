@@ -235,6 +235,27 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
   border-radius:99px;
   padding:.35rem .75rem;
 }
+.plan-meta span.meta-good{
+  color:var(--good);
+  border-color:var(--good);
+}
+.plan-guarantee{
+  display:flex;align-items:flex-start;gap:.85rem;
+  padding:1.1rem 1.2rem;
+  background:rgba(77,191,122,0.06);
+  border:1px solid rgba(77,191,122,0.30);
+  border-radius:8px;
+  margin-bottom:2rem;
+  font-size:.95rem;line-height:1.55;
+  color:var(--t2);
+}
+.plan-guarantee svg{
+  width:20px;height:20px;flex-shrink:0;
+  stroke:var(--good);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;
+  margin-top:.05rem;
+}
+.plan-guarantee strong{color:var(--t1);font-weight:600}
 .plan-list{list-style:none;margin:0 0 2.2rem;padding:0;display:flex;flex-direction:column;gap:1.4rem}
 .plan-list li{
   position:relative;
@@ -477,6 +498,12 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
       <span>No setup fee</span>
       <span>No contract</span>
       <span>Cancel anytime</span>
+      <span class="meta-good">30-day money-back</span>
+    </div>
+
+    <div class="plan-guarantee">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span><strong>If your phone doesn't ring more in 30 days, we refund every dollar — and you keep the website.</strong> No questions, no clawbacks.</span>
     </div>
 
     <ul class="plan-list">
@@ -646,6 +673,7 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
         <ul>
           <li><a href="/pricing">Pricing</a></li>
           <li><a href="/#trades">Trades We Serve</a></li>
+          <li><a href="/about">About</a></li>
           <li><a href="/#faq">FAQ</a></li>
           <li><a href="#book" class="js-cta" data-utm="footer-nav-book">Book A Call</a></li>
         </ul>
