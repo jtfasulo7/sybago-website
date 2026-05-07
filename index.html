@@ -284,30 +284,18 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 .feature-gif{
   position:relative;
   aspect-ratio:4/3;
-  border:1px dashed var(--t4);
+  border:1px solid var(--line);
   background:var(--bg-2);
   border-radius:8px;
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;
+  box-shadow:0 12px 28px -10px rgba(15,20,25,0.10),0 4px 8px -4px rgba(15,20,25,0.06);
 }
-.feature-gif::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 50% 30%,rgba(47,103,121,0.08),transparent 60%);
-  pointer-events:none;
-}
-.feature-gif .ph{
-  text-align:center;color:var(--t3);
-  font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;
-  padding:1.4rem;line-height:1.7;
-  position:relative;z-index:1;
-}
-.feature-gif .ph strong{color:var(--t1);display:block;font-weight:700;margin-bottom:.5rem;letter-spacing:.2em}
-.feature-gif .ph .what{
-  display:inline-block;margin-top:.5rem;
-  font-size:.65rem;color:var(--teal-b);
-  letter-spacing:.18em;
-  border:1px solid var(--teal-b);
-  padding:.3rem .7rem;border-radius:99px;
+.feature-gif video{
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+  background:var(--bg-2);
 }
 
 /* ─────── Trades ─────── */
@@ -620,13 +608,10 @@ details[open] .faq-q .icon{
         <li>You take it from there — or let it keep them warm until you can.</li>
       </ul>
     </div>
-    <!-- PLACEHOLDER: GIF — contact-form fill → SMS notification on phone -->
-    <div class="feature-gif" role="img" aria-label="Animated GIF showing a contact form submission becoming an SMS on a phone (placeholder)">
-      <div class="ph">
-        <strong>GIF goes here</strong>
-        Contact form fill on the site<br>→ SMS notification lands on a phone
-        <span class="what">3-second loop · phone-screen mockup</span>
-      </div>
+    <div class="feature-gif" role="img" aria-label="Animation: a website contact form fills out and the lead lands as an SMS on a phone within seconds">
+      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="media/feature-01-website-sms.mp4" type="video/mp4">
+      </video>
     </div>
   </article>
 
@@ -641,13 +626,10 @@ details[open] .faq-q .icon{
         <li>About a third of those replies turn into booked jobs.</li>
       </ul>
     </div>
-    <!-- PLACEHOLDER: GIF — missed-call notification → outbound SMS -->
-    <div class="feature-gif" role="img" aria-label="Animated GIF showing a missed call triggering an outbound SMS (placeholder)">
-      <div class="ph">
-        <strong>GIF goes here</strong>
-        Missed call notification<br>→ outbound text from your number
-        <span class="what">3-second loop · phone screen</span>
-      </div>
+    <div class="feature-gif" role="img" aria-label="Animation: a missed call triggers an automatic outbound text 30 seconds later from the contractor's number">
+      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="media/feature-02-missed-call.mp4" type="video/mp4">
+      </video>
     </div>
   </article>
 
@@ -662,13 +644,10 @@ details[open] .faq-q .icon{
         <li>Nobody is ever blocked from leaving a public review. That's against Google's rules. We don't break rules.</li>
       </ul>
     </div>
-    <!-- PLACEHOLDER: GIF — review request flow (compliant, no rating gate) -->
-    <div class="feature-gif" role="img" aria-label="Animated GIF showing a review-request text becoming a Google review (placeholder)">
-      <div class="ph">
-        <strong>GIF goes here</strong>
-        Review-request text<br>→ Google review submission
-        <span class="what">3-second loop · phone + Google review</span>
-      </div>
+    <div class="feature-gif" role="img" aria-label="Animation: an automated review-request text turns into a 5-star Google review, posted publicly with no rating gate">
+      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="media/feature-03-reviews.mp4" type="video/mp4">
+      </video>
     </div>
   </article>
 
@@ -683,13 +662,10 @@ details[open] .faq-q .icon{
         <li>Costs nothing per month. Just runs.</li>
       </ul>
     </div>
-    <!-- PLACEHOLDER: GIF — re-engagement campaign firing -->
-    <div class="feature-gif" role="img" aria-label="Animated GIF showing a dead-lead re-engagement campaign firing (placeholder)">
-      <div class="ph">
-        <strong>GIF goes here</strong>
-        Re-engagement workflow<br>firing across an old list
-        <span class="what">3-second loop · GHL workflow view</span>
-      </div>
+    <div class="feature-gif" role="img" aria-label="Animation: a workflow fires across stale leads and outbound re-engagement texts go out, with a four-thousand-dollar reactivation kicker">
+      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="media/feature-04-dead-leads.mp4" type="video/mp4">
+      </video>
     </div>
   </article>
 
@@ -704,13 +680,10 @@ details[open] .faq-q .icon{
         <li>We show you the two buttons you actually need to press. That's it.</li>
       </ul>
     </div>
-    <!-- PLACEHOLDER: GIF — client dashboard scrolling -->
-    <div class="feature-gif" role="img" aria-label="Animated GIF showing the client dashboard scrolling (placeholder)">
-      <div class="ph">
-        <strong>GIF goes here</strong>
-        Client dashboard scroll<br>(conversations · pipeline · reviews)
-        <span class="what">3-second loop · screen recording</span>
-      </div>
+    <div class="feature-gif" role="img" aria-label="Animation: the client dashboard scrolling smoothly through conversations, pipeline, and reviews panels">
+      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="media/feature-05-dashboard.mp4" type="video/mp4">
+      </video>
     </div>
   </article>
 </section>
