@@ -179,37 +179,29 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 .hero-guarantee strong{color:var(--t1);font-weight:700}
 @media (max-width:520px){.hero-guarantee{font-size:.76rem}}
 
-/* Hero photo placeholder */
+/* Hero photo — circular crop of JT */
 .hero-photo{
   position:relative;
-  aspect-ratio:4/5;
-  border:1px dashed var(--t4);
-  background:linear-gradient(180deg,rgba(47,103,121,0.06),rgba(47,103,121,0));
-  border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
+  width:100%;
+  max-width:460px;
+  aspect-ratio:1/1;
+  margin:0 auto;
+  border-radius:50%;
   overflow:hidden;
-  min-height:340px;
+  background:var(--bg-2);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px rgba(15,20,25,0.18),
+    0 8px 20px -8px rgba(47,103,121,0.18);
 }
-.hero-photo .ph{
-  text-align:center;color:var(--t3);
-  font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;
-  padding:1.4rem;
-}
-.hero-photo .ph strong{color:var(--t1);display:block;font-weight:700;margin-bottom:.4rem;letter-spacing:.2em}
-.hero-photo::before{
-  content:'';position:absolute;
-  width:20px;height:20px;
-  border:1px solid var(--teal-b);
-  top:14px;left:14px;border-right:none;border-bottom:none;
-}
-.hero-photo::after{
-  content:'';position:absolute;
-  width:20px;height:20px;
-  border:1px solid var(--teal-b);
-  bottom:14px;right:14px;border-left:none;border-top:none;
+.hero-photo img{
+  width:100%;height:100%;
+  object-fit:cover;
+  object-position:center 32%;
+  display:block;
 }
 @media (max-width:980px){
-  .hero-photo{aspect-ratio:5/4;min-height:280px;max-width:520px;margin:0 auto}
+  .hero-photo{max-width:340px}
 }
 
 /* ─────── Problem ─────── */
@@ -571,12 +563,8 @@ details[open] .faq-q .icon{
     </p>
     <p class="hero-byline">Built by <strong>JT Fasulo</strong> — small team, real results.</p>
   </div>
-  <!-- PLACEHOLDER: Photo of JT — to be uploaded -->
-  <div class="hero-photo" role="img" aria-label="Photo of JT Fasulo (placeholder)">
-    <div class="ph">
-      <strong>Photo of JT</strong>
-      goes here<br><span style="color:var(--t3)">Casual, on-site, real.<br>4:5 portrait crop.</span>
-    </div>
+  <div class="hero-photo">
+    <img src="media/jt.jpg" alt="JT Fasulo, founder of Sybago" width="800" height="800">
   </div>
 </section>
 
