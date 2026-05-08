@@ -41,11 +41,7 @@ export default async function handler(req, res) {
     lastName: lastName.slice(0, 80),
     phone,
     message: message.slice(0, 2000),
-    tag: 'website-lead-jtfasulo',
     source: typeof body.source === 'string' ? body.source.slice(0, 200) : 'sybago.ai/widget',
-    submittedAt: new Date().toISOString(),
-    ip: req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '',
-    userAgent: req.headers['user-agent'] || '',
   };
 
   try {
