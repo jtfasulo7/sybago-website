@@ -2,7 +2,10 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    { "source": "/services",      "destination": "/pricing", "statusCode": 308 },
-    { "source": "/services.html", "destination": "/pricing", "statusCode": 308 }
+    { "source": "/services",      "destination": "/",                  "statusCode": 308 },
+    { "source": "/services.html", "destination": "/",                  "statusCode": 308 },
+    { "source": "/pricing",       "destination": "/",                  "statusCode": 308 },
+    { "source": "/pricing.html",  "destination": "/",                  "statusCode": 308 },
+    { "source": "/junk-removal",  "destination": "/lp/junk-removal",   "statusCode": 308 }
   ]
 }

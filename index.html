@@ -12,8 +12,8 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Sybago — Stop losing leads to faster contractors. $297/mo, no contract.</title>
-<meta name="description" content="A website + lead-follow-up system for service contractors. Texts back missed calls, books leads while you're on the job, gets 5-star reviews automatically. $297/mo, month-to-month, no setup fee.">
+<title>Sybago — We turn ad spend into booked jobs.</title>
+<meta name="description" content="A done-for-you customer acquisition system for service businesses. Meta ads, a funnel built to convert, instant follow-up the second a lead books, and every job tracked in one place. Month-to-month, no contracts.">
 
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<!-- Schema: Organization + LocalBusiness -->
+<!-- Schema: Organization -->
 <script type="application/ld+json">
 {
   "@context":"https://schema.org",
@@ -29,6 +29,7 @@
   "name":"Sybago",
   "url":"https://sybago.ai/",
   "logo":"https://sybago.ai/logo.png",
+  "description":"Done-for-you customer acquisition for service businesses: Meta ads management, conversion funnel, speed-to-lead booking follow-up, and lead tracking.",
   "founder":{"@type":"Person","name":"JT Fasulo"},
   "sameAs":[]
 }
@@ -161,7 +162,7 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 .btn-secondary:hover{border-color:var(--teal-b);color:var(--teal-b)}
 .hero-byline{
   font-size:.78rem;color:var(--t3);
-  display:flex;align-items:center;gap:.5rem;
+  line-height:1.6;
 }
 .hero-byline strong{color:var(--t1);font-weight:600}
 /* Hero photo — circular crop of JT */
@@ -216,8 +217,77 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 }
 .problem em{font-style:normal;color:var(--teal-b)}
 
-/* ─────── Features ─────── */
-.features-head{text-align:center;max-width:780px;margin:0 auto 4rem}
+/* ─────── Pipeline (the machine, 4 stages) ─────── */
+.pipe{background:var(--bg-2);position:relative;z-index:1;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.pipe-section{padding:6.5rem 1.6rem;max-width:1240px;margin:0 auto}
+@media (max-width:720px){.pipe-section{padding:4.6rem 1.2rem}}
+.pipe-head{text-align:center;max-width:800px;margin:0 auto 3.6rem}
+.pipe-head h2{margin-bottom:1rem}
+.pipe-head p{color:var(--t2);font-size:1.05rem}
+.pipe-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:1.2rem;
+}
+@media (max-width:980px){.pipe-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.pipe-grid{grid-template-columns:1fr}}
+.pipe-card{
+  position:relative;
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:1.9rem 1.5rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.pipe-card:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.pipe-stage{
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);
+  margin-bottom:.9rem;
+}
+.pipe-card h3{font-size:1.15rem;margin-bottom:.6rem;letter-spacing:-.005em}
+.pipe-card p{color:var(--t2);font-size:.94rem;line-height:1.65}
+.pipe-foot{
+  text-align:center;
+  max-width:60ch;margin:3rem auto 0;
+  font-size:clamp(1rem,1.5vw,1.18rem);
+  color:var(--t1);font-weight:600;line-height:1.5;
+}
+.pipe-foot em{font-style:normal;color:var(--teal-b)}
+
+/* ─────── What you get ─────── */
+.get-head{text-align:center;max-width:800px;margin:0 auto 3.4rem}
+.get-head h2{margin-bottom:1rem}
+.get-head p{color:var(--t2);font-size:1.05rem}
+.get-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:1.4rem;
+}
+@media (max-width:720px){.get-grid{grid-template-columns:1fr}}
+.get-card{
+  background:var(--bg-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:2rem 1.8rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.get-card:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.get-icon{
+  width:38px;height:38px;
+  border:1px solid var(--teal-b);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--teal-b);
+  margin-bottom:1.1rem;
+}
+.get-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.get-card h3{font-size:1.2rem;margin-bottom:.6rem;letter-spacing:-.005em}
+.get-card p{color:var(--t2);font-size:.96rem;line-height:1.65}
+
+/* ─────── Feature rows (video) ─────── */
+.features-head{text-align:center;max-width:780px;margin:0 auto 3rem}
 .features-head h2{margin-bottom:1rem}
 .features-head p{color:var(--t2);font-size:1.05rem}
 .feature{
@@ -278,6 +348,7 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 /* ─────── Trades ─────── */
 .trades{background:var(--bg-2);position:relative;z-index:1}
 .trades-section{padding:6.5rem 1.6rem;max-width:1240px;margin:0 auto}
+@media (max-width:720px){.trades-section{padding:4.6rem 1.2rem}}
 .trades-head{text-align:center;max-width:780px;margin:0 auto 3.4rem}
 .trades-head h2{margin-bottom:1rem}
 .trades-head p{color:var(--t2);font-size:1.05rem}
@@ -372,6 +443,61 @@ h3{font-size:clamp(1.2rem,2vw,1.55rem)}
 .why-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .why-card h3{font-size:1.1rem;margin-bottom:.55rem}
 .why-card p{color:var(--t2);font-size:.92rem;line-height:1.6}
+
+/* ─────── Testimonial ─────── */
+.proof{
+  background:var(--bg-2);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  position:relative;z-index:1;
+}
+.proof-inner{max-width:900px;margin:0 auto;padding:5.4rem 1.6rem;text-align:center}
+@media (max-width:720px){.proof-inner{padding:4rem 1.2rem}}
+.proof-stars{
+  display:flex;justify-content:center;gap:.3rem;
+  color:var(--warn);margin-bottom:1.6rem;
+}
+.proof-stars svg{width:20px;height:20px;fill:currentColor}
+.proof blockquote{
+  font-size:clamp(1.15rem,2.2vw,1.55rem);
+  line-height:1.5;font-weight:500;
+  letter-spacing:-.005em;
+  color:var(--t1);
+  max-width:62ch;margin:0 auto 1.6rem;
+}
+.proof-attr{
+  font-size:.7rem;font-weight:700;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:var(--t3);
+}
+.proof-note{
+  margin-top:1.6rem;
+  font-size:.88rem;color:var(--t3);
+  max-width:56ch;margin-left:auto;margin-right:auto;line-height:1.6;
+}
+
+/* ─────── Results (placeholder-ready — see markup note below) ─────── */
+.results-head{text-align:center;max-width:780px;margin:0 auto 3rem}
+.results-head h2{margin-bottom:1rem}
+.results-head p{color:var(--t2);font-size:1.05rem}
+.results-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1.4rem;
+}
+@media (max-width:880px){.results-grid{grid-template-columns:1fr}}
+.result-card{
+  background:var(--bg-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:2rem 1.7rem;
+}
+.result-metric{
+  font-size:clamp(2rem,4vw,2.8rem);
+  font-weight:800;letter-spacing:-.02em;line-height:1;
+  color:var(--teal-b);margin-bottom:.6rem;
+}
+.result-card h3{font-size:1.05rem;margin-bottom:.5rem}
+.result-card p{color:var(--t2);font-size:.92rem;line-height:1.6}
 
 /* ─────── FAQ ─────── */
 .faq-head{text-align:center;max-width:680px;margin:0 auto 3rem}
@@ -534,15 +660,15 @@ details[open] .faq-q .icon{
 <!-- ─────── 1) Hero ─────── -->
 <section class="hero" id="hero">
   <div class="hero-copy">
-    <h1>Your competitor texted them back in 5 minutes. <em>You called the next day.</em> Guess who got the job.</h1>
-    <p class="hero-sub">We build the boring foundational stuff that actually makes your phone ring — websites, instant lead follow-up, automated reviews. <strong>Just $297/mo, month-to-month. No $5,000 retainers. No 12-month contracts. No catch.</strong></p>
+    <h1>Most ads guys hand you leads. <em>We hand you booked jobs.</em></h1>
+    <p class="hero-sub">Sybago runs the whole customer-acquisition machine for service businesses — the ads, the funnel they land on, the instant follow-up when they book, and one place to track every job it produced. <strong>You turn on ad spend. We turn it into work on your calendar.</strong></p>
     <div class="hero-cta-row">
       <a href="#book" class="btn-primary js-cta" data-utm="homepage-hero">
         Book A Call
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>
     </div>
-    <p class="hero-byline">Built by <strong>JT Fasulo</strong> — small team, real results.</p>
+    <p class="hero-byline">Built by <strong>JT Fasulo</strong> — one guy who actually answers his phone.</p>
   </div>
   <div class="hero-photo">
     <img src="media/jt.jpg" alt="JT Fasulo, founder of Sybago" width="800" height="800">
@@ -552,104 +678,115 @@ details[open] .faq-q .icon{
 <!-- ─────── 2) Problem in their language ─────── -->
 <section class="problem">
   <div class="inner">
-    <p>You're losing leads while you're on the job.</p>
-    <p>By the time you call back at 7pm, they hired the guy who picked up at 2pm. <em>We fix that.</em></p>
-    <p>That's the whole pitch.</p>
+    <p>Leads were never the hard part.</p>
+    <p>Anybody can dump 40 form fills in your inbox and call it a win. <em>Turning those into trucks in driveways</em> is the actual job.</p>
+    <p>That's the part we run.</p>
   </div>
 </section>
 
-<!-- ─────── 3) What you actually get ─────── -->
+<!-- ─────── 3) The machine — the full pipeline ─────── -->
+<section class="pipe">
+  <div class="pipe-section" id="system">
+    <div class="pipe-head">
+      <div class="eyebrow">The system</div>
+      <h2>Four pieces. One machine.<br>Most agencies sell you one and wish you luck.</h2>
+      <p>Ads without a funnel is expensive. A funnel with no follow-up is a leak. Follow-up you can't track is a guess. Run them together or don't bother.</p>
+    </div>
+    <div class="pipe-grid">
+      <div class="pipe-card">
+        <div class="pipe-stage">Stage 01</div>
+        <h3>Ads That Get Clicked</h3>
+        <p>Meta ads built, launched, and managed for you — creative, copy, targeting, and ongoing optimization. We're in the account every week, not every quarter.</p>
+      </div>
+      <div class="pipe-card">
+        <div class="pipe-stage">Stage 02</div>
+        <h3>A Page Built To Convert</h3>
+        <p>That traffic lands somewhere designed for one job: get the booking. We build it, or rebuild the site you've got so it stops leaking the clicks you paid for.</p>
+      </div>
+      <div class="pipe-card">
+        <div class="pipe-stage">Stage 03</div>
+        <h3>Instant Follow-Up</h3>
+        <p>The second someone books, an automated text goes out. No dead air between "I'm interested" and hearing from you. That gap is where jobs go to die.</p>
+      </div>
+      <div class="pipe-card">
+        <div class="pipe-stage">Stage 04</div>
+        <h3>Every Lead Tracked</h3>
+        <p>Your own dashboard showing every lead the ads produced and where it went. You'll know what your ad spend actually bought — not a vibe, a number.</p>
+      </div>
+    </div>
+    <p class="pipe-foot">Most "Facebook ads guys" stop at stage one and hand you the leads. <em>We run all four and hand you the jobs.</em></p>
+  </div>
+</section>
+
+<!-- ─────── 4) What you actually get ─────── -->
 <section class="section" id="features">
-  <div class="features-head">
+  <div class="get-head">
     <div class="eyebrow">What you actually get</div>
-    <h2>Five things. They all just work.<br>You don't have to think about them.</h2>
-    <p>Boring on purpose. Designed to run while you're under a sink.</p>
+    <h2>The whole thing. Not a piece of it.</h2>
+    <p>Everything below is done for you. You don't build anything, log into anything, or learn anything.</p>
   </div>
 
-  <!-- 1 — Website that texts -->
+  <div class="get-grid">
+    <div class="get-card">
+      <div class="get-icon"><svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></div>
+      <h3>Meta Ads Management</h3>
+      <p>Facebook and Instagram campaigns built and run end to end — creative, audiences, budgets, testing, and ongoing optimization. Your ad account stays in your name.</p>
+    </div>
+    <div class="get-card">
+      <div class="get-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M7 8h10M7 12h5"/></svg></div>
+      <h3>A Funnel That Converts</h3>
+      <p>A landing page built for one outcome: booking the job. Already have a site? We'll optimize it to convert paid traffic instead of just sitting there looking nice.</p>
+    </div>
+    <div class="get-card">
+      <div class="get-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <h3>Speed-To-Lead On Booking</h3>
+      <p>The instant a lead books, an automated SMS fires. They hear from you while they're still holding the phone — not four hours later when they've moved on.</p>
+    </div>
+    <div class="get-card">
+      <div class="get-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+      <h3>Lead &amp; Job Tracking</h3>
+      <p>Your own GHL sub-account with every lead, conversation, and booking in one place. Open it on your phone between jobs and see exactly where things stand.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── 5) Two pieces, on video ─────── -->
+<section class="section">
+  <div class="features-head">
+    <div class="eyebrow">See it move</div>
+    <h2>Two pieces of the machine, in motion.</h2>
+  </div>
+
+  <!-- Speed-to-lead -->
   <article class="feature">
     <div>
-      <span class="feature-num">01 — Speed-to-lead</span>
-      <h3>A Website That Texts Customers For You</h3>
+      <span class="feature-num">Speed-to-lead</span>
+      <h3>They Book. Their Phone Buzzes. You Look Fast.</h3>
       <ul>
-        <li>When someone fills out your contact form, your phone buzzes in under 60 seconds.</li>
-        <li>The reply they get sounds like you wrote it, not a bot.</li>
-        <li>You take it from there — or let it keep them warm until you can.</li>
+        <li>Someone books off your ad at 9:40pm while you're asleep. The confirmation text goes out at 9:40pm.</li>
+        <li>It reads like you wrote it, because we wrote it in your voice — not a bot's.</li>
+        <li>By the time you actually talk to them, they're already expecting you. Nobody goes cold in the gap.</li>
       </ul>
     </div>
-    <div class="feature-gif" role="img" aria-label="Animation: a website contact form fills out and the lead lands as an SMS on a phone within seconds">
+    <div class="feature-gif" role="img" aria-label="Animation: a booking comes in through the funnel and lands as an SMS on a phone within seconds">
       <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
         <source src="media/feature-01-website-sms.mp4" type="video/mp4">
       </video>
     </div>
   </article>
 
-  <!-- 2 — Missed call text back -->
+  <!-- Tracking -->
   <article class="feature right">
     <div>
-      <span class="feature-num">02 — Missed-call text-back</span>
-      <h3>Missed The Call? We'll Text Them Back</h3>
+      <span class="feature-num">Tracking</span>
+      <h3>One Dashboard. Every Lead The Ads Produced.</h3>
       <ul>
-        <li>You're on a job, your phone rings, you can't grab it. Normal Tuesday.</li>
-        <li>30 seconds later, the lead gets a text: "Hey, sorry I missed that — what can I help you with?"</li>
-        <li>About a third of those replies turn into booked jobs.</li>
+        <li>Every lead, message, and booking from the campaigns lands in one place.</li>
+        <li>Works on your phone in a driveway or your laptop at the kitchen table.</li>
+        <li>We show you the two buttons you actually need to press. That's the whole training.</li>
       </ul>
     </div>
-    <div class="feature-gif" role="img" aria-label="Animation: a missed call triggers an automatic outbound text 30 seconds later from the contractor's number">
-      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
-        <source src="media/feature-02-missed-call.mp4" type="video/mp4">
-      </video>
-    </div>
-  </article>
-
-  <!-- 3 — Reviews -->
-  <article class="feature">
-    <div>
-      <span class="feature-num">03 — Review automation</span>
-      <h3>5-Star Reviews, Without The Awkward Ask</h3>
-      <ul>
-        <li>Job done? A friendly automated text goes out asking how it went.</li>
-        <li>Happy customers get nudged toward Google. Unhappy ones can text you back privately first.</li>
-        <li>Nobody is ever blocked from leaving a public review. That's against Google's rules. We don't break rules.</li>
-      </ul>
-    </div>
-    <div class="feature-gif" role="img" aria-label="Animation: an automated review-request text turns into a 5-star Google review, posted publicly with no rating gate">
-      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
-        <source src="media/feature-03-reviews.mp4" type="video/mp4">
-      </video>
-    </div>
-  </article>
-
-  <!-- 4 — Dead leads -->
-  <article class="feature right">
-    <div>
-      <span class="feature-num">04 — Database reactivation</span>
-      <h3>Wakes Up Your Dead Leads</h3>
-      <ul>
-        <li>Every "not right now" gets re-engaged automatically — 30, 60, 90 days out.</li>
-        <li>"Hey Jim, still thinking about that roof repair? Just got a slot open this week."</li>
-        <li>Costs nothing per month. Just runs.</li>
-      </ul>
-    </div>
-    <div class="feature-gif" role="img" aria-label="Animation: a workflow fires across stale leads and outbound re-engagement texts go out, with a four-thousand-dollar reactivation kicker">
-      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
-        <source src="media/feature-04-dead-leads.mp4" type="video/mp4">
-      </video>
-    </div>
-  </article>
-
-  <!-- 5 — Dashboard -->
-  <article class="feature">
-    <div>
-      <span class="feature-num">05 — One inbox</span>
-      <h3>One Dashboard For Everything</h3>
-      <ul>
-        <li>Every call, text, review, and lead in one place.</li>
-        <li>Works on your phone or your laptop.</li>
-        <li>We show you the two buttons you actually need to press. That's it.</li>
-      </ul>
-    </div>
-    <div class="feature-gif" role="img" aria-label="Animation: the client dashboard scrolling smoothly through conversations, pipeline, and reviews panels">
+    <div class="feature-gif" role="img" aria-label="Animation: the client dashboard scrolling through conversations, pipeline, and booked jobs">
       <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
         <source src="media/feature-05-dashboard.mp4" type="video/mp4">
       </video>
@@ -657,48 +794,48 @@ details[open] .faq-q .icon{
   </article>
 </section>
 
-<!-- ─────── 4) Trades we serve ─────── -->
+<!-- ─────── 6) Trades we serve ─────── -->
 <section class="trades">
   <div class="trades-section" id="trades">
     <div class="trades-head">
       <div class="eyebrow">Who this is for</div>
-      <h2>Built for service businesses that show up when they say they will</h2>
-      <p>If you've got a phone, a truck, and customers — we've got you.</p>
+      <h2>Built for service businesses that can handle more work</h2>
+      <p>If you've got a truck, a crew, and open slots on the calendar — this is for you.</p>
     </div>
     <div class="trades-grid" id="tradesGrid"></div>
   </div>
 </section>
 
-<!-- ─────── 5) How it works ─────── -->
+<!-- ─────── 7) How it works ─────── -->
 <section class="section" id="process">
   <div class="steps-head">
     <div class="eyebrow">How it works</div>
-    <h2>Three steps. Eight days. Done.</h2>
+    <h2>Three steps. Then the phone starts.</h2>
     <p>You don't even need to read this. We'll walk you through it on the call.</p>
   </div>
   <div class="steps">
     <div class="step">
       <div class="step-num">Step 01</div>
       <span class="step-time">Day 0 · 20 min</span>
-      <h3>Demo Call</h3>
-      <p>Yeah, it's a sales call. We just won't waste your time. We'll walk you through how the system works, show you exactly what your version would look like, and answer the real questions you have.</p>
+      <h3>Strategy Call</h3>
+      <p>Yeah, it's a sales call. We just won't waste your time. We'll look at your market, what you're spending now, and whether ads are even the right move for you. If they're not, we'll say so.</p>
     </div>
     <div class="step">
       <div class="step-num">Step 02</div>
       <span class="step-time">Days 1–7</span>
-      <h3>We Build It</h3>
-      <p>Fill out one form. We handle the rest. You don't need to know what GoHighLevel, Twilio, or "webhook" means. That's literally what you're paying us for.</p>
+      <h3>We Build The Machine</h3>
+      <p>Ads written and built, funnel designed, follow-up wired up, tracking set up in your own account. You fill out one form and send us a few photos. That's your entire job.</p>
     </div>
     <div class="step">
       <div class="step-num">Step 03</div>
-      <span class="step-time">Day 8 · 25 min</span>
-      <h3>Launch Call</h3>
-      <p>We hand you the keys. Show you the two buttons you actually need to press. You go back to running your business.</p>
+      <span class="step-time">Day 8 onward</span>
+      <h3>Launch &amp; Optimize</h3>
+      <p>Campaigns go live and we keep working them — new creative, new angles, cutting what's not producing. You go back to running your business and answering the phone.</p>
     </div>
   </div>
 </section>
 
-<!-- ─────── 6) Why Sybago ─────── -->
+<!-- ─────── 8) Why Sybago ─────── -->
 <section class="section" id="why">
   <div class="why-head">
     <div class="eyebrow">Why Sybago</div>
@@ -712,34 +849,88 @@ details[open] .faq-q .icon{
       <p>Month to month. If we suck, fire us. We'd rather earn it every month than trap you in a 12-month deal.</p>
     </div>
     <div class="why-card">
-      <div class="why-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-      <h3>Real Pricing</h3>
-      <p>$297/mo. That's the whole price. Not "starting at." Not "plus fees." Not "platform charges." $297.</p>
+      <div class="why-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+      <h3>The Whole System</h3>
+      <p>Ads, funnel, follow-up, tracking — one operator running all of it. Not an ads guy pointing at your website saying "that's not my department."</p>
     </div>
     <div class="why-card">
       <div class="why-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
       <h3>Results, Not Reports</h3>
-      <p>We're not going to email you 40 pages of charts every month. You'll know it's working because your phone is ringing.</p>
+      <p>We're not going to email you 40 pages of charts every month. You'll know it's working because your calendar is filling up.</p>
     </div>
     <div class="why-card">
       <div class="why-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <h3>Built By One Guy Who Cares</h3>
-      <p>Sybago is small. That's the point. You don't get passed to a junior account manager on month two.</p>
+      <p>Sybago is small. That's the point. You get JT on the phone — not a junior account manager who started Tuesday.</p>
     </div>
     <div class="why-card">
       <div class="why-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-      <h3>Speed-to-Lead in 5 Minutes</h3>
-      <p>Companies that respond in 5 minutes are 21× more likely to close the lead. We make that automatic. So even when you're on a ladder, you don't lose it.</p>
+      <h3>Speed Is The Whole Edge</h3>
+      <p>Companies that respond in 5 minutes are 21× more likely to close the lead. We make that automatic, so even on a ladder you don't lose it.</p>
     </div>
     <div class="why-card">
       <div class="why-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
       <h3>You Own Your Stuff</h3>
-      <p>Your website, your domain, your customer list. If you ever leave us, you walk with everything. No hostage situations.</p>
+      <p>Your ad account, your page, your domain, your customer list. If you ever leave, you walk with all of it. No hostage situations.</p>
     </div>
   </div>
 </section>
 
-<!-- ─────── 7) FAQ ─────── -->
+<!-- ─────── 9) Proof — the one real testimonial ─────── -->
+<section class="proof" id="proof">
+  <div class="proof-inner">
+    <div class="proof-stars" aria-label="5 out of 5 stars">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <blockquote>"I could not be happier. I run a wholesale business and was having trouble finding business. I reached out at 12pm on a Tuesday and had a perfectly running and streamlined website by Wednesday morning. Fast forward 3 days later, I have brands reaching out to me asking to open wholesale accounts with my business. Thank you!"</blockquote>
+    <div class="proof-attr">— Sybago client, wholesale</div>
+    <p class="proof-note">That was a build-and-launch job, not an ad campaign — we're telling you that up front. What it shows is how fast we move and what happens when the front door actually works.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     RESULTS / CASE STUDY SECTION — PLACEHOLDER, INTENTIONALLY COMMENTED OUT
+     ───────────────────────────────────────────────────────────────────────
+     Drop-in ready. When there are REAL ad-campaign numbers to show, delete
+     the comment wrappers around the <section> below and fill in the metrics.
+     Styles (.results-head/.results-grid/.result-card/.result-metric) are
+     already defined in the stylesheet above, so this needs no redesign.
+
+     RULES: only real, verifiable numbers from actual client campaigns.
+     Never present the wholesale testimonial above as an ads result.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<!--
+<section class="section" id="results">
+  <div class="results-head">
+    <div class="eyebrow">Real results</div>
+    <h2>What the machine actually produced.</h2>
+    <p>Real campaigns, real spend, real booked jobs.</p>
+  </div>
+  <div class="results-grid">
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / trade]</h3>
+      <p>[One sentence of context — spend, timeframe, what happened.]</p>
+    </div>
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / trade]</h3>
+      <p>[One sentence of context — spend, timeframe, what happened.]</p>
+    </div>
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / trade]</h3>
+      <p>[One sentence of context — spend, timeframe, what happened.]</p>
+    </div>
+  </div>
+</section>
+-->
+
+<!-- ─────── 10) FAQ ─────── -->
 <section class="section" id="faq">
   <div class="faq-head">
     <div class="eyebrow">FAQ</div>
@@ -747,40 +938,48 @@ details[open] .faq-q .icon{
   </div>
   <div class="faq-list">
     <details class="faq-item">
-      <summary class="faq-q">When am I going to start seeing results? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">The missed-call text-back and the website-to-text usually start producing extra booked jobs in week one. The Google review flywheel takes 30–60 days to really pop. The dead-lead reactivation depends on how big your old list is. If you expect to pay $297 and have leads pour in tomorrow without doing anything else — we're not the right fit. This is a foundation. It works because it never stops working.</div>
+      <summary class="faq-q">So what exactly do you do? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">We run the entire path from stranger to booked job. We build and manage your Meta ads, build the page that traffic lands on, wire up an automatic text that fires the moment someone books, and set you up with a dashboard that tracks every lead it produced. Four pieces, one operator, one system.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">Why is your pricing so cheap? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">Because most agencies are massively overpriced. We'd rather keep you for five years at $297 than churn you out at $2,000/mo after four months. The math is better for everyone.</div>
+      <summary class="faq-q">Who pays for the ad spend? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">You do, and it goes straight to Meta from your own ad account in your own name. We never touch it or mark it up. Our fee is separate and covers managing the whole system. We'll talk through what a sensible starting budget looks like for your market on the call.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">How is this different from every other ad agency? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">Most of them run ads and stop. You get a pile of leads, no page built to convert them, no follow-up, no tracking, and when it doesn't work they blame your sales process. We own the whole chain — so there's nobody to point at but us. Plus you're dealing with one guy who answers his phone, not an account team with turnover.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">How fast will I see something? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">The system is usually live inside a week. Leads typically start moving in the first couple of weeks after launch. But the first 30 days is also when we're testing creative and audiences to find what your market responds to — the campaigns generally get better, not worse, as they run. If you want guaranteed leads by Friday, everyone promising that is lying to you.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Do I need a website already? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">No. If you don't have one, we build the page the ads need. If you do have one, we'll look at it honestly — sometimes it just needs to be optimized to convert paid traffic, sometimes you're better off with a purpose-built page. We'll tell you which on the call instead of selling you a rebuild you don't need.</div>
     </details>
     <details class="faq-item">
       <summary class="faq-q">What if I want to cancel? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">We'll be sad. You'll lose access to everything we built. Then we'll cry and move on. Month-to-month, no contracts.</div>
+      <div class="faq-a">You cancel. Month-to-month, no contracts, no exit fee, no 90-day notice nonsense. Your ad account, your page, your domain, and your customer list are yours and you keep them. We'll be sad about it for roughly one afternoon.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">Do you handle Google Ads, Facebook Ads, or SEO? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">Not in the core $297 plan. We can add any of those on top. We'll be straight with you about whether you actually need them — most contractors don't, until they fix the leaks first.</div>
+      <summary class="faq-q">What does it cost? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">Depends on your market, your trade, and how much of the system you need built from scratch. We go through it on the call — plainly, with a real number, no "packages" theater. If it's not a fit for what you can spend, we'll say that too instead of stringing you along.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">I already have a website. Do I need a new one? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">Probably yes. Most contractor websites are pretty stuff that doesn't actually do anything — no instant follow-up, no review automation, no integration with your phone. Happy to look at yours on the demo and give you a real answer.</div>
+      <summary class="faq-q">Do you work with my trade? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">If you sell a service to homeowners or businesses and you can handle more work, probably yes. Junk removal, roofing, HVAC, landscaping, moving, pressure washing, detailing — the machine is the same, the message changes. See the list above.</div>
     </details>
     <details class="faq-item">
-      <summary class="faq-q">How are you different from the other guys spamming my Instagram DMs? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <summary class="faq-q">How are you different from the guys spamming my Instagram DMs? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
       <div class="faq-a">We don't spam Instagram DMs.</div>
-    </details>
-    <details class="faq-item">
-      <summary class="faq-q">Do you actually use this stuff yourselves? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <div class="faq-a">Yes. Our own website is built on the same system we sell you. Eat your own dog food, etc.</div>
     </details>
   </div>
 </section>
 
-<!-- ─────── 8) Closing CTA ─────── -->
+<!-- ─────── 11) Closing CTA ─────── -->
 <section class="close-cta">
   <div class="inner">
-    <h2>Ready to stop losing leads?</h2>
+    <h2>Ready to fill the calendar?</h2>
     <a href="#book" class="btn-primary js-cta" data-utm="homepage-bottom" style="margin-top:1.6rem">
       Book A Call
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -794,7 +993,7 @@ details[open] .faq-q .icon{
   <div class="book-head">
     <div class="eyebrow">Book a free 20-minute call</div>
     <h2>Pick a time. We'll show you the rest.</h2>
-    <p>We'll walk you through the system end to end, show you exactly what your version would look like, and answer the real questions you have. No pitch deck.</p>
+    <p>We'll walk you through the system end to end, show you what your version would look like, and give you a straight answer on whether it's worth it for your business. No pitch deck.</p>
   </div>
   <div class="book-frame">
     <iframe
@@ -816,7 +1015,7 @@ details[open] .faq-q .icon{
     <div class="footer-cta-row">
       <div class="copy">
         Ready to get started?
-        <span>Eight days from this call to a live system.</span>
+        <span>About a week from this call to a live system.</span>
       </div>
       <a href="#book" class="btn-primary js-cta" data-utm="footer-top">
         Book A Call
@@ -830,12 +1029,12 @@ details[open] .faq-q .icon{
           <img src="logo.png" alt="">
           <span>SYBAGO</span>
         </a>
-        <p>A website + lead-follow-up system for service contractors. $297/mo, no contracts, no setup fee.</p>
+        <p>Done-for-you customer acquisition for service businesses. Ads, funnel, follow-up, tracking. No contracts.</p>
       </div>
       <div class="footer-col">
         <h4>Sybago</h4>
         <ul>
-          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="#system">The System</a></li>
           <li><a href="#trades">Trades We Serve</a></li>
           <li><a href="/about">About</a></li>
           <li><a href="#faq">FAQ</a></li>
@@ -882,7 +1081,7 @@ details[open] .faq-q .icon{
       </div>
     </div>
 
-    <p class="footer-line">Small team, big results. Real human on the other end of the call.</p>
+    <p class="footer-line">Small operation, real results. Real human on the other end of the call.</p>
 
   </div>
 </footer>
@@ -893,6 +1092,7 @@ details[open] .faq-q .icon{
 /* ─────── Trades grid (rendered from data, with Lucide-style icons) ─────── */
 (function(){
   const TRADES = [
+    ['Junk Removal',        'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6'],
     ['HVAC',                'M12 2v6M12 22v-6M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M22 12h-6M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24'],
     ['Roofing',             'm3 12 9-9 9 9M5 10v10h14V10'],
     ['Plumbing',            'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 14h.01M16 14h.01M12 14v4'],
@@ -911,7 +1111,6 @@ details[open] .faq-q .icon{
     ['Siding',              'M3 3h18v18H3zM3 8h18M3 13h18M3 18h18'],
     ['Flooring',            'M3 3h18v18H3zM7 3v18M11 3v18M15 3v18M19 3v18'],
     ['Window Cleaning',     'M3 3h18v18H3zM12 3v18M3 12h18'],
-    ['Junk Removal',        'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6'],
     ['Auto Detailing',      'M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2M7 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
     ['Dog Grooming',        'M10 5.172C10 3.782 8.423 2.679 6.5 3c-2.823.47-4.113 6.006-4 7 .08.703 1.725 1.722 3.656 1 1.261-.472 1.96-1.45 2.344-2.5M14.267 5.172c0-1.39 1.577-2.493 3.5-2.172 2.823.47 4.113 6.006 4 7-.08.703-1.725 1.722-3.656 1-1.261-.472-1.855-1.45-2.239-2.5M8 14v.5M16 14v.5M11.25 16.25h1.5L12 17l-.75-.75zM4.5 13.5L3 14M19.5 13.5l1.5.5M5 18a2 2 0 0 0 2 2c.5 0 1.5-.5 2-1 .5-.5 1-2 3-2s2.5 1.5 3 2c.5.5 1.5 1 2 1a2 2 0 0 0 2-2'],
     ['General Contractors', 'M2 22V8a2 2 0 0 1 2-2h2.5a2 2 0 0 0 1.7-.9L9.5 3h5l1.3 2.1a2 2 0 0 0 1.7.9H20a2 2 0 0 1 2 2v14M6 22V12h12v10M9 22v-6M15 22v-6'],

@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  SYBAGO NICHE AD LANDING PAGE — TEMPLATE
+  Live at: /lp/junk-removal   (vercel.json has cleanUrls:true, so no .html)
+═══════════════════════════════════════════════════════════════════════════════
+  This is a COLD-TRAFFIC conversion page for Sybago's OWN Meta ads. It is not
+  part of the main site's navigation and deliberately has no nav links out —
+  one message, one action: Book A Call.
+
+  TO CLONE FOR A NEW NICHE (e.g. pressure washing):
+    1. Copy this file to lp/<niche>.html — it is fully self-contained.
+    2. Swap ONLY the copy: <title>, meta description, hero h1/sub, the five
+       .pain-item lines, the .get-card wording, and the FAQ answers.
+    3. Update the booking iframe id suffix (…_lp_<niche>) so GA4/GHL can tell
+       which landing page produced the booking.
+    4. Update every data-utm value from "lp-junk-…" to "lp-<niche>-…".
+    5. Leave the structure, styles, and section order alone — this order is
+       the conversion sequence: hook → pain → mechanism → deliverables →
+       risk reversal → proof → FAQ → book.
+
+  NOTES:
+    - noindex is intentional: this is a paid-traffic page and should not
+      compete with the main site in search. Remove it only on purpose.
+    - NO PRICING on this page, ever. Pricing is handled on the call.
+    - The results section near the bottom is commented out and drop-in ready
+      for when real ad-campaign numbers exist. No redesign needed.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, follow">
+<title>Junk Removal Owners — Stop Waiting On The Phone To Ring | Sybago</title>
+<meta name="description" content="We run the ads, the booking page, and the instant follow-up that fills a junk removal calendar. Done for you, month to month, no contracts.">
+
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#ffffff;
+  --bg-2:#f4f5f7;
+  --bg-3:#eaecef;
+  --t1:#0f1419;
+  --t2:rgba(15,20,25,0.66);
+  --t3:rgba(15,20,25,0.42);
+  --t4:rgba(15,20,25,0.10);
+  --line:rgba(15,20,25,0.08);
+  --teal:#2F6779;
+  --teal-b:#3a7d93;
+  --teal-d:#244e5b;
+  --teal-tint:rgba(47,103,121,0.10);
+  --warn:#e8b04a;
+  --good:#4dbf7a;
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo:cubic-bezier(.16,1,.3,1);
+}
+
+html{scrollbar-width:thin;scrollbar-color:var(--teal) #eaecef;scroll-behavior:smooth}
+body{
+  font-family:var(--ff);
+  background:var(--bg);color:var(--t1);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;overflow-x:clip;line-height:1.55;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--teal);color:#fff}
+
+/* ─────── Nav — logo + single CTA only. No links out. ─────── */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 1.6rem;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+.nav-logo{display:flex;align-items:center;gap:.55rem}
+.nav-logo img{height:28px;width:auto;border-radius:6px}
+.nav-logo span{font-size:.95rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+.nav-cta{
+  font-size:.7rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  background:var(--teal);color:#fff;
+  padding:.65rem 1.05rem;border-radius:6px;
+  transition:background .25s var(--eo),transform .25s var(--eo);
+}
+.nav-cta:hover{background:var(--teal-b);transform:translateY(-1px)}
+@media (max-width:380px){
+  .nav{padding:.85rem 1rem}
+  .nav-logo span{display:none}
+  .nav-cta{padding:.55rem .9rem;font-size:.65rem}
+}
+
+/* ─────── Scaffolding ─────── */
+.section{position:relative;z-index:1;padding:5.4rem 1.6rem;max-width:1100px;margin:0 auto}
+@media (max-width:720px){.section{padding:4rem 1.2rem}}
+.eyebrow{
+  display:inline-block;
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);margin-bottom:1rem;
+}
+h1,h2,h3{font-family:var(--ff);font-weight:800;letter-spacing:-.015em;line-height:1.08}
+h2{font-size:clamp(1.8rem,4vw,2.75rem)}
+h3{font-size:clamp(1.2rem,2vw,1.5rem)}
+
+.btn-primary{
+  display:inline-flex;align-items:center;gap:.55rem;
+  font-size:.78rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  padding:1.05rem 1.85rem;border-radius:6px;
+  cursor:pointer;border:none;
+  background:var(--teal);color:#fff;
+  transition:background .25s var(--eo),transform .25s var(--eo);
+  white-space:nowrap;
+}
+.btn-primary:hover{background:var(--teal-b);transform:translateY(-1px)}
+.btn-primary svg{width:14px;height:14px}
+
+/* ─────── Hero ─────── */
+.hero{
+  position:relative;z-index:1;
+  padding:7.5rem 1.6rem 3.4rem;
+  max-width:1100px;margin:0 auto;
+  display:grid;grid-template-columns:1.2fr .8fr;
+  gap:3rem;align-items:center;
+}
+@media (max-width:980px){.hero{grid-template-columns:1fr;padding-top:6.4rem;gap:2.2rem}}
+@media (max-width:720px){.hero{padding-left:1.2rem;padding-right:1.2rem}}
+.hero-copy{max-width:640px}
+.hero h1{
+  font-size:clamp(2.1rem,5.2vw,3.7rem);
+  font-weight:800;line-height:1.04;letter-spacing:-.02em;
+  margin-bottom:1.3rem;
+}
+.hero h1 em{font-style:normal;color:var(--teal-b)}
+.hero-sub{
+  font-size:clamp(1rem,1.4vw,1.15rem);
+  color:var(--t2);max-width:50ch;
+  margin-bottom:1.8rem;line-height:1.55;
+}
+.hero-sub strong{color:var(--t1);font-weight:600}
+.hero-cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-bottom:.95rem}
+.hero-byline{font-size:.78rem;color:var(--t3)}
+.hero-byline strong{color:var(--t1);font-weight:600}
+.hero-photo{
+  position:relative;width:100%;max-width:400px;aspect-ratio:1/1;
+  margin:0 auto;border-radius:50%;overflow:hidden;background:var(--bg-2);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 48px -16px rgba(15,20,25,0.18),
+    0 8px 20px -8px rgba(47,103,121,0.18);
+}
+.hero-photo img{width:100%;height:100%;object-fit:cover;object-position:center 32%;display:block}
+@media (max-width:980px){.hero-photo{max-width:300px}}
+
+/* ─────── Pain ─────── */
+.pain{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;z-index:1}
+.pain-inner{max-width:900px;margin:0 auto;padding:5rem 1.6rem}
+@media (max-width:720px){.pain-inner{padding:4rem 1.2rem}}
+.pain-head{text-align:center;margin-bottom:2.8rem}
+.pain-head h2{margin-bottom:.9rem}
+.pain-head p{color:var(--t2);font-size:1.05rem;max-width:52ch;margin:0 auto}
+.pain-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.9rem}
+.pain-item{
+  display:flex;align-items:flex-start;gap:.95rem;
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;
+  padding:1.15rem 1.3rem;
+  font-size:1rem;line-height:1.6;color:var(--t1);
+}
+.pain-item svg{
+  flex-shrink:0;width:20px;height:20px;margin-top:.15rem;
+  stroke:var(--warn);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+.pain-foot{
+  text-align:center;max-width:60ch;margin:2.8rem auto 0;
+  font-size:clamp(1.05rem,1.7vw,1.3rem);font-weight:600;line-height:1.45;
+}
+.pain-foot em{font-style:normal;color:var(--teal-b)}
+
+/* ─────── Mechanism ─────── */
+.pipe-head{text-align:center;max-width:760px;margin:0 auto 3rem}
+.pipe-head h2{margin-bottom:.9rem}
+.pipe-head p{color:var(--t2);font-size:1.05rem}
+.pipe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1rem}
+@media (max-width:980px){.pipe-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.pipe-grid{grid-template-columns:1fr}}
+.pipe-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:10px;
+  padding:1.8rem 1.4rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.pipe-card:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.pipe-stage{
+  font-size:.62rem;font-weight:700;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);margin-bottom:.85rem;
+}
+.pipe-card h3{font-size:1.1rem;margin-bottom:.55rem;letter-spacing:-.005em}
+.pipe-card p{color:var(--t2);font-size:.93rem;line-height:1.65}
+.pipe-foot{
+  text-align:center;max-width:60ch;margin:2.8rem auto 0;
+  font-size:clamp(1rem,1.5vw,1.18rem);color:var(--t1);font-weight:600;line-height:1.5;
+}
+.pipe-foot em{font-style:normal;color:var(--teal-b)}
+
+/* ─────── What you get ─────── */
+.get{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;z-index:1}
+.get-inner{max-width:1100px;margin:0 auto;padding:5.4rem 1.6rem}
+@media (max-width:720px){.get-inner{padding:4rem 1.2rem}}
+.get-head{text-align:center;max-width:760px;margin:0 auto 3rem}
+.get-head h2{margin-bottom:.9rem}
+.get-head p{color:var(--t2);font-size:1.05rem}
+.get-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.3rem}
+@media (max-width:720px){.get-grid{grid-template-columns:1fr}}
+.get-card{
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;
+  padding:1.9rem 1.7rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.get-card:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.get-icon{
+  width:38px;height:38px;border:1px solid var(--teal-b);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--teal-b);margin-bottom:1.05rem;
+}
+.get-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.get-card h3{font-size:1.15rem;margin-bottom:.55rem;letter-spacing:-.005em}
+.get-card p{color:var(--t2);font-size:.95rem;line-height:1.65}
+
+/* ─────── Risk reversal ─────── */
+.risk-head{text-align:center;max-width:760px;margin:0 auto 3rem}
+.risk-head h2{margin-bottom:.9rem}
+.risk-head p{color:var(--t2);font-size:1.05rem}
+.risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem}
+@media (max-width:880px){.risk-grid{grid-template-columns:1fr}}
+.risk-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:10px;
+  padding:1.8rem 1.6rem;
+}
+.risk-icon{
+  width:38px;height:38px;border:1px solid var(--good);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--good);margin-bottom:1.05rem;
+}
+.risk-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.risk-card h3{font-size:1.1rem;margin-bottom:.55rem}
+.risk-card p{color:var(--t2);font-size:.93rem;line-height:1.6}
+
+/* ─────── Founder ─────── */
+.founder{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;z-index:1}
+.founder-inner{
+  max-width:900px;margin:0 auto;padding:4.6rem 1.6rem;
+  display:grid;grid-template-columns:200px 1fr;gap:2.6rem;align-items:center;
+}
+@media (max-width:720px){
+  .founder-inner{grid-template-columns:1fr;gap:1.8rem;padding:4rem 1.2rem;text-align:center}
+}
+.founder-photo{
+  width:100%;max-width:200px;aspect-ratio:1/1;margin:0 auto;
+  border-radius:50%;overflow:hidden;background:var(--bg-3);
+  box-shadow:0 0 0 1px var(--line),0 16px 32px -12px rgba(15,20,25,0.18);
+}
+.founder-photo img{width:100%;height:100%;object-fit:cover;object-position:center 32%;display:block}
+.founder-copy h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-bottom:1rem}
+.founder-copy p{color:var(--t2);font-size:1rem;line-height:1.7;margin-bottom:.9rem}
+.founder-copy p:last-child{margin-bottom:0}
+.founder-copy strong{color:var(--t1);font-weight:600}
+
+/* ─────── Proof ─────── */
+.proof-inner{max-width:820px;margin:0 auto;text-align:center}
+.proof-stars{display:flex;justify-content:center;gap:.3rem;color:var(--warn);margin-bottom:1.5rem}
+.proof-stars svg{width:20px;height:20px;fill:currentColor}
+.proof blockquote{
+  font-size:clamp(1.1rem,2vw,1.45rem);line-height:1.5;font-weight:500;
+  letter-spacing:-.005em;color:var(--t1);max-width:60ch;margin:0 auto 1.5rem;
+}
+.proof-attr{font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t3)}
+.proof-note{
+  margin:1.5rem auto 0;font-size:.87rem;color:var(--t3);
+  max-width:56ch;line-height:1.6;
+}
+
+/* ─────── Results (placeholder-ready) ─────── */
+.results-head{text-align:center;max-width:760px;margin:0 auto 3rem}
+.results-head h2{margin-bottom:.9rem}
+.results-head p{color:var(--t2);font-size:1.05rem}
+.results-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem}
+@media (max-width:880px){.results-grid{grid-template-columns:1fr}}
+.result-card{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:1.9rem 1.6rem}
+.result-metric{
+  font-size:clamp(2rem,4vw,2.8rem);font-weight:800;letter-spacing:-.02em;line-height:1;
+  color:var(--teal-b);margin-bottom:.55rem;
+}
+.result-card h3{font-size:1.05rem;margin-bottom:.5rem}
+.result-card p{color:var(--t2);font-size:.92rem;line-height:1.6}
+
+/* ─────── FAQ ─────── */
+.faq-head{text-align:center;max-width:680px;margin:0 auto 2.6rem}
+.faq-list{max-width:780px;margin:0 auto}
+.faq-item{border-top:1px solid var(--line);padding:1.35rem 0}
+.faq-item:last-child{border-bottom:1px solid var(--line)}
+.faq-q{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  cursor:pointer;font-size:1.02rem;font-weight:600;color:var(--t1);list-style:none;
+}
+.faq-q::-webkit-details-marker{display:none}
+.faq-q .icon{
+  flex-shrink:0;width:22px;height:22px;
+  border:1px solid var(--t4);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--t3);transition:border-color .25s,color .25s,transform .25s;
+}
+details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transform:rotate(45deg)}
+.faq-q .icon svg{width:10px;height:10px;stroke:currentColor;stroke-width:2;stroke-linecap:round;fill:none}
+.faq-a{margin-top:.9rem;color:var(--t2);font-size:.97rem;line-height:1.7;max-width:65ch}
+
+/* ─────── Closing CTA ─────── */
+.close-cta{
+  background:linear-gradient(135deg,rgba(47,103,121,0.14),rgba(47,103,121,0.04));
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.close-cta .inner{max-width:900px;margin:0 auto;padding:5rem 1.6rem;text-align:center}
+.close-cta h2{font-size:clamp(2rem,5vw,3.3rem);margin-bottom:.6rem;line-height:1.04}
+.close-cta .takeit{font-size:.95rem;color:var(--t3);margin-top:1.2rem;font-weight:500}
+
+/* ─────── Booking ─────── */
+.book-section{
+  padding:5.4rem 1.6rem;max-width:980px;margin:0 auto;
+  position:relative;z-index:1;scroll-margin-top:80px;
+}
+@media (max-width:720px){.book-section{padding:4rem 1.2rem}}
+.book-head{text-align:center;margin-bottom:2.4rem}
+.book-head .eyebrow{margin-bottom:.6rem}
+.book-head h2{font-size:clamp(1.7rem,3.2vw,2.4rem);margin-bottom:.5rem}
+.book-head p{color:var(--t2);font-size:1rem;max-width:55ch;margin:0 auto}
+.book-frame{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f9f9f9}
+.book-frame iframe{width:100%;height:760px;min-height:600px;border:none;display:block;background:#f9f9f9}
+
+/* ─────── Footer — legal only, no navigation out ─────── */
+.lp-footer{
+  background:var(--bg-2);border-top:1px solid var(--line);
+  padding:2.6rem 1.6rem;text-align:center;position:relative;z-index:1;
+}
+.lp-footer .nav-logo{justify-content:center;margin-bottom:1rem}
+.lp-footer p{font-size:.78rem;color:var(--t3);letter-spacing:.04em}
+.lp-footer .legal{display:flex;justify-content:center;gap:1.2rem;margin-top:.8rem;font-size:.74rem;color:var(--t3)}
+.lp-footer .legal a:hover{color:var(--teal-b)}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ─────── Nav — deliberately no links out ─────── -->
+<header class="nav">
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/logo.png" alt="">
+    <span>SYBAGO</span>
+  </span>
+  <a href="#book" class="nav-cta js-cta" data-utm="lp-junk-header">Book A Call</a>
+</header>
+
+<main>
+
+<!-- ─────── Hero — message-match to the ad ─────── -->
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">For junk removal owners</div>
+    <h1>Your truck should be booked by 9am. <em>Not sitting in the driveway.</em></h1>
+    <p class="hero-sub">We run the ads, the booking page, and the instant follow-up that keeps a junk removal calendar full — done for you, start to finish. <strong>You show up and haul. That's the arrangement.</strong></p>
+    <div class="hero-cta-row">
+      <a href="#book" class="btn-primary js-cta" data-utm="lp-junk-hero">
+        Book A Call
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <p class="hero-byline">Built by <strong>JT Fasulo</strong> — one guy, no account managers, no contracts.</p>
+  </div>
+  <div class="hero-photo">
+    <img src="/media/jt.jpg" alt="JT Fasulo, founder of Sybago" width="800" height="800">
+  </div>
+</section>
+
+<!-- ─────── Pain — speak their week back to them ─────── -->
+<section class="pain">
+  <div class="pain-inner">
+    <div class="pain-head">
+      <h2>You already know how this goes.</h2>
+      <p>Nothing here is a guess. This is what running a junk removal business actually looks like most weeks.</p>
+    </div>
+    <ul class="pain-list">
+      <li class="pain-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Somebody calls three companies at once. Whoever answers first gets the job — and you were under a mattress with both hands full.</span>
+      </li>
+      <li class="pain-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>You've got two hauls on Tuesday and a wide-open Wednesday, and no reliable way to fill it.</span>
+      </li>
+      <li class="pain-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Word of mouth is great until it isn't. It doesn't turn on when you need it and it never scales on schedule.</span>
+      </li>
+      <li class="pain-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Winter hits, the phone goes quiet, and you're staring at a truck payment that didn't get the memo about seasonality.</span>
+      </li>
+      <li class="pain-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>You tried a lead service. Same five leads sold to four other haulers, half of them tire-kickers, all of them price shopping.</span>
+      </li>
+    </ul>
+    <p class="pain-foot">None of that is a work-ethic problem. <em>It's a demand problem — and demand can be built on purpose.</em></p>
+  </div>
+</section>
+
+<!-- ─────── Mechanism — why this works ─────── -->
+<section class="section">
+  <div class="pipe-head">
+    <div class="eyebrow">How we fix it</div>
+    <h2>Four pieces. One machine that fills your calendar.</h2>
+    <p>Most "ads guys" build stage one, send you a lead list, and disappear. All four have to run together or the whole thing leaks.</p>
+  </div>
+  <div class="pipe-grid">
+    <div class="pipe-card">
+      <div class="pipe-stage">Stage 01</div>
+      <h3>Ads In Your Service Area</h3>
+      <p>Meta ads written, built, and managed for you — aimed at homeowners near you with a garage, basement, or estate cleanout they've been putting off.</p>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-stage">Stage 02</div>
+      <h3>A Page Built To Book</h3>
+      <p>Those clicks land on a page with one job: get the haul on your calendar. Not a brochure. Not an "about us." A booking machine.</p>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-stage">Stage 03</div>
+      <h3>Instant Text Back</h3>
+      <p>The second they book, an automated text fires from your number. They hear from you before they've had a chance to call the next hauler.</p>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-stage">Stage 04</div>
+      <h3>Every Job Tracked</h3>
+      <p>Your own dashboard with every lead the ads produced and where it landed. You'll know what your spend bought — not a feeling, a number.</p>
+    </div>
+  </div>
+  <p class="pipe-foot">Anyone can hand you leads. <em>We hand you jobs on the calendar.</em></p>
+</section>
+
+<!-- ─────── What you get ─────── -->
+<section class="get">
+  <div class="get-inner">
+    <div class="get-head">
+      <div class="eyebrow">What you actually get</div>
+      <h2>Done for you. All of it.</h2>
+      <p>You don't build anything, write anything, or learn any software. That's the entire point of hiring us.</p>
+    </div>
+    <div class="get-grid">
+      <div class="get-card">
+        <div class="get-icon"><svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></div>
+        <h3>Meta Ads Management</h3>
+        <p>Facebook and Instagram campaigns built and run end to end — creative, audiences, budget, testing, and weekly optimization. The ad account stays in your name.</p>
+      </div>
+      <div class="get-card">
+        <div class="get-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M7 8h10M7 12h5"/></svg></div>
+        <h3>A Funnel That Converts</h3>
+        <p>A booking page built for junk removal traffic. Already have a website? We'll optimize it to actually convert the clicks you're paying for.</p>
+      </div>
+      <div class="get-card">
+        <div class="get-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <h3>Speed-To-Lead On Booking</h3>
+        <p>Automatic SMS the moment someone books, in your voice. The gap between "I'm interested" and hearing from you is where hauls get lost. We close it.</p>
+      </div>
+      <div class="get-card">
+        <div class="get-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+        <h3>Lead &amp; Job Tracking</h3>
+        <p>Your own dashboard with every lead, conversation, and booking in one place. Check it on your phone between stops.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── Risk reversal ─────── -->
+<section class="section">
+  <div class="risk-head">
+    <div class="eyebrow">The catch</div>
+    <h2>There isn't one. Here's the deal in plain English.</h2>
+    <p>Everything that normally makes hiring a marketing company feel like a trap — we took it out.</p>
+  </div>
+  <div class="risk-grid">
+    <div class="risk-card">
+      <div class="risk-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+      <h3>No Contracts</h3>
+      <p>Month to month. No 12-month lock-in, no cancellation fee, no 90-day notice clause buried on page four.</p>
+    </div>
+    <div class="risk-card">
+      <div class="risk-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h3>You Own Everything</h3>
+      <p>Your ad account, your page, your domain, your customer list. Walk away whenever and it all goes with you.</p>
+    </div>
+    <div class="risk-card">
+      <div class="risk-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <h3>You Get JT, Not A Team</h3>
+      <p>One person builds it and one person runs it. Nobody hands you off to an account manager who started last Tuesday.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── Founder ─────── -->
+<section class="founder">
+  <div class="founder-inner">
+    <div class="founder-photo">
+      <img src="/media/jt.jpg" alt="JT Fasulo, founder of Sybago" width="400" height="400">
+    </div>
+    <div class="founder-copy">
+      <h2>Who you're actually hiring</h2>
+      <p>I'm JT. Mechanical engineer by training, now I build customer-acquisition systems for service businesses. Sybago is small on purpose — <strong>you deal with me, every time.</strong></p>
+      <p>I started this because my own feed was wall-to-wall agencies promising to "scale your pipeline" with nothing behind it. If that noise annoys me, I figured it must be unbearable for the people they actually target.</p>
+      <p>So: I build the whole machine, I run it myself, and if it's not working you can fire me at the end of the month. <strong>That's the whole offer.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── Proof — the one real testimonial, framed honestly ─────── -->
+<section class="section proof">
+  <div class="proof-inner">
+    <div class="proof-stars" aria-label="5 out of 5 stars">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <blockquote>"I could not be happier. I run a wholesale business and was having trouble finding business. I reached out at 12pm on a Tuesday and had a perfectly running and streamlined website by Wednesday morning. Fast forward 3 days later, I have brands reaching out to me asking to open wholesale accounts with my business. Thank you!"</blockquote>
+    <div class="proof-attr">— Sybago client, wholesale</div>
+    <p class="proof-note">Straight up: that was a build-and-launch job, not an ad campaign. What it tells you is how fast we move and what happens when the front door finally works.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     RESULTS / CASE STUDY SECTION — PLACEHOLDER, INTENTIONALLY COMMENTED OUT
+     Uncomment and fill in when there are REAL junk-removal ad results.
+     Styles are already defined above — no redesign needed.
+     Only real, verifiable campaign numbers go here.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<!--
+<section class="section" id="results">
+  <div class="results-head">
+    <div class="eyebrow">Real results</div>
+    <h2>What the machine produced.</h2>
+    <p>Real campaigns, real spend, real booked hauls.</p>
+  </div>
+  <div class="results-grid">
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / market]</h3>
+      <p>[One sentence — spend, timeframe, what happened.]</p>
+    </div>
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / market]</h3>
+      <p>[One sentence — spend, timeframe, what happened.]</p>
+    </div>
+    <div class="result-card">
+      <div class="result-metric">[METRIC]</div>
+      <h3>[Client / market]</h3>
+      <p>[One sentence — spend, timeframe, what happened.]</p>
+    </div>
+  </div>
+</section>
+-->
+
+<!-- ─────── FAQ — objection handling, short ─────── -->
+<section class="section">
+  <div class="faq-head">
+    <div class="eyebrow">Before you book</div>
+    <h2>The questions you're already thinking</h2>
+  </div>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">Who pays for the ad spend? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">You do, straight to Meta, from an ad account in your own name. We never touch it and we never mark it up. Our fee covers building and running the system. We'll talk through a sensible starting budget for your market on the call.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What does it cost? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">Depends on your market and how much needs building from scratch. We go through it on the call with a real number — no packages theater, no "let me check with my team." If it's not a fit for what you can spend, we'll tell you that instead of wasting your afternoon.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">I don't have a website. Problem? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">Nope. We build the page the ads need. If you do have a site, we'll look at it honestly — sometimes it just needs to convert better, sometimes a purpose-built booking page beats it. We'll tell you which.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">How fast does this go live? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">Usually about a week from the call to campaigns running. Leads typically start moving in the first couple weeks. The first 30 days is also when we're testing creative to find what your area responds to — it generally gets better as it runs, not worse.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What if it doesn't work? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">You cancel at the end of the month and keep the ad account, the page, the domain, and the customer list. No contract, no exit fee. We'd rather earn it monthly than trap you.</div>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Is this just another lead service? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <div class="faq-a">No. Lead services sell the same lead to you and four competitors. These are your ads, your page, your leads, in your account, exclusively yours. Nobody else gets them.</div>
+    </details>
+  </div>
+</section>
+
+<!-- ─────── Closing CTA ─────── -->
+<section class="close-cta">
+  <div class="inner">
+    <h2>Let's fill the truck.</h2>
+    <a href="#book" class="btn-primary js-cta" data-utm="lp-junk-bottom" style="margin-top:1.6rem">
+      Book A Call
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+    <p class="takeit">Free 20 minutes with JT. No pitch deck, no follow-up spam.</p>
+  </div>
+</section>
+
+<!-- ─────── Booking — the single conversion point ─────── -->
+<section class="book-section" id="book">
+  <div class="book-head">
+    <div class="eyebrow">Book a free 20-minute call</div>
+    <h2>Pick a time that works between hauls.</h2>
+    <p>We'll look at your market, what filling the calendar would actually take, and whether this is worth it for you. Straight answer either way.</p>
+  </div>
+  <div class="book-frame">
+    <iframe
+      src="https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP"
+      id="FsCLXfMJ7yiiM7zMb2nP_lp_junk_removal"
+      scrolling="no"
+      title="Book a Strategy Call with Sybago"
+      loading="lazy"
+    ></iframe>
+  </div>
+</section>
+
+</main>
+
+<!-- ─────── Footer — legal only, no navigation out ─────── -->
+<footer class="lp-footer">
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/logo.png" alt="">
+    <span>SYBAGO</span>
+  </span>
+  <p>© <span id="year"></span> Sybago LLC. Built by people who answer their phones.</p>
+  <div class="legal">
+    <a href="/privacy-policy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+  </div>
+</footer>
+
+<script src="https://api.leadconnectorhq.com/js/form_embed.js" type="text/javascript"></script>
+
+<script>
+/* CTA tracking — same pattern as the main site. data-utm identifies which
+   landing page and which button produced the booking. */
+document.querySelectorAll('.js-cta').forEach(el => {
+  el.addEventListener('click', () => {
+    const utm = el.getAttribute('data-utm') || 'unknown';
+    if (typeof gtag === 'function') {
+      gtag('event', 'cta_click', {
+        utm_source:  'meta-ads',
+        utm_medium:  'landing-page',
+        utm_campaign:'lp-junk-removal',
+        utm_content: utm,
+      });
+    }
+  });
+});
+document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>
