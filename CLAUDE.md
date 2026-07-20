@@ -30,9 +30,9 @@ figures for ad budgets on the site.
 
 > Note: because Sybago fronts and runs the spend, do **not** claim the ad account is "in the
 > client's name" or that they "own the ad account." The client owns what matters and walks away
-> with it — their page, domain, leads, and customer list. Earlier direct-pay copy ("you pay Meta
-> directly," "ad account in your name") is retired on `lp/junk-removal.html`; the main site may
-> still carry it and should be reconciled to this model when touched.
+> with it — their page, domain, leads, and customer list. The old direct-pay copy ("you pay Meta
+> directly," "ad account in your name") has been retired everywhere — `lp/junk-removal.html`,
+> `index.html`, and `about.html`. Do not reintroduce it.
 
 ---
 
