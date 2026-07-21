@@ -23,16 +23,8 @@ The four deliverables, and the only four:
    never go cold.
 4. **Lead & job tracking** — via the client's own GHL (GoHighLevel) sub-account.
 
-**Sybago fronts the Meta ad spend up front**, then bills it back to the client afterward
-**at cost — never marked up.** The client isn't out of pocket to Meta to get started. The
-separate system fee (building + running) is what Sybago actually earns on. Never state dollar
-figures for ad budgets on the site.
-
-> Note: because Sybago fronts and runs the spend, do **not** claim the ad account is "in the
-> client's name" or that they "own the ad account." The client owns what matters and walks away
-> with it — their page, domain, leads, and customer list. The old direct-pay copy ("you pay Meta
-> directly," "ad account in your name") has been retired everywhere — `lp/junk-removal.html`,
-> `index.html`, and `about.html`. Do not reintroduce it.
+Client covers ad spend directly to Meta from an ad account **in their own name**. Sybago never
+touches or marks up ad spend. Never state dollar figures for ad budgets on the site.
 
 ---
 
