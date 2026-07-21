@@ -56,6 +56,7 @@
   --teal-tint:rgba(47,103,121,0.10);
   --warn:#e8b04a;
   --good:#4dbf7a;
+  --good-d:#2f9e5f;   /* darker success green — readable as text on light tiles */
   --loss:#d1584f;
   --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --eo:cubic-bezier(.16,1,.3,1);
@@ -220,6 +221,7 @@ input[type=range]::-moz-range-thumb{
 .out-hero .out-label{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-d);margin-bottom:.45rem}
 .out-hero .out-val{font-size:clamp(1.9rem,3.6vw,2.7rem);font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--teal-d);font-variant-numeric:tabular-nums}
 .out-hero .out-val.neg{color:var(--loss)}
+.out-hero .out-val.pos{color:var(--good-d)}
 .out-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .out-mini{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:1rem 1.15rem}
 .out-mini .out-label{font-size:.72rem;font-weight:600;color:var(--t3);margin-bottom:.35rem}
@@ -426,6 +428,12 @@ input[type=range]::-moz-range-thumb{
             <input type="range" id="s-ticket" min="1000" max="25000" step="250">
             <div class="slider-sub">average revenue per completed job</div>
           </div>
+
+          <div class="slider">
+            <div class="slider-top"><label for="s-margin">Gross margin</label><span class="sval" id="v-margin"></span></div>
+            <input type="range" id="s-margin" min="10" max="60" step="5">
+            <div class="slider-sub">what's left after materials, labor &amp; equipment</div>
+          </div>
         </div>
 
         <!-- Outputs -->
@@ -448,6 +456,10 @@ input[type=range]::-moz-range-thumb{
             <div class="out-mini">
               <div class="out-label">Monthly revenue</div>
               <div class="out-val" id="o-rev"></div>
+            </div>
+            <div class="out-mini">
+              <div class="out-label">Gross profit</div>
+              <div class="out-val" id="o-gross"></div>
             </div>
             <div class="out-mini">
               <div class="out-label">You pay us</div>
@@ -551,10 +563,10 @@ input[type=range]::-moz-range-thumb{
    "fee per booked estimate" slider default. Change them and everything updates.
    ═══════════════════════════════════════════════════════════════════════ */
 const STARTUP_FEE = 1500;   // one-time startup / build fee (Slide 7) — PLACEHOLDER, set to taste
-const PER_JOB_FEE = 200;    // client's fee per booked estimate (Slide 7 + Slide 5 default)
+const PER_JOB_FEE = 300;    // client's fee per booked estimate (Slide 7 + Slide 5 default)
 
-/* Slide-5 slider defaults — concrete/paving niche. Loads on a positive month. */
-const DEFAULTS = { adspend:1500, booked:8, fee:PER_JOB_FEE, close:25, ticket:6000 };
+/* Slide-5 slider defaults — concrete/paving niche. */
+const DEFAULTS = { adspend:1500, booked:8, fee:PER_JOB_FEE, close:25, ticket:6000, margin:30 };
 
 /* ─────── Formatting helpers ─────── */
 const money = n => '$' + Math.round(n).toLocaleString('en-US');
@@ -566,6 +578,7 @@ const inputs = {
   fee:     document.getElementById('s-fee'),
   close:   document.getElementById('s-close'),
   ticket:  document.getElementById('s-ticket'),
+  margin:  document.getElementById('s-margin'),
 };
 const vlabels = {
   adspend: document.getElementById('v-adspend'),
@@ -573,12 +586,14 @@ const vlabels = {
   fee:     document.getElementById('v-fee'),
   close:   document.getElementById('v-close'),
   ticket:  document.getElementById('v-ticket'),
+  margin:  document.getElementById('v-margin'),
 };
 const out = {
   net:    document.getElementById('o-net'),
   roi:    document.getElementById('o-roi'),
   closed: document.getElementById('o-closed'),
   rev:    document.getElementById('o-rev'),
+  gross:  document.getElementById('o-gross'),
   pay:    document.getElementById('o-pay'),
   cpj:    document.getElementById('o-cpj'),
 };
@@ -589,6 +604,7 @@ function recalc(){
   const fee     = +inputs.fee.value;
   const close   = +inputs.close.value / 100;
   const ticket  = +inputs.ticket.value;
+  const margin  = +inputs.margin.value / 100;
 
   // live slider read-outs
   vlabels.adspend.textContent = money(adSpend);
@@ -596,31 +612,38 @@ function recalc(){
   vlabels.fee.textContent     = money(fee);
   vlabels.close.textContent   = inputs.close.value + '%';
   vlabels.ticket.textContent  = money(ticket);
+  vlabels.margin.textContent  = inputs.margin.value + '%';
 
   // Keep signed jobs fractional — concrete tickets are large, so rounding a
   // partial job away would materially distort the P&L. Display to one decimal.
-  const signedJobs = booked * close;
-  const revenue    = signedJobs * ticket;
-  const youPay     = booked * fee;
-  const totalCost  = youPay + adSpend;
-  const net        = revenue - totalCost;
+  const signedJobs  = booked * close;
+  const revenue     = signedJobs * ticket;
+  const grossProfit = revenue * margin;             // true profit on the work, before marketing
+  const youPay      = booked * fee;
+  const totalCost   = youPay + adSpend;             // marketing costs only
+  const net         = grossProfit - totalCost;      // honest profit: after job costs AND marketing
 
   out.closed.textContent = signedJobs.toFixed(1);
   out.rev.textContent    = money(revenue);
+  out.gross.textContent  = money(grossProfit);
   out.pay.textContent    = money(youPay);
 
   out.net.textContent = (net < 0 ? '-' : '') + money(Math.abs(net));
   out.net.classList.toggle('neg', net < 0);
+  out.net.classList.toggle('pos', net >= 0);
 
   // Guard divide-by-zero: no signed jobs → no meaningful per-job cost or ROI
   if (signedJobs <= 0 || totalCost <= 0){
     out.cpj.textContent = '—';
     out.roi.textContent = '—';
-    out.roi.classList.remove('neg');
+    out.roi.classList.remove('neg', 'pos');
   } else {
     out.cpj.textContent = money(totalCost / signedJobs);
-    out.roi.textContent = (revenue / totalCost).toFixed(1) + '×';
-    out.roi.classList.remove('neg');
+    out.roi.textContent = (grossProfit / totalCost).toFixed(1) + '×';
+    // ROI tracks the same profitability signal as net: green when the month
+    // clears its costs (ROI ≥ 1× ⇔ net ≥ 0), red when it doesn't.
+    out.roi.classList.toggle('neg', net < 0);
+    out.roi.classList.toggle('pos', net >= 0);
   }
 }
 
