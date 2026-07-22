@@ -93,6 +93,7 @@ stays open to any trade.
 | Path | File |
 |---|---|
 | `/lp/junk-removal` (alias `/junk-removal`) | `lp/junk-removal.html` |
+| `/lp/concrete` (alias `/concrete`) | `lp/concrete.html` |
 
 These are targets for **Sybago's own Meta ads** when prospecting for clients. Rules:
 
