@@ -6,6 +6,7 @@
     { "source": "/services.html", "destination": "/",                  "statusCode": 308 },
     { "source": "/pricing",       "destination": "/",                  "statusCode": 308 },
     { "source": "/pricing.html",  "destination": "/",                  "statusCode": 308 },
-    { "source": "/junk-removal",  "destination": "/lp/junk-removal",   "statusCode": 308 }
+    { "source": "/junk-removal",  "destination": "/lp/junk-removal",   "statusCode": 308 },
+    { "source": "/concrete",      "destination": "/lp/concrete",       "statusCode": 308 }
   ]
 }
