@@ -182,68 +182,69 @@ body[data-slide="0"] .brandmark{opacity:0;pointer-events:none}
 /* ─────── Slide 4 — interactive phone widget (ADDITIVE) ───────
    .how-grid stays in the DOM as #howFallback and is revealed only if the
    phone widget is disabled or errors. Nothing else on the slide changes. */
-#s3{padding-top:2.6rem;padding-bottom:2.6rem}
-#s3 .how-head{margin-bottom:1rem}
-#s3 .how-foot{margin-top:1.3rem;font-size:clamp(1rem,1.5vw,1.18rem)}
+#s3{padding-top:1.6rem;padding-bottom:1.4rem}
+#s3 .how-head{margin-bottom:.6rem}
+#s3 .how-head h2{font-size:clamp(1.6rem,3.2vw,2.35rem)}
+#s3 .how-foot{margin-top:.6rem;font-size:clamp(.95rem,1.4vw,1.12rem)}
 #howFallback{display:none}                     /* fallback — hidden by default */
-@media (max-height:720px){ #s3{overflow-y:auto} }   /* short windows scroll, never clip */
+@media (max-height:760px){ #s3{overflow-y:auto;justify-content:flex-start} }   /* short windows scroll, never clip */
 
-.phone-widget{display:flex;flex-direction:column;align-items:center;gap:.7rem}
-.phone{position:relative;width:190px;height:388px;flex-shrink:0;background:#0b0b0d;border-radius:40px;padding:10px;
+.phone-widget{display:flex;flex-direction:column;align-items:center;gap:.55rem}
+.phone{position:relative;width:236px;height:480px;flex-shrink:0;background:#0b0b0d;border-radius:46px;padding:11px;
   box-shadow:0 0 0 2px #2a2a2e,0 18px 40px -12px rgba(15,20,25,.45),0 6px 14px -6px rgba(15,20,25,.3)}
-.phone-island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:64px;height:16px;background:#000;border-radius:10px;z-index:6;pointer-events:none}
-.phone-screen{position:relative;width:170px;height:368px;border-radius:30px;overflow:hidden;background:#fff}
+.phone-island{position:absolute;top:15px;left:50%;transform:translateX(-50%);width:74px;height:18px;background:#000;border-radius:11px;z-index:6;pointer-events:none}
+.phone-screen{position:relative;width:214px;height:458px;border-radius:36px;overflow:hidden;background:#fff}
 .pscreen{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .28s var(--eo);overflow:hidden}
 .pscreen.active{opacity:1;visibility:visible}
-.pscreen:not(.pscreen-page){cursor:pointer;padding-top:30px}   /* clear the island (status-bar inset) on mock screens */
+.pscreen:not(.pscreen-page){cursor:pointer;padding-top:36px}   /* clear the island (status-bar inset) on mock screens */
 
 /* Screen 2 — the real page, embedded (scaled mobile viewport) */
-.pscreen-page .page-iframe{position:absolute;top:0;left:0;width:340px;height:736px;border:0;transform:scale(.5);transform-origin:top left;opacity:0;transition:opacity .3s;background:#fff}
+.pscreen-page .page-iframe{position:absolute;top:0;left:0;width:340px;height:728px;border:0;transform:scale(.629);transform-origin:top left;opacity:0;transition:opacity .3s;background:#fff}
 .pscreen-page .page-iframe.loaded{opacity:1}
-.page-fallback{position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg,#f3efe9,#fff);padding:12px 10px;font-size:10px}
-.page-fallback .pf-eye{font-size:8px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#b8532a;margin-bottom:4px}
-.page-fallback .pf-h{font-size:17px;font-weight:800;color:#1b1e22;line-height:1.1;margin-bottom:6px}
+.page-fallback{position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg,#f3efe9,#fff);padding:40px 13px 13px;font-size:12px}
+.page-fallback .pf-eye{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#b8532a;margin-bottom:5px}
+.page-fallback .pf-h{font-size:21px;font-weight:800;color:#1b1e22;line-height:1.1;margin-bottom:8px}
 .page-fallback .pf-h span{color:#b8532a}
-.page-fallback .pf-card{background:#fff;border:1px solid #e6e8ea;border-radius:10px;padding:9px;margin-top:6px}
-.page-fallback .pf-q{font-size:11px;font-weight:800;color:#1b1e22;margin-bottom:7px}
-.page-fallback .pf-tiles{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.page-fallback .pf-tile{background:#f5f6f7;border:1.5px solid #e6e8ea;border-radius:8px;padding:9px 4px;text-align:center;font-size:9px;font-weight:600;color:#1b1e22}
+.page-fallback .pf-card{background:#fff;border:1px solid #e6e8ea;border-radius:12px;padding:11px;margin-top:8px}
+.page-fallback .pf-q{font-size:13px;font-weight:800;color:#1b1e22;margin-bottom:9px}
+.page-fallback .pf-tiles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.page-fallback .pf-tile{background:#f5f6f7;border:1.5px solid #e6e8ea;border-radius:9px;padding:11px 5px;text-align:center;font-size:11px;font-weight:600;color:#1b1e22}
 
 /* Screen 1 — Facebook feed ad mock */
 .fb{height:100%;background:#fff;color:#1c1e21;display:flex;flex-direction:column;overflow:hidden}
-.fb-top{display:flex;align-items:center;gap:6px;padding:8px 8px 5px}
-.fb-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--teal-b),var(--teal-d));flex-shrink:0}
-.fb-name{font-weight:700;font-size:10px;color:#1c1e21}
-.fb-spon{font-size:8px;color:#65676b}
-.fb-text{padding:0 8px 6px;font-size:9.5px;line-height:1.35}
-.fb-img{flex:1;min-height:110px;position:relative;background:
+.fb-top{display:flex;align-items:center;gap:8px;padding:10px 11px 6px}
+.fb-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--teal-b),var(--teal-d));flex-shrink:0}
+.fb-name{font-weight:700;font-size:12px;color:#1c1e21}
+.fb-spon{font-size:9.5px;color:#65676b}
+.fb-text{padding:0 11px 8px;font-size:11.5px;line-height:1.4}
+.fb-img{flex:1;min-height:150px;position:relative;background:
   linear-gradient(180deg,#eceae6 0%,#dcd7cf 42%,#b9b2a6 43%,#a49d90 100%)}
 .fb-img::before{content:"";position:absolute;left:24%;right:24%;top:44%;bottom:0;background:linear-gradient(180deg,#cfc8bb,#8f887c);clip-path:polygon(38% 0,62% 0,100% 100%,0 100%)}
-.fb-img .tag{position:absolute;bottom:5px;left:6px;font-size:7px;color:#fff;background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;letter-spacing:.04em}
-.fb-bar{background:#f0f2f5;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
-.fb-bar .u{font-size:7.5px;color:#65676b;text-transform:uppercase;letter-spacing:.03em}
-.fb-bar .h{font-size:10px;font-weight:700;color:#1c1e21;line-height:1.15}
-.fb-learn{background:#e4e6eb;border:none;border-radius:5px;padding:6px 8px;font-size:8.5px;font-weight:700;color:#1c1e21;flex-shrink:0}
+.fb-img .tag{position:absolute;bottom:7px;left:8px;font-size:8.5px;color:#fff;background:rgba(0,0,0,.35);padding:2px 7px;border-radius:5px;letter-spacing:.04em}
+.fb-bar{background:#f0f2f5;padding:9px 11px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fb-bar .u{font-size:9px;color:#65676b;text-transform:uppercase;letter-spacing:.03em}
+.fb-bar .h{font-size:12px;font-weight:700;color:#1c1e21;line-height:1.2}
+.fb-learn{background:#e4e6eb;border:none;border-radius:6px;padding:8px 11px;font-size:10px;font-weight:700;color:#1c1e21;flex-shrink:0}
 
 /* Screen 3 — iMessage mock */
 .im{height:100%;background:#fff;display:flex;flex-direction:column}
-.im-head{background:#f7f7f8;border-bottom:1px solid #e5e5ea;padding:9px 8px;text-align:center}
-.im-head .nm{font-size:11px;font-weight:600;color:#000}
-.im-head .sub{font-size:8px;color:#8e8e93}
-.im-body{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:4px;overflow:hidden}
-.im-time{text-align:center;font-size:8px;color:#8e8e93;margin-bottom:4px}
-.im-bubble{align-self:flex-start;max-width:84%;background:#e9e9eb;color:#000;border-radius:14px;padding:8px 10px;font-size:9.5px;line-height:1.4;white-space:pre-line}
+.im-head{background:#f7f7f8;border-bottom:1px solid #e5e5ea;padding:11px 10px;text-align:center}
+.im-head .nm{font-size:13px;font-weight:600;color:#000}
+.im-head .sub{font-size:9.5px;color:#8e8e93}
+.im-body{flex:1;padding:13px 11px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.im-time{text-align:center;font-size:9.5px;color:#8e8e93;margin-bottom:5px}
+.im-bubble{align-self:flex-start;max-width:86%;background:#e9e9eb;color:#000;border-radius:16px;padding:10px 12px;font-size:11.5px;line-height:1.42;white-space:pre-line}
 .im-bubble .lnk{color:#0a7cff}
-.im-meta{align-self:flex-start;font-size:8px;color:#8e8e93;margin:2px 0 0 4px}
+.im-meta{align-self:flex-start;font-size:9.5px;color:#8e8e93;margin:3px 0 0 5px}
 
 /* Screen 4 — booked week calendar */
 .cal{height:100%;background:#fff;display:flex;flex-direction:column}
-.cal-head{padding:9px 10px 7px;font-size:13px;font-weight:800;color:var(--t1);border-bottom:1px solid var(--line)}
-.cal-list{flex:1;overflow:hidden;padding:5px 7px;display:flex;flex-direction:column;gap:4px}
-.cal-appt{display:flex;gap:6px;align-items:center;background:rgba(47,103,121,.08);border-left:3px solid var(--teal);border-radius:5px;padding:5px 6px}
-.cal-day{font-size:7.5px;font-weight:800;color:var(--teal-d);width:22px;flex-shrink:0;text-transform:uppercase}
-.cal-txt{font-size:8.5px;color:var(--t1);font-weight:600;line-height:1.15}
-.cal-time{font-size:7.5px;color:var(--t3);margin-left:auto;flex-shrink:0;font-weight:600}
+.cal-head{padding:11px 13px 9px;font-size:16px;font-weight:800;color:var(--t1);border-bottom:1px solid var(--line)}
+.cal-list{flex:1;overflow:hidden;padding:7px 9px;display:flex;flex-direction:column;gap:5px}
+.cal-appt{display:flex;gap:8px;align-items:center;background:rgba(47,103,121,.08);border-left:3px solid var(--teal);border-radius:6px;padding:7px 8px}
+.cal-day{font-size:9px;font-weight:800;color:var(--teal-d);width:28px;flex-shrink:0;text-transform:uppercase}
+.cal-txt{font-size:10.5px;color:var(--t1);font-weight:600;line-height:1.2}
+.cal-time{font-size:9px;color:var(--t3);margin-left:auto;flex-shrink:0;font-weight:600}
 
 /* Phone nav labels (progress + direct jump) */
 .phone-nav{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
@@ -251,7 +252,7 @@ body[data-slide="0"] .brandmark{opacity:0;pointer-events:none}
 .pnav b{color:var(--teal-b);font-weight:800;letter-spacing:.04em}
 .pnav:hover{border-color:var(--teal-b)}
 .pnav.active{border-color:var(--teal-b);color:var(--teal-d);background:rgba(47,103,121,.08)}
-.phone-caption{text-align:center;font-size:.85rem;color:var(--t2);font-weight:500;min-height:2.2em;max-width:44ch;line-height:1.3}
+.phone-caption{text-align:center;font-size:.82rem;color:var(--t2);font-weight:500;min-height:1.4em;max-width:52ch;line-height:1.3}
 
 /* ─────── Slide 5 — Calculator ─────── */
 #s4 .slide-inner{max-width:1140px}
@@ -451,10 +452,10 @@ input[type=range]::-moz-range-thumb{
                   <div class="fb-av"></div>
                   <div><div class="fb-name">Summit Concrete Co.</div><div class="fb-spon">Sponsored</div></div>
                 </div>
-                <div class="fb-text">Your crew costs you money whether they're pouring or parked…</div>
-                <div class="fb-img"><span class="tag">driveway pour</span></div>
+                <div class="fb-text">Cracked, stained, sinking driveway? It's the first thing people see. Get a brand-new concrete driveway poured in days — free on-site estimate, no pressure.</div>
+                <div class="fb-img"><span class="tag">fresh driveway pour</span></div>
                 <div class="fb-bar">
-                  <div><div class="u">summitconcrete.com</div><div class="h">I fill your estimate calendar. You pour.</div></div>
+                  <div><div class="u">summitconcrete.com</div><div class="h">New Driveway — Free Estimate This Week</div></div>
                   <button class="fb-learn" type="button">Learn More</button>
                 </div>
               </div>
@@ -728,7 +729,7 @@ input[type=range]::-moz-range-thumb{
    EDIT YOUR PRICES HERE — these two constants drive Slide 7 and the Slide 5
    "fee per booked estimate" slider default. Change them and everything updates.
    ═══════════════════════════════════════════════════════════════════════ */
-const STARTUP_FEE = 1500;   // one-time startup / build fee (Slide 7) — PLACEHOLDER, set to taste
+const STARTUP_FEE = 750;    // one-time startup / build fee (Slide 7)
 const PER_JOB_FEE = 200;    // client's fee per booked estimate (Slide 7 + Slide 5 default)
 
 /* Slide-5 slider defaults — concrete/paving niche. */
