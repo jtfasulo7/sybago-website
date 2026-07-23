@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  WALKTHROUGH DEMO — Concrete client landing page (STATIC, SELF-CONTAINED)
+  Served same-origin at /demo/concrete and embedded in the Slide-4 phone widget
+  of /walkthrough. It is a faithful static reproduction of the concrete/paving
+  client LP template (multi-step qualifying form) for LIVE demoing on sales calls.
+
+  ⚠ DEMO MODE: Step-4 submit NEVER posts to a webhook — it only advances the UI.
+     Clicking through on a call can never create a real lead. (No network calls.)
+
+  Same-origin + static on purpose: guarantees it loads inside the phone iframe
+  with no framing/routing/build failure modes on call day.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Free Estimate — Summit Concrete Co.</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#1b1e22;--body:#3c4048;--muted:#6b7178;--line:#e6e8ea;
+  --bg:#fff;--bg-soft:#f5f6f7;--bg-warm:#f3efe9;--star:#e8b04a;
+  --primary:#b8532a;--accent:#1f6f5c;--eo:cubic-bezier(.16,1,.3,1);
+}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--body);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+button{font:inherit;cursor:pointer}
+input{font:inherit}
+h1,h2{color:var(--ink);line-height:1.15;letter-spacing:-.01em}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;background:var(--primary);color:#fff;border:none;border-radius:10px;padding:1rem 1.25rem;font-size:1rem;font-weight:700;min-height:52px;transition:background .2s var(--eo),opacity .2s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:active{transform:translateY(1px)}
+
+.hero{background:linear-gradient(180deg,var(--bg-warm),var(--bg));padding:1.1rem 1.1rem 1.5rem;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:.5rem;margin-bottom:.9rem}
+.logo-mark{width:30px;height:30px;border-radius:7px;background:var(--primary);display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:16px;height:16px}
+.logo-name{font-weight:800;color:var(--ink);font-size:1rem}
+.eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--primary);margin-bottom:.35rem}
+.hero-title{font-size:1.85rem;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:.35rem}
+.hero-title span{color:var(--primary)}
+.hero-sub{font-size:.93rem;color:var(--muted);margin-bottom:1rem}
+
+.card{background:var(--bg);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px -12px rgba(20,24,30,.18),0 2px 6px -2px rgba(20,24,30,.08);padding:1.1rem}
+.top{display:flex;align-items:center;justify-content:space-between;min-height:22px;margin-bottom:.6rem}
+.plabel{font-size:.78rem;font-weight:600;color:var(--muted)}
+.back{display:inline-flex;align-items:center;gap:.2rem;background:none;border:none;color:var(--muted);font-size:.82rem;font-weight:600}
+.back svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.track{height:5px;background:var(--bg-soft);border-radius:99px;overflow:hidden;margin-bottom:1.1rem}
+.trackfill{height:100%;background:var(--accent);border-radius:99px;transition:width .3s var(--eo)}
+
+.panel{animation:pin .26s var(--eo)}
+@keyframes pin{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.q{display:block;font-size:1.2rem;font-weight:800;color:var(--ink);margin-bottom:.9rem}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.tiles-1{grid-template-columns:1fr}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;background:var(--bg-soft);border:1.5px solid var(--line);border-radius:12px;padding:.95rem .7rem;min-height:74px;text-align:center;color:var(--ink);font-weight:600;font-size:.9rem;transition:border-color .15s,background .15s}
+.tiles-1 .tile{flex-direction:row;justify-content:flex-start;min-height:54px;font-size:1rem}
+.tile:active{transform:scale(.98)}
+.tile .ti{color:var(--primary)}
+.tile .ti svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.inp{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:.85rem .9rem;font-size:1rem;color:var(--ink);background:var(--bg);margin-bottom:.7rem}
+.inp:focus{outline:none;border-color:var(--primary)}
+.consent{display:flex;gap:.6rem;align-items:flex-start;font-size:.8rem;color:var(--muted);line-height:1.45;margin:.2rem 0 1rem}
+.consent input{width:20px;height:20px;flex-shrink:0;margin-top:1px;accent-color:var(--primary)}
+
+.book h2{font-size:1.2rem;margin-bottom:.3rem}
+.book-sub{font-size:.9rem;color:var(--muted);margin-bottom:1rem}
+.slots{border:1px solid var(--line);border-radius:10px;background:var(--bg-soft);padding:1rem;text-align:center}
+.slots .cal-ico{font-size:1.6rem}
+.slots h3{font-size:1rem;color:var(--ink);margin:.4rem 0 .8rem}
+.slot{background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:.6rem;font-weight:700;color:var(--primary);margin-bottom:.5rem}
+.demo-note{margin-top:.6rem;font-size:.72rem;color:var(--muted)}
+
+.trust{background:var(--ink);color:#eef0f2}
+.trust-in{padding:.75rem 1.1rem;text-align:center;font-size:.8rem}
+.trust .st{color:var(--star)}
+.trust .dot{color:#676d75;margin:0 .3rem}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="logo">
+    <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 21 9 3h6l4 18"/></svg></span>
+    <span class="logo-name">Summit Concrete Co.</span>
+  </div>
+  <div class="eyebrow">Summit Concrete Co. — Denver&rsquo;s Concrete &amp; Paving Pros</div>
+  <h1 class="hero-title">Get a <span>FREE</span> estimate now</h1>
+  <p class="hero-sub">Tell us about your project — takes 30 seconds. No pressure, no obligation.</p>
+
+  <div class="card" id="card">
+    <div class="top" id="top">
+      <button class="back" id="backBtn" type="button" style="visibility:hidden"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Back</button>
+      <span class="plabel" id="plabel">Step 1 of 4</span>
+    </div>
+    <div class="track" id="track"><div class="trackfill" id="trackfill" style="width:25%"></div></div>
+    <div id="panelHost"></div>
+  </div>
+</section>
+
+<section class="trust">
+  <div class="trust-in"><span class="st">★</span> 4.9 on Google (127 reviews) <span class="dot">·</span> Licensed &amp; Insured <span class="dot">·</span> Serving Denver since 2009</div>
+</section>
+
+<script>
+/* ── DEMO multi-step form. No network calls — Step-4 submit only advances. ── */
+var BUSINESS = 'Summit Concrete Co.';
+var state = { step:1, projectType:'', timeline:'', location:'', name:'', phone:'', consent:false };
+
+var PROJECTS = [
+  { id:'driveway', label:'Driveway', icon:'<path d="M5 21 9 3h6l4 18"/><path d="M12 7v2M12 12v2M12 17v2"/>' },
+  { id:'patio', label:'Patio', icon:'<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/>' },
+  { id:'stamped', label:'Stamped or decorative', icon:'<path d="M12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/>' },
+  { id:'walkway', label:'Walkway or steps', icon:'<path d="M4 20h4v-4h4v-4h4V8h4"/>' },
+  { id:'other', label:'Something else', icon:'<circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 11v5"/>' }
+];
+var TIMELINES = [
+  { id:'asap', label:'ASAP' }, { id:'soon', label:'Next month or two' },
+  { id:'season', label:'This season' }, { id:'planning', label:'Just planning ahead' }
+];
+
+var host = document.getElementById('panelHost');
+var backBtn = document.getElementById('backBtn');
+var plabel = document.getElementById('plabel');
+var trackfill = document.getElementById('trackfill');
+var topBar = document.getElementById('top');
+var track = document.getElementById('track');
+
+function go(step){ state.step = step; render(); }
+
+function render(){
+  var s = state.step;
+  // progress / back visible on form steps only (1–4)
+  var isForm = s <= 4;
+  topBar.style.display = isForm ? '' : 'none';
+  track.style.display = isForm ? '' : 'none';
+  if (isForm){
+    plabel.textContent = 'Step ' + s + ' of 4';
+    trackfill.style.width = (s/4*100) + '%';
+    backBtn.style.visibility = s > 1 ? 'visible' : 'hidden';
+  }
+  var html = '';
+  if (s === 1){
+    html += '<div class="panel"><div class="q">What’s your project?</div><div class="tiles">';
+    PROJECTS.forEach(function(o){ html += '<button type="button" class="tile" data-pick="project" data-id="'+o.id+'"><span class="ti"><svg viewBox="0 0 24 24">'+o.icon+'</svg></span><span>'+o.label+'</span></button>'; });
+    html += '</div></div>';
+  } else if (s === 2){
+    html += '<div class="panel"><div class="q">When are you hoping to get it done?</div><div class="tiles tiles-1">';
+    TIMELINES.forEach(function(o){ html += '<button type="button" class="tile" data-pick="timeline" data-id="'+o.id+'"><span>'+o.label+'</span></button>'; });
+    html += '</div></div>';
+  } else if (s === 3){
+    html += '<div class="panel"><label class="q" for="loc">Where’s the project?</label>'
+      + '<input class="inp" id="loc" type="text" placeholder="ZIP or city" value="'+esc(state.location)+'">'
+      + '<button type="button" class="btn" id="contBtn">Continue</button></div>';
+  } else if (s === 4){
+    html += '<div class="panel"><div class="q">Where should we send your estimate details?</div>'
+      + '<input class="inp" id="nm" type="text" placeholder="Your name" value="'+esc(state.name)+'">'
+      + '<input class="inp" id="ph" type="tel" placeholder="Phone number" value="'+esc(state.phone)+'">'
+      + '<label class="consent"><input type="checkbox" id="cs"'+(state.consent?' checked':'')+'>'
+      + '<span>By submitting, you agree '+BUSINESS+' may text you about your estimate. Reply STOP to opt out.</span></label>'
+      + '<button type="button" class="btn" id="submitBtn" disabled>Get My Free Estimate</button></div>';
+  } else if (s === 5){
+    html += '<div class="panel book"><h2>Last step — pick a time for your free on-site estimate.</h2>'
+      + '<p class="book-sub">Prefer to talk first? We’ll call you shortly either way.</p>'
+      + '<div class="slots"><div class="cal-ico">📅</div><h3>Pick a time this week</h3>'
+      + '<div class="slot">Wed · 9:00 AM</div><div class="slot">Thu · 1:30 PM</div><div class="slot">Fri · 8:00 AM</div>'
+      + '<div class="demo-note">Demo preview — the live page loads your real booking calendar here.</div></div></div>';
+  }
+  host.innerHTML = html;
+  wire();
+}
+
+function wire(){
+  var s = state.step;
+  // tile picks auto-advance
+  Array.prototype.forEach.call(host.querySelectorAll('[data-pick]'), function(btn){
+    btn.addEventListener('click', function(){
+      var kind = btn.getAttribute('data-pick'), id = btn.getAttribute('data-id');
+      if (kind === 'project'){ state.projectType = id; go(2); }
+      else { state.timeline = id; go(3); }
+    });
+  });
+  if (s === 3){
+    var loc = document.getElementById('loc'), cont = document.getElementById('contBtn');
+    loc.addEventListener('input', function(){ state.location = loc.value; });
+    cont.addEventListener('click', function(){ if (state.location.trim()) go(4); });
+    loc.focus();
+  }
+  if (s === 4){
+    var nm = document.getElementById('nm'), ph = document.getElementById('ph'), cs = document.getElementById('cs'), sub = document.getElementById('submitBtn');
+    function refresh(){ state.name=nm.value; state.phone=ph.value; state.consent=cs.checked; sub.disabled = !(nm.value.trim() && ph.value.trim() && cs.checked); }
+    nm.addEventListener('input', refresh); ph.addEventListener('input', refresh); cs.addEventListener('change', refresh);
+    refresh();
+    sub.addEventListener('click', function(){
+      // ⚠ DEMO: intentionally NO webhook POST. Just advance to the booking step.
+      go(5);
+    });
+  }
+}
+
+function esc(v){ return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+document.getElementById('backBtn').addEventListener('click', function(){ if (state.step > 1) go(state.step - 1); });
+render();
+</script>
+</body>
+</html>

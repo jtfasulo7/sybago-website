@@ -179,6 +179,80 @@ body[data-slide="0"] .brandmark{opacity:0;pointer-events:none}
 .how-foot{text-align:center;max-width:62ch;margin:2.4rem auto 0;font-size:clamp(1.05rem,1.6vw,1.28rem);font-weight:600;line-height:1.45}
 .how-foot em{font-style:normal;color:var(--teal-b)}
 
+/* ─────── Slide 4 — interactive phone widget (ADDITIVE) ───────
+   .how-grid stays in the DOM as #howFallback and is revealed only if the
+   phone widget is disabled or errors. Nothing else on the slide changes. */
+#s3{padding-top:2.6rem;padding-bottom:2.6rem}
+#s3 .how-head{margin-bottom:1rem}
+#s3 .how-foot{margin-top:1.3rem;font-size:clamp(1rem,1.5vw,1.18rem)}
+#howFallback{display:none}                     /* fallback — hidden by default */
+@media (max-height:720px){ #s3{overflow-y:auto} }   /* short windows scroll, never clip */
+
+.phone-widget{display:flex;flex-direction:column;align-items:center;gap:.7rem}
+.phone{position:relative;width:190px;height:388px;flex-shrink:0;background:#0b0b0d;border-radius:40px;padding:10px;
+  box-shadow:0 0 0 2px #2a2a2e,0 18px 40px -12px rgba(15,20,25,.45),0 6px 14px -6px rgba(15,20,25,.3)}
+.phone-island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:64px;height:16px;background:#000;border-radius:10px;z-index:6;pointer-events:none}
+.phone-screen{position:relative;width:170px;height:368px;border-radius:30px;overflow:hidden;background:#fff}
+.pscreen{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .28s var(--eo);overflow:hidden}
+.pscreen.active{opacity:1;visibility:visible}
+.pscreen:not(.pscreen-page){cursor:pointer;padding-top:30px}   /* clear the island (status-bar inset) on mock screens */
+
+/* Screen 2 — the real page, embedded (scaled mobile viewport) */
+.pscreen-page .page-iframe{position:absolute;top:0;left:0;width:340px;height:736px;border:0;transform:scale(.5);transform-origin:top left;opacity:0;transition:opacity .3s;background:#fff}
+.pscreen-page .page-iframe.loaded{opacity:1}
+.page-fallback{position:absolute;inset:0;overflow:hidden;background:linear-gradient(180deg,#f3efe9,#fff);padding:12px 10px;font-size:10px}
+.page-fallback .pf-eye{font-size:8px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#b8532a;margin-bottom:4px}
+.page-fallback .pf-h{font-size:17px;font-weight:800;color:#1b1e22;line-height:1.1;margin-bottom:6px}
+.page-fallback .pf-h span{color:#b8532a}
+.page-fallback .pf-card{background:#fff;border:1px solid #e6e8ea;border-radius:10px;padding:9px;margin-top:6px}
+.page-fallback .pf-q{font-size:11px;font-weight:800;color:#1b1e22;margin-bottom:7px}
+.page-fallback .pf-tiles{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.page-fallback .pf-tile{background:#f5f6f7;border:1.5px solid #e6e8ea;border-radius:8px;padding:9px 4px;text-align:center;font-size:9px;font-weight:600;color:#1b1e22}
+
+/* Screen 1 — Facebook feed ad mock */
+.fb{height:100%;background:#fff;color:#1c1e21;display:flex;flex-direction:column;overflow:hidden}
+.fb-top{display:flex;align-items:center;gap:6px;padding:8px 8px 5px}
+.fb-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--teal-b),var(--teal-d));flex-shrink:0}
+.fb-name{font-weight:700;font-size:10px;color:#1c1e21}
+.fb-spon{font-size:8px;color:#65676b}
+.fb-text{padding:0 8px 6px;font-size:9.5px;line-height:1.35}
+.fb-img{flex:1;min-height:110px;position:relative;background:
+  linear-gradient(180deg,#eceae6 0%,#dcd7cf 42%,#b9b2a6 43%,#a49d90 100%)}
+.fb-img::before{content:"";position:absolute;left:24%;right:24%;top:44%;bottom:0;background:linear-gradient(180deg,#cfc8bb,#8f887c);clip-path:polygon(38% 0,62% 0,100% 100%,0 100%)}
+.fb-img .tag{position:absolute;bottom:5px;left:6px;font-size:7px;color:#fff;background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;letter-spacing:.04em}
+.fb-bar{background:#f0f2f5;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.fb-bar .u{font-size:7.5px;color:#65676b;text-transform:uppercase;letter-spacing:.03em}
+.fb-bar .h{font-size:10px;font-weight:700;color:#1c1e21;line-height:1.15}
+.fb-learn{background:#e4e6eb;border:none;border-radius:5px;padding:6px 8px;font-size:8.5px;font-weight:700;color:#1c1e21;flex-shrink:0}
+
+/* Screen 3 — iMessage mock */
+.im{height:100%;background:#fff;display:flex;flex-direction:column}
+.im-head{background:#f7f7f8;border-bottom:1px solid #e5e5ea;padding:9px 8px;text-align:center}
+.im-head .nm{font-size:11px;font-weight:600;color:#000}
+.im-head .sub{font-size:8px;color:#8e8e93}
+.im-body{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.im-time{text-align:center;font-size:8px;color:#8e8e93;margin-bottom:4px}
+.im-bubble{align-self:flex-start;max-width:84%;background:#e9e9eb;color:#000;border-radius:14px;padding:8px 10px;font-size:9.5px;line-height:1.4;white-space:pre-line}
+.im-bubble .lnk{color:#0a7cff}
+.im-meta{align-self:flex-start;font-size:8px;color:#8e8e93;margin:2px 0 0 4px}
+
+/* Screen 4 — booked week calendar */
+.cal{height:100%;background:#fff;display:flex;flex-direction:column}
+.cal-head{padding:9px 10px 7px;font-size:13px;font-weight:800;color:var(--t1);border-bottom:1px solid var(--line)}
+.cal-list{flex:1;overflow:hidden;padding:5px 7px;display:flex;flex-direction:column;gap:4px}
+.cal-appt{display:flex;gap:6px;align-items:center;background:rgba(47,103,121,.08);border-left:3px solid var(--teal);border-radius:5px;padding:5px 6px}
+.cal-day{font-size:7.5px;font-weight:800;color:var(--teal-d);width:22px;flex-shrink:0;text-transform:uppercase}
+.cal-txt{font-size:8.5px;color:var(--t1);font-weight:600;line-height:1.15}
+.cal-time{font-size:7.5px;color:var(--t3);margin-left:auto;flex-shrink:0;font-weight:600}
+
+/* Phone nav labels (progress + direct jump) */
+.phone-nav{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center}
+.pnav{background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem;font-size:.72rem;font-weight:600;color:var(--t2);display:flex;align-items:center;gap:.35rem;cursor:pointer;transition:border-color .2s var(--eo),color .2s var(--eo),background .2s var(--eo)}
+.pnav b{color:var(--teal-b);font-weight:800;letter-spacing:.04em}
+.pnav:hover{border-color:var(--teal-b)}
+.pnav.active{border-color:var(--teal-b);color:var(--teal-d);background:rgba(47,103,121,.08)}
+.phone-caption{text-align:center;font-size:.85rem;color:var(--t2);font-weight:500;min-height:2.2em;max-width:44ch;line-height:1.3}
+
 /* ─────── Slide 5 — Calculator ─────── */
 #s4 .slide-inner{max-width:1140px}
 .calc-head{text-align:center;margin-bottom:1.4rem}
@@ -226,6 +300,9 @@ input[type=range]::-moz-range-thumb{
 .out-mini{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:1rem 1.15rem}
 .out-mini .out-label{font-size:.72rem;font-weight:600;color:var(--t3);margin-bottom:.35rem}
 .out-mini .out-val{font-size:1.4rem;font-weight:700;letter-spacing:-.01em;color:var(--t1);font-variant-numeric:tabular-nums}
+.out-mini .out-val.mult{color:var(--teal-d)}
+.out-cap{font-size:.64rem;line-height:1.3;color:var(--t3);margin-top:.4rem;font-weight:500}
+.out-hero .out-cap{color:var(--teal-d);opacity:.72;font-size:.66rem}
 
 /* ─────── Slide 6 — Risk reversal ─────── */
 .risk-head{text-align:center;margin-bottom:2.4rem}
@@ -359,9 +436,92 @@ input[type=range]::-moz-range-thumb{
       <div class="how-head">
         <div class="eyebrow">How it works</div>
         <h2>One machine. Four moving parts.</h2>
-        <p class="lead">Ads without a funnel is expensive. A funnel with no follow-up leaks. Run them together or don't bother.</p>
       </div>
-      <div class="how-grid">
+
+      <!-- Interactive phone (primary). Falls back to #howFallback on disable/error. -->
+      <div class="phone-widget" id="phoneWidget">
+        <div class="phone">
+          <div class="phone-island"></div>
+          <div class="phone-screen" id="phoneScreen">
+
+            <!-- Screen 1 — The Ad (Facebook feed) -->
+            <div class="pscreen pscreen-ad active" data-screen="1">
+              <div class="fb">
+                <div class="fb-top">
+                  <div class="fb-av"></div>
+                  <div><div class="fb-name">Summit Concrete Co.</div><div class="fb-spon">Sponsored</div></div>
+                </div>
+                <div class="fb-text">Your crew costs you money whether they're pouring or parked…</div>
+                <div class="fb-img"><span class="tag">driveway pour</span></div>
+                <div class="fb-bar">
+                  <div><div class="u">summitconcrete.com</div><div class="h">I fill your estimate calendar. You pour.</div></div>
+                  <button class="fb-learn" type="button">Learn More</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 2 — The Landing Page (REAL page embedded, /demo/concrete, demo mode) -->
+            <div class="pscreen pscreen-page" data-screen="2">
+              <div class="page-fallback">
+                <div class="pf-eye">Summit Concrete Co.</div>
+                <div class="pf-h">Get a <span>FREE</span> estimate now</div>
+                <div class="pf-card">
+                  <div class="pf-q">What's your project?</div>
+                  <div class="pf-tiles">
+                    <div class="pf-tile">Driveway</div><div class="pf-tile">Patio</div>
+                    <div class="pf-tile">Stamped</div><div class="pf-tile">Walkway</div>
+                  </div>
+                </div>
+              </div>
+              <iframe class="page-iframe" id="demoIframe" src="/demo/concrete" title="Live client landing page demo" scrolling="no" loading="lazy"></iframe>
+            </div>
+
+            <!-- Screen 3 — The Text (iMessage) -->
+            <div class="pscreen pscreen-text" data-screen="3">
+              <div class="im">
+                <div class="im-head"><div class="nm">Summit Concrete Co.</div><div class="sub">Text Message</div></div>
+                <div class="im-body">
+                  <div class="im-time">Today 2:14 PM</div>
+                  <div class="im-bubble">Hey Sarah, it's Mike from Summit Concrete — got your info about the driveway. I'll take a look and give you a call shortly. Want to skip the phone tag and grab a time now?
+
+<span class="lnk">summitconcrete.com/book</span></div>
+                  <div class="im-meta">Delivered</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 4 — The Calendar (booked week) -->
+            <div class="pscreen pscreen-cal" data-screen="4">
+              <div class="cal">
+                <div class="cal-head">This Week</div>
+                <div class="cal-list">
+                  <div class="cal-appt"><span class="cal-day">Mon</span><span class="cal-txt">Estimate — Driveway</span><span class="cal-time">9:00a</span></div>
+                  <div class="cal-appt"><span class="cal-day">Mon</span><span class="cal-txt">Estimate — Stamped Patio</span><span class="cal-time">1:30p</span></div>
+                  <div class="cal-appt"><span class="cal-day">Tue</span><span class="cal-txt">Estimate — Walkway &amp; Steps</span><span class="cal-time">8:00a</span></div>
+                  <div class="cal-appt"><span class="cal-day">Tue</span><span class="cal-txt">Estimate — Driveway</span><span class="cal-time">11:00a</span></div>
+                  <div class="cal-appt"><span class="cal-day">Wed</span><span class="cal-txt">Estimate — Patio</span><span class="cal-time">10:00a</span></div>
+                  <div class="cal-appt"><span class="cal-day">Wed</span><span class="cal-txt">Estimate — Driveway</span><span class="cal-time">2:00p</span></div>
+                  <div class="cal-appt"><span class="cal-day">Thu</span><span class="cal-txt">Estimate — Stamped Patio</span><span class="cal-time">9:30a</span></div>
+                  <div class="cal-appt"><span class="cal-day">Thu</span><span class="cal-txt">Estimate — Walkway</span><span class="cal-time">3:00p</span></div>
+                  <div class="cal-appt"><span class="cal-day">Fri</span><span class="cal-txt">Estimate — Driveway</span><span class="cal-time">8:30a</span></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="phone-nav" id="phoneNav">
+          <button class="pnav active" type="button" data-goto="1"><b>01</b> Ad</button>
+          <button class="pnav" type="button" data-goto="2"><b>02</b> Page</button>
+          <button class="pnav" type="button" data-goto="3"><b>03</b> Text</button>
+          <button class="pnav" type="button" data-goto="4"><b>04</b> Calendar</button>
+        </div>
+        <div class="phone-caption" id="phoneCaption"></div>
+      </div>
+
+      <!-- FALLBACK: original four stage cards (revealed only if the phone widget fails/is disabled) -->
+      <div class="how-grid" id="howFallback">
         <div class="how-card">
           <div class="how-stage">Stage 01</div>
           <h3>Ads That Find Them</h3>
@@ -446,6 +606,7 @@ input[type=range]::-moz-range-thumb{
             <div class="out-hero">
               <div class="out-label">Return on every $1 spent</div>
               <div class="out-val" id="o-roi"></div>
+              <div class="out-cap">gross profit vs. total spend — the honest number</div>
             </div>
           </div>
           <div class="out-mini-grid">
@@ -456,6 +617,11 @@ input[type=range]::-moz-range-thumb{
             <div class="out-mini">
               <div class="out-label">Monthly revenue</div>
               <div class="out-val" id="o-rev"></div>
+            </div>
+            <div class="out-mini">
+              <div class="out-label">ROAS (Return On Ad Spend)</div>
+              <div class="out-val mult" id="o-roas"></div>
+              <div class="out-cap">revenue vs. ad spend — how agencies usually quote it</div>
             </div>
             <div class="out-mini">
               <div class="out-label">Gross profit</div>
@@ -596,6 +762,7 @@ const out = {
   gross:  document.getElementById('o-gross'),
   pay:    document.getElementById('o-pay'),
   cpj:    document.getElementById('o-cpj'),
+  roas:   document.getElementById('o-roas'),
 };
 
 function recalc(){
@@ -627,6 +794,11 @@ function recalc(){
   out.rev.textContent    = money(revenue);
   out.gross.textContent  = money(grossProfit);
   out.pay.textContent    = money(youPay);
+
+  // ROAS = revenue / ad spend ONLY (excludes the Sybago fee and gross margin) —
+  // the industry-standard number agencies quote. Distinct from "Return on every
+  // $1 spent" (gross profit / total spend). Guard divide-by-zero on ad spend.
+  out.roas.textContent = adSpend > 0 ? (revenue / adSpend).toFixed(1) + '×' : '—';
 
   out.net.textContent = (net < 0 ? '-' : '') + money(Math.abs(net));
   out.net.classList.toggle('neg', net < 0);
@@ -707,6 +879,63 @@ function toggleFs(){
 document.getElementById('fsBtn').addEventListener('click', toggleFs);
 
 show(0);
+
+/* ─────── Slide 4 interactive phone (ADDITIVE, self-contained) ───────
+   Runs AFTER the deck is fully wired, so nothing here can break slide
+   navigation. Any failure — or PHONE_ENABLED=false — reveals the original
+   four stage cards (#howFallback) instead. Phone screens advance by
+   click/tap and by the stage labels only — never by arrow keys, so they
+   never conflict with the deck's arrow-key slide navigation. */
+var PHONE_ENABLED = true;   // set to false to force the four stage-card fallback
+(function initPhone(){
+  var widget   = document.getElementById('phoneWidget');
+  var fallback = document.getElementById('howFallback');
+  function useFallback(){
+    try { if (widget) widget.style.display = 'none'; if (fallback) fallback.style.display = 'grid'; } catch (e) {}
+  }
+  try {
+    if (!PHONE_ENABLED) { useFallback(); return; }
+    var screenWrap = document.getElementById('phoneScreen');
+    var nav        = document.getElementById('phoneNav');
+    var caption    = document.getElementById('phoneCaption');
+    if (!widget || !screenWrap || !nav) { useFallback(); return; }
+    var screens = Array.prototype.slice.call(screenWrap.querySelectorAll('.pscreen'));
+    var navs    = Array.prototype.slice.call(nav.querySelectorAll('.pnav'));
+    if (!screens.length || !navs.length) { useFallback(); return; }
+
+    var CAPTIONS = {
+      1: 'The ad they scroll past — until they don’t.',
+      2: 'Tap through the real qualifying form — use the labels above to move on.',
+      3: 'Instant text-back, in their voice.',
+      4: 'Booked estimates, tracked. You know exactly what your spend bought.'
+    };
+    var ps = 1;
+    function showScreen(n){
+      ps = ((n - 1 + 4) % 4) + 1;                 // wrap 1..4
+      screens.forEach(function(s){ s.classList.toggle('active', +s.getAttribute('data-screen') === ps); });
+      navs.forEach(function(b){ b.classList.toggle('active', +b.getAttribute('data-goto') === ps); });
+      if (caption) caption.textContent = CAPTIONS[ps] || '';
+    }
+    // Tap mock screens (1/3/4) to advance. Screen 2 is the live form — you
+    // interact with it directly and use the labels to continue.
+    screens.forEach(function(s){
+      if (s.getAttribute('data-screen') !== '2') {
+        s.addEventListener('click', function(){ showScreen(ps + 1); });
+      }
+    });
+    navs.forEach(function(b){ b.addEventListener('click', function(){ showScreen(+b.getAttribute('data-goto')); }); });
+
+    // Reveal the embedded page once it loads; the static fallback stays visible
+    // behind it if it never loads.
+    var ifr = document.getElementById('demoIframe');
+    if (ifr) ifr.addEventListener('load', function(){ ifr.classList.add('loaded'); });
+
+    showScreen(1);
+  } catch (err) {
+    console.error('[phone] init failed — falling back to stage cards', err);
+    useFallback();
+  }
+})();
 </script>
 
 </body>
