@@ -730,10 +730,10 @@ input[type=range]::-moz-range-thumb{
    "fee per booked estimate" slider default. Change them and everything updates.
    ═══════════════════════════════════════════════════════════════════════ */
 const STARTUP_FEE = 750;    // one-time startup / build fee (Slide 7)
-const PER_JOB_FEE = 200;    // client's fee per booked estimate (Slide 7 + Slide 5 default)
+const PER_JOB_FEE = 150;    // client's fee per booked estimate (Slide 7 + Slide 5 default)
 
 /* Slide-5 slider defaults — concrete/paving niche. */
-const DEFAULTS = { adspend:2000, booked:10, fee:PER_JOB_FEE, close:35, ticket:8000, margin:30 };
+const DEFAULTS = { adspend:1500, booked:9, fee:PER_JOB_FEE, close:35, ticket:6000, margin:30 };
 
 /* ─────── Formatting helpers ─────── */
 const money = n => '$' + Math.round(n).toLocaleString('en-US');
