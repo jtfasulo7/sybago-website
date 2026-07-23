@@ -72,11 +72,22 @@ h1,h2{color:var(--ink);line-height:1.15;letter-spacing:-.01em}
 
 .book h2{font-size:1.2rem;margin-bottom:.3rem}
 .book-sub{font-size:.9rem;color:var(--muted);margin-bottom:1rem}
-.slots{border:1px solid var(--line);border-radius:10px;background:var(--bg-soft);padding:1rem;text-align:center}
-.slots .cal-ico{font-size:1.6rem}
-.slots h3{font-size:1rem;color:var(--ink);margin:.4rem 0 .8rem}
-.slot{background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:.6rem;font-weight:700;color:var(--primary);margin-bottom:.5rem}
-.demo-note{margin-top:.6rem;font-size:.72rem;color:var(--muted)}
+/* Booking calendar widget (demo) — styled like a GHL month calendar */
+.calw{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.calw-head{display:flex;align-items:center;justify-content:space-between;padding:.7rem .8rem;border-bottom:1px solid var(--line)}
+.calw-month{font-weight:800;color:var(--ink);font-size:.95rem}
+.calw-arrows{display:flex;gap:.35rem}
+.calw-arrow{width:26px;height:26px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--muted);font-size:.8rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:default}
+.calw-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:.55rem .55rem .35rem;text-align:center}
+.calw-dow{font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;padding:.15rem 0}
+.calw-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:.78rem;border-radius:50%;color:#c2c6ca;border:none;background:none;padding:0}
+.calw-day.avail{color:var(--accent);font-weight:700;background:rgba(31,111,92,.09);cursor:pointer}
+.calw-day.sel{background:var(--accent);color:#fff;font-weight:800}
+.calw-times{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;padding:.55rem .6rem .7rem;border-top:1px solid var(--line)}
+.calw-tlabel{grid-column:1/-1;font-size:.7rem;font-weight:700;color:var(--ink)}
+.calw-time{border:1.5px solid var(--line);border-radius:8px;background:#fff;padding:.5rem;font-size:.8rem;font-weight:700;color:var(--accent);cursor:pointer}
+.calw-time.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.demo-note{margin-top:.6rem;font-size:.72rem;color:var(--muted);text-align:center}
 
 .trust{background:var(--ink);color:#eef0f2}
 .trust-in{padding:.75rem 1.1rem;text-align:center;font-size:.8rem}
@@ -114,7 +125,7 @@ h1,h2{color:var(--ink);line-height:1.15;letter-spacing:-.01em}
 <script>
 /* ── DEMO multi-step form. No network calls — Step-4 submit only advances. ── */
 var BUSINESS = 'Summit Concrete Co.';
-var state = { step:1, projectType:'', timeline:'', location:'', name:'', phone:'', consent:false };
+var state = { step:1, projectType:'', timeline:'', location:'', name:'', phone:'', consent:false, calDay:0, calTime:'' };
 
 var PROJECTS = [
   { id:'driveway', label:'Driveway', icon:'<path d="M5 21 9 3h6l4 18"/><path d="M12 7v2M12 12v2M12 17v2"/>' },
@@ -171,12 +182,56 @@ function render(){
   } else if (s === 5){
     html += '<div class="panel book"><h2>Last step — pick a time for your free on-site estimate.</h2>'
       + '<p class="book-sub">Prefer to talk first? We’ll call you shortly either way.</p>'
-      + '<div class="slots"><div class="cal-ico">📅</div><h3>Pick a time this week</h3>'
-      + '<div class="slot">Wed · 9:00 AM</div><div class="slot">Thu · 1:30 PM</div><div class="slot">Fri · 8:00 AM</div>'
-      + '<div class="demo-note">Demo preview — the live page loads your real booking calendar here.</div></div></div>';
+      + buildCalendar()
+      + '<div class="demo-note">Demo preview — the live page loads your real booking calendar here.</div></div>';
   }
   host.innerHTML = html;
   wire();
+}
+
+/* Month calendar for the booking step. Uses the real current month; weekdays
+   (Mon–Sat) after today are "available". Pure UI — no network. */
+var CAL_TIMES = ['9:00 AM','11:30 AM','1:30 PM','4:00 PM'];
+function calAvailable(){
+  var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  var dim = new Date(y, m + 1, 0).getDate(), today = now.getDate();
+  var avail = [];
+  for (var d = 1; d <= dim; d++){
+    var dow = new Date(y, m, d).getDay();
+    if (d > today && dow !== 0) avail.push(d);
+  }
+  // month nearly over → just offer remaining weekdays as a demo
+  if (!avail.length) for (var d2 = 1; d2 <= dim; d2++){ if (new Date(y, m, d2).getDay() !== 0) avail.push(d2); }
+  return avail;
+}
+function buildCalendar(){
+  var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  var monthName = now.toLocaleString('en-US', { month:'long' }) + ' ' + y;
+  var firstDow = new Date(y, m, 1).getDay();
+  var dim = new Date(y, m + 1, 0).getDate();
+  var avail = calAvailable();
+  if (!state.calDay || avail.indexOf(state.calDay) === -1) state.calDay = avail[0];
+
+  var html = '<div class="calw">'
+    + '<div class="calw-head"><span class="calw-month">' + monthName + '</span>'
+    + '<span class="calw-arrows"><span class="calw-arrow">‹</span><span class="calw-arrow">›</span></span></div>'
+    + '<div class="calw-grid">';
+  ['S','M','T','W','T','F','S'].forEach(function(d){ html += '<span class="calw-dow">' + d + '</span>'; });
+  for (var b = 0; b < firstDow; b++) html += '<span class="calw-day"></span>';
+  for (var d = 1; d <= dim; d++){
+    var isAvail = avail.indexOf(d) !== -1;
+    var cls = 'calw-day' + (isAvail ? ' avail' : '') + (d === state.calDay ? ' sel' : '');
+    html += isAvail
+      ? '<button type="button" class="' + cls + '" data-day="' + d + '">' + d + '</button>'
+      : '<span class="calw-day">' + d + '</span>';
+  }
+  html += '</div><div class="calw-times"><span class="calw-tlabel">Available times — '
+    + now.toLocaleString('en-US', { month:'short' }) + ' ' + state.calDay + '</span>';
+  CAL_TIMES.forEach(function(t){
+    html += '<button type="button" class="calw-time' + (t === state.calTime ? ' sel' : '') + '" data-time="' + t + '">' + t + '</button>';
+  });
+  html += '</div></div>';
+  return html;
 }
 
 function wire(){
@@ -203,6 +258,14 @@ function wire(){
     sub.addEventListener('click', function(){
       // ⚠ DEMO: intentionally NO webhook POST. Just advance to the booking step.
       go(5);
+    });
+  }
+  if (s === 5){
+    Array.prototype.forEach.call(host.querySelectorAll('.calw-day.avail'), function(btn){
+      btn.addEventListener('click', function(){ state.calDay = +btn.getAttribute('data-day'); render(); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.calw-time'), function(btn){
+      btn.addEventListener('click', function(){ state.calTime = btn.getAttribute('data-time'); render(); });
     });
   }
 }
