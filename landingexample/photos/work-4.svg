@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" role="img" aria-label="Project photo placeholder Decorative Finish">
+  <rect width="400" height="300" fill="#c9c2b6"/>
+  <rect x="0" y="210" width="400" height="90" fill="#00000010"/>
+  <path d="M0 210 L400 190 L400 300 L0 300 Z" fill="#00000008"/>
+  <circle cx="200" cy="120" r="34" fill="#ffffff55"/>
+  <path d="M186 120 h28 M200 106 v28" stroke="#00000030" stroke-width="4" stroke-linecap="round"/>
+  <text x="200" y="180" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#5b554b">Decorative Finish</text>
+  <text x="200" y="205" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#7a7367">placeholder — replace in public/photos</text>
+</svg>
