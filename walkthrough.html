@@ -305,22 +305,19 @@ input[type=range]::-moz-range-thumb{
 .out-cap{font-size:.64rem;line-height:1.3;color:var(--t3);margin-top:.4rem;font-weight:500}
 .out-hero .out-cap{color:var(--teal-d);opacity:.72;font-size:.66rem}
 
-/* ─────── Slide 6 — Risk reversal ─────── */
-.risk-head{text-align:center;margin-bottom:2.4rem}
-.risk-head .lead{margin:0 auto}
-.risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-bottom:2rem}
-.risk-card{background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:1.6rem 1.5rem}
-.risk-icon{width:40px;height:40px;border:1px solid var(--good);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--good);margin-bottom:1rem}
-.risk-icon svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.risk-card h3{font-size:1.1rem;margin-bottom:.5rem}
-.risk-card p{color:var(--t2);font-size:.94rem;line-height:1.6}
-.risk-guarantee{
-  text-align:center;max-width:70ch;margin:0 auto;
-  background:linear-gradient(135deg,rgba(77,191,122,0.12),rgba(47,103,121,0.05));
-  border:1px solid var(--line);border-radius:14px;padding:1.5rem 1.8rem;
-  font-size:clamp(1.02rem,1.5vw,1.2rem);font-weight:500;line-height:1.55;color:var(--t1);
-}
-.risk-guarantee strong{color:var(--teal-d);font-weight:700}
+/* ─────── Slide 6 — Recent campaign ─────── */
+.camp-head{text-align:center;margin-bottom:2.4rem}
+.camp-head .lead{margin:0 auto}
+.camp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;max-width:900px;margin:0 auto 1.2rem}
+.camp-card{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:1.7rem 1.5rem;text-align:center}
+.camp-card.accent{background:linear-gradient(150deg,rgba(47,103,121,0.13),rgba(47,103,121,0.03));border-color:rgba(47,103,121,0.22)}
+.camp-label{font-size:.66rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-b);margin-bottom:.75rem}
+.camp-val{font-size:clamp(1.9rem,3.4vw,2.6rem);font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--t1);font-variant-numeric:tabular-nums}
+.camp-card.accent .camp-val{color:var(--teal-d)}
+.camp-sub{font-size:.74rem;color:var(--t3);margin-top:.55rem;font-weight:500}
+.camp-cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;max-width:600px;margin:0 auto}
+.camp-cost{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:1.15rem 1.3rem;text-align:center}
+.camp-cost .camp-val{font-size:1.45rem;font-weight:700;color:var(--teal-d)}
 
 /* ─────── Slide 7 — Offer ─────── */
 .offer-head{text-align:center;margin-bottom:2.2rem}
@@ -355,7 +352,7 @@ input[type=range]::-moz-range-thumb{
   .about-grid{grid-template-columns:1fr;text-align:center}
   .about-copy p{margin-left:auto;margin-right:auto}
   .prob-list,.calc{grid-template-columns:1fr}
-  .risk-grid,.offer-prices,.offer-steps{grid-template-columns:1fr}
+  .camp-grid,.camp-cost-grid,.offer-prices,.offer-steps{grid-template-columns:1fr}
   .out-hero-row,.out-mini-grid{grid-template-columns:1fr 1fr}
 }
 
@@ -642,32 +639,41 @@ input[type=range]::-moz-range-thumb{
     </div>
   </section>
 
-  <!-- ─────── Slide 6 — Risk reversal ─────── -->
-  <section class="slide" id="s5" aria-label="Why it's safe">
+  <!-- ─────── Slide 6 — Recent campaign ─────── -->
+  <section class="slide" id="s5" aria-label="Recent campaign">
     <div class="slide-inner">
-      <div class="risk-head">
-        <div class="eyebrow">Why it's safe</div>
-        <h2>The risk is on me, not you.</h2>
-        <p class="lead">Everything that normally makes hiring a marketing company feel like a trap — I took it out.</p>
+      <div class="camp-head">
+        <div class="eyebrow">Recent campaign</div>
+        <h2>The most recent campaign, in real numbers.</h2>
+        <p class="lead">$1,000 of ad spend, tracked end to end — every lead and every booked appointment accounted for.</p>
       </div>
-      <div class="risk-grid">
-        <div class="risk-card">
-          <div class="risk-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-          <h3>No Long Contracts</h3>
-          <p>Month to month. No 12-month lock-in, no cancellation fee, no 90-day notice buried on page four.</p>
+      <div class="camp-grid">
+        <div class="camp-card">
+          <div class="camp-label">Ad spend</div>
+          <div class="camp-val">$1,000</div>
+          <div class="camp-sub">paid straight to Meta</div>
         </div>
-        <div class="risk-card">
-          <div class="risk-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-          <h3>You Own Everything</h3>
-          <p>Your ad account, your page, your domain, your customer list. Walk away whenever and it all goes with you.</p>
+        <div class="camp-card">
+          <div class="camp-label">Leads</div>
+          <div class="camp-val">45</div>
+          <div class="camp-sub">homeowners who raised a hand</div>
         </div>
-        <div class="risk-card">
-          <div class="risk-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-          <h3>You Get JT</h3>
-          <p>One person builds it and one person runs it. Nobody hands you off to a team with turnover.</p>
+        <div class="camp-card accent">
+          <div class="camp-label">Booked appointments</div>
+          <div class="camp-val">15</div>
+          <div class="camp-sub">on the calendar</div>
         </div>
       </div>
-      <p class="risk-guarantee">You pay <strong>per booked estimate</strong> — not for promises. As long as you answer your leads fast and show up to the estimates, <strong>the system only costs you when it's actually putting estimates on your calendar.</strong></p>
+      <div class="camp-cost-grid">
+        <div class="camp-cost">
+          <div class="camp-label">Cost per lead</div>
+          <div class="camp-val">$22.22</div>
+        </div>
+        <div class="camp-cost">
+          <div class="camp-label">Cost per booked appointment</div>
+          <div class="camp-val">$66.67</div>
+        </div>
+      </div>
     </div>
   </section>
 
