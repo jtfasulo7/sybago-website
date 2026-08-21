@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Alert Text Messages — Opt-In — Sybago AI</title>
+<meta name="description" content="Sybago clients and their team members can opt in here to receive automated lead-alert text messages when a prospect submits a request through the client's website.">
+<meta name="robots" content="noindex, follow">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --card: rgba(0,0,0,0.03);
+  --t1: #111111;
+  --t2: rgba(17,17,17,0.72);
+  --t3: rgba(17,17,17,0.45);
+  --t4: rgba(17,17,17,0.08);
+  --gold: #2F6779;
+  --gold-b: #3a7d93;
+  --err: #b42318;
+}
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--t1); -webkit-font-smoothing: antialiased; line-height: 1.65; }
+
+nav { position: sticky; top: 0; z-index: 50; padding: 0.9rem 2rem; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--t4); }
+.logo { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+.logo img { height: 32px; width: auto; border-radius: 8px; }
+.logo span { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.08em; color: var(--t1); text-transform: uppercase; }
+
+main { max-width: 720px; margin: 0 auto; padding: 4.5rem 1.75rem 6rem; }
+
+.page-header { margin-bottom: 2.5rem; }
+.page-header .overline { font-size: 0.72rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 0.9rem; display: block; }
+.page-header h1 { font-size: clamp(1.9rem, 5vw, 2.75rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 1rem; }
+.page-header p { font-size: 1.05rem; color: var(--t2); }
+
+.example { background: var(--bg2); border-left: 4px solid var(--gold); border-radius: 4px; padding: 1.1rem 1.3rem; margin: 1.5rem 0 2.25rem; }
+.example .lbl { font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--t3); font-weight: 700; margin-bottom: 0.5rem; }
+.example pre { font-family: 'Inter', sans-serif; font-size: 0.92rem; color: var(--t1); white-space: pre-wrap; line-height: 1.55; }
+
+form { background: #fff; border: 1px solid var(--t4); border-radius: 14px; padding: 1.75rem; box-shadow: 0 20px 50px -30px rgba(0,0,0,0.25); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.field { margin-bottom: 1.1rem; }
+label.top { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; }
+label.top .opt { color: var(--t3); font-weight: 400; }
+input[type=text], input[type=tel], input[type=email] { width: 100%; font: inherit; font-size: 1rem; padding: 0.75rem 0.9rem; border: 1px solid rgba(17,17,17,0.18); border-radius: 8px; background: #fff; color: var(--t1); }
+input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(47,103,121,0.18); }
+
+.consent { display: flex; gap: 0.8rem; align-items: flex-start; background: var(--bg2); border: 1px solid var(--t4); border-radius: 10px; padding: 0.95rem 1rem; margin: 0.4rem 0 1.25rem; }
+.consent input { width: 1.15rem; height: 1.15rem; margin-top: 0.2rem; flex-shrink: 0; accent-color: var(--gold); cursor: pointer; }
+.consent span { font-size: 0.86rem; line-height: 1.55; color: var(--t2); }
+.consent strong { color: var(--t1); }
+.consent a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+
+button { width: 100%; font: inherit; font-size: 1rem; font-weight: 700; padding: 0.95rem 1.2rem; border: none; border-radius: 10px; background: var(--gold); color: #fff; cursor: pointer; transition: background 0.2s; }
+button:hover { background: var(--gold-b); }
+button:disabled { opacity: 0.6; cursor: wait; }
+
+.note { font-size: 0.8rem; color: var(--t3); margin-top: 0.9rem; text-align: center; }
+.msg { display: none; margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.92rem; }
+.msg.ok { display: block; background: #e8f3ef; color: #0f5132; }
+.msg.err { display: block; background: #fdecea; color: var(--err); }
+
+.terms { margin-top: 2.75rem; }
+.terms h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.75rem; }
+.terms ul { padding-left: 1.3rem; }
+.terms li { font-size: 0.92rem; color: var(--t2); margin-bottom: 0.45rem; }
+.terms strong { color: var(--t1); }
+.terms a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+
+footer { background: var(--bg2); padding: 4rem 2rem 2rem; border-top: 1px solid var(--t4); margin-top: 4rem; }
+.ft-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 3rem; flex-wrap: wrap; }
+.ft-brand { max-width: 300px; }
+.ft-brand .logo { margin-bottom: 1rem; }
+.ft-brand p { font-size: 0.85rem; line-height: 1.7; color: var(--t2); font-weight: 300; }
+.ft-links { display: flex; gap: 4rem; flex-wrap: wrap; }
+.ft-col h4 { font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 1.2rem; font-weight: 600; }
+.ft-col a { display: block; font-size: 0.85rem; color: var(--t2); text-decoration: none; margin-bottom: 0.7rem; font-weight: 400; transition: color 0.3s; }
+.ft-col a:hover { color: var(--gold); }
+.ft-btm { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--t4); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.ft-btm span { font-size: 0.72rem; color: var(--t3); font-weight: 400; }
+
+@media (max-width: 640px) {
+  nav { padding: 0.8rem 1.2rem; }
+  main { padding: 3rem 1.25rem 4rem; }
+  form { padding: 1.25rem; }
+  .row { grid-template-columns: 1fr; gap: 0; }
+  .ft-links { gap: 2.2rem; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+</nav>
+
+<main>
+  <div class="page-header">
+    <span class="overline">Client SMS Program</span>
+    <h1>Lead Alert Text Messages</h1>
+    <p>Sybago clients and their team members can opt in below to get an automated text the moment a prospect submits an estimate or booking request through your website. Alerts go only to your own staff — never to your customers.</p>
+  </div>
+
+  <div class="example">
+    <div class="lbl">Example message</div>
+    <pre>Sybago: New website estimate request
+Jane Doe — (435) 555-0123
+Project: Driveway Replacement
+Tear-out: Yes — replacing existing
+Size: Medium — ~400–1,000 sq ft
+When: ASAP
+Where: Cedar City 84720
+Reply STOP to opt out, HELP for help.</pre>
+  </div>
+
+  <form id="optin" novalidate>
+    <div class="row">
+      <div class="field">
+        <label class="top" for="firstName">First name</label>
+        <input id="firstName" name="firstName" type="text" autocomplete="given-name" required>
+      </div>
+      <div class="field">
+        <label class="top" for="lastName">Last name</label>
+        <input id="lastName" name="lastName" type="text" autocomplete="family-name" required>
+      </div>
+    </div>
+    <div class="field">
+      <label class="top" for="business">Business name</label>
+      <input id="business" name="business" type="text" autocomplete="organization" required>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label class="top" for="phone">Mobile number</label>
+        <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(435) 555-0100" required>
+      </div>
+      <div class="field">
+        <label class="top" for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required>
+      </div>
+    </div>
+
+    <label class="consent">
+      <input id="consentCare" name="consentCare" type="checkbox" required>
+      <span>By checking this box and submitting, I agree to receive automated <strong>lead-alert text messages from Sybago LLC</strong> at the mobile number provided, as part of my Sybago service. Message frequency varies with lead volume. Message &amp; data rates may apply. Reply <strong>STOP</strong> to cancel at any time and <strong>HELP</strong> for help. Consent is not a condition of purchase. See our <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms">Terms &amp; Conditions</a>.</span>
+    </label>
+
+    <button type="submit" id="submitBtn">Enable Lead Alerts</button>
+    <p class="note">Support: <a href="mailto:support@sybago.ai" style="color:var(--gold)">support@sybago.ai</a> &middot; You can opt out at any time by replying STOP.</p>
+    <div id="msg" class="msg" role="status" aria-live="polite"></div>
+  </form>
+
+  <section class="terms">
+    <h2>Program terms</h2>
+    <ul>
+      <li><strong>Who can opt in:</strong> Sybago clients and team members they designate. This program is not for the client's own customers or prospects.</li>
+      <li><strong>What you'll receive:</strong> one text per new lead submitted through your Sybago-built website or funnel, with the prospect's name, phone, and their form answers.</li>
+      <li><strong>Frequency:</strong> varies with your lead volume; typically a few messages per week.</li>
+      <li><strong>Cost:</strong> Sybago does not charge for alerts. Your carrier's message &amp; data rates may apply.</li>
+      <li><strong>Opt out:</strong> reply <strong>STOP</strong> to any alert. You'll get one confirmation and nothing further.</li>
+      <li><strong>Help:</strong> reply <strong>HELP</strong> or email <a href="mailto:support@sybago.ai">support@sybago.ai</a>.</li>
+      <li><strong>Privacy:</strong> mobile numbers collected for this program are never shared with third parties for marketing. See our <a href="/privacy-policy">Privacy Policy</a>.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="ft-inner">
+    <div class="ft-brand">
+      <a href="/" class="logo"><img src="/logo.png" alt="Sybago AI"><span>SYBAGO</span></a>
+      <p>AI-powered business automation. Built for service pros.</p>
+    </div>
+    <div class="ft-links">
+      <div class="ft-col">
+        <h4>Company</h4>
+        <a href="/">Home</a>
+        <a href="/#process">Our Process</a>
+        <a href="/contact-us">Contact Us</a>
+        <a href="/leave-a-review">Leave a Review</a>
+      </div>
+      <div class="ft-col">
+        <h4>Legal</h4>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms">Terms &amp; Conditions</a>
+        <a href="/sms-alerts">SMS Lead Alerts</a>
+      </div>
+    </div>
+  </div>
+  <div class="ft-btm">
+    <span>&copy; 2026 Sybago LLC. All rights reserved.</span>
+    <span>sybago.ai</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var form = document.getElementById('optin');
+  var btn = document.getElementById('submitBtn');
+  var msg = document.getElementById('msg');
+  var phone = document.getElementById('phone');
+
+  phone.addEventListener('input', function () {
+    var d = phone.value.replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    d = d.slice(0, 10);
+    var out = d;
+    if (d.length > 6) out = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+    else if (d.length > 3) out = '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    else if (d.length > 0) out = '(' + d;
+    phone.value = out;
+  });
+
+  function show(kind, text) { msg.className = 'msg ' + kind; msg.textContent = text; }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var data = Object.fromEntries(new FormData(form).entries());
+    var digits = (data.phone || '').replace(/\D/g, '');
+    if (!data.firstName || !data.lastName || !data.business || !data.email) return show('err', 'Please fill in every field.');
+    if (digits.length !== 10) return show('err', 'Please enter a valid 10-digit US mobile number.');
+    if (!form.consentCare.checked) return show('err', 'Please check the consent box to enable lead alerts.');
+
+    btn.disabled = true; btn.textContent = 'Enabling…'; msg.className = 'msg';
+    try {
+      var res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: data.firstName, lastName: data.lastName, email: data.email,
+          phone: '+1' + digits, business: data.business,
+          consentCare: true, consentMarketing: false,
+          message: 'SMS LEAD ALERT OPT-IN (client program) — sybago.ai/sms-alerts'
+        })
+      });
+      var j = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(j.error || 'Request failed');
+      show('ok', 'You’re opted in. You’ll get a text the next time a lead comes in. Reply STOP at any time to cancel.');
+      form.reset();
+    } catch (err) {
+      show('err', (err && err.message) || 'Something went wrong. Email support@sybago.ai and we’ll set you up.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Enable Lead Alerts';
+    }
+  });
+})();
+</script>
+</body>
+</html>
