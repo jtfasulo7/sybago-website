@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ads Dashboard — Sybago</title>
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js" defer></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #ffffff;
+  --bg-2: #f4f5f7;
+  --bg-3: #eaecef;
+  --t1: #0f1419;
+  --t2: rgba(15,20,25,0.72);
+  --t3: rgba(15,20,25,0.45);
+  --t4: rgba(15,20,25,0.08);
+  --line: rgba(15,20,25,0.08);
+  --teal: #2F6779;
+  --teal-b: #3a7d93;
+  --teal-d: #244e5b;
+  --teal-tint: rgba(47,103,121,0.10);
+  /* Brand fill colours, used for chart fills and borders. */
+  --warn: #e8b04a;
+  --good: #4dbf7a;
+  /* Text-safe variants. The brand warn/good are ~2:1 on white, which is fine
+     for a fill but fails WCAG for text. These darker pairs are used wherever
+     the colour carries words. */
+  --warn-text: #8A5A00;
+  --good-text: #2E7D4F;
+  --bad-text: #A33A26;
+  --ff: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo: cubic-bezier(.16,1,.3,1);
+}
+body { font-family:var(--ff); background:var(--bg); color:var(--t1); -webkit-font-smoothing:antialiased; line-height:1.6; }
+
+/* Visible focus everywhere. Never remove an outline without replacing it. */
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+
+.skip { position:absolute; left:-9999px; top:0; background:var(--teal); color:#fff; padding:.7rem 1.1rem; z-index:100; border-radius:0 0 6px 0; }
+.skip:focus { left:0; }
+
+.nav { position:sticky; top:0; z-index:50; padding:.9rem 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; background:rgba(255,255,255,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--t4); }
+.logo { display:flex; align-items:center; gap:.6rem; text-decoration:none; color:var(--t1); }
+.logo img { height:30px; width:auto; border-radius:8px; }
+.logo span { font-size:1.05rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+
+main { max-width:1360px; margin:0 auto; padding:2rem 1.5rem 5rem; }
+h1 { font-size:1.9rem; font-weight:800; letter-spacing:-.02em; }
+h2 { font-size:1.15rem; font-weight:700; margin-bottom:.9rem; letter-spacing:-.01em; }
+h3 { font-size:.95rem; font-weight:600; }
+.sub { color:var(--t3); font-size:.92rem; margin-top:.25rem; }
+
+button, input, select { font:inherit; color:inherit; }
+.btn-primary { background:var(--teal); color:#fff; border:1px solid var(--teal); border-radius:8px; padding:.6rem 1.1rem; font-weight:600; cursor:pointer; transition:background .18s var(--eo); }
+.btn-primary:hover { background:var(--teal-b); }
+.btn-primary[aria-disabled="true"], .btn-primary:disabled { opacity:.55; cursor:not-allowed; }
+.btn-secondary { background:transparent; color:var(--t1); border:1px solid var(--t4); border-radius:8px; padding:.5rem .9rem; font-weight:600; cursor:pointer; }
+.btn-secondary[aria-pressed="true"] { background:var(--teal-tint); border-color:var(--teal); color:var(--teal); }
+
+.field { display:flex; flex-direction:column; gap:.3rem; }
+.field label { font-size:.78rem; font-weight:600; color:var(--t2); text-transform:uppercase; letter-spacing:.06em; }
+input[type=date], input[type=text], input[type=password], select { border:1px solid var(--t4); border-radius:8px; padding:.55rem .7rem; background:#fff; min-height:44px; }
+
+/* ---- login ---- */
+.login-wrap { max-width:400px; margin:4rem auto; }
+.login-card { border:1px solid var(--t4); border-radius:14px; padding:2rem; background:var(--card); }
+
+/* ---- controls ---- */
+.controls { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; padding:1.1rem; border:1px solid var(--t4); border-radius:12px; background:var(--card); margin:1.5rem 0; }
+.presets { display:flex; gap:.4rem; flex-wrap:wrap; }
+
+/* ---- kpis ---- */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1rem; margin-bottom:2rem; list-style:none; }
+.kpi { border:1px solid var(--t4); border-radius:12px; padding:1.1rem 1.2rem; background:var(--card); }
+.kpi dt { font-size:.76rem; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.07em; }
+.kpi dd { font-size:1.75rem; font-weight:800; letter-spacing:-.02em; margin-top:.35rem; }
+
+/* ---- panels & charts ---- */
+.panel { border:1px solid var(--t4); border-radius:12px; padding:1.3rem; margin-bottom:1.7rem; }
+.chart-box { position:relative; height:340px; }
+details.alt { margin-top:1rem; border-top:1px solid var(--t4); padding-top:.8rem; }
+details.alt summary { cursor:pointer; font-weight:600; font-size:.9rem; color:var(--teal); padding:.35rem 0; }
+details.alt summary:hover { text-decoration:underline; }
+
+/* ---- tables ---- */
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:.9rem; }
+caption { text-align:left; font-size:.85rem; color:var(--t3); padding-bottom:.6rem; }
+th, td { text-align:right; padding:.6rem .7rem; border-bottom:1px solid var(--t4); white-space:nowrap; }
+th:first-child, td:first-child { text-align:left; white-space:normal; min-width:190px; }
+thead th { font-size:.76rem; text-transform:uppercase; letter-spacing:.06em; color:var(--t2); border-bottom:2px solid var(--t4); background:#fff; position:sticky; top:0; }
+tbody tr:hover { background:var(--teal-tint); }
+th button { background:none; border:0; font:inherit; font-weight:700; cursor:pointer; padding:.15rem .2rem; color:inherit; display:inline-flex; align-items:center; gap:.3rem; }
+th button::after { content:'↕'; opacity:.4; font-size:.85em; }
+th[aria-sort="ascending"] button::after { content:'↑'; opacity:1; }
+th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
+
+/* ---- notices ---- */
+.notice { border-radius:10px; padding:.85rem 1rem; font-size:.9rem; display:flex; gap:.6rem; align-items:flex-start; margin-bottom:1rem; }
+.notice-info { background:rgba(47,103,121,.08); border:1px solid rgba(47,103,121,.3); color:#1d434f; }
+.notice-warn { background:rgba(138,90,0,.08); border:1px solid rgba(138,90,0,.35); color:var(--warn-text); }
+.notice-error { background:rgba(163,58,38,.07); border:1px solid rgba(163,58,38,.35); color:var(--bad-text); }
+.notice strong { font-weight:700; }
+
+/* Screen-reader-only, still focusable when needed. */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+.legend { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:.8rem; font-size:.85rem; }
+.legend span { display:inline-flex; align-items:center; gap:.45rem; }
+.swatch { width:26px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block; }
+
+@media (max-width:640px){ .chart-box{height:270px;} h1{font-size:1.5rem;} }
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+
+<nav class="nav">
+  <a class="logo" href="/"><img src="/logo.png" alt=""><span>Sybago</span></a>
+  <button type="button" id="logout" class="btn-secondary" hidden>Sign out</button>
+</nav>
+
+<main id="main">
+
+  <!-- ============ LOGIN ============ -->
+  <section id="login-view" class="login-wrap" hidden aria-labelledby="login-h">
+    <div class="login-card">
+      <h1 id="login-h">Ads dashboard</h1>
+      <p class="sub">This page shows live ad spend. Sign in to continue.</p>
+      <form id="login-form" style="margin-top:1.4rem; display:flex; flex-direction:column; gap:1rem;">
+        <div class="field">
+          <label for="pw">Password</label>
+          <input type="password" id="pw" name="password" autocomplete="current-password" required
+                 aria-describedby="login-error">
+        </div>
+        <p id="login-error" class="notice notice-error" role="alert" hidden></p>
+        <button type="submit" class="btn-primary" id="login-btn">Sign in</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="dash-view" hidden aria-labelledby="dash-h">
+    <header>
+      <h1 id="dash-h">Meta ads performance</h1>
+      <p class="sub" id="account-line">Peps by Dave — Skool sign-up campaigns</p>
+    </header>
+
+    <!-- Controls -->
+    <form class="controls" id="controls" aria-label="Filter dashboard data">
+      <fieldset style="border:0; display:flex; flex-direction:column; gap:.4rem;">
+        <legend class="field"><span style="font-size:.78rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;">Quick range</span></legend>
+        <div class="presets" role="group" aria-label="Preset date ranges">
+          <button type="button" class="btn-secondary preset" data-days="7"  aria-pressed="false">7 days</button>
+          <button type="button" class="btn-secondary preset" data-days="14" aria-pressed="false">14 days</button>
+          <button type="button" class="btn-secondary preset" data-days="30" aria-pressed="true">30 days</button>
+          <button type="button" class="btn-secondary preset" data-days="90" aria-pressed="false">90 days</button>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="since">Start date</label>
+        <input type="date" id="since" name="since">
+      </div>
+      <div class="field">
+        <label for="until">End date</label>
+        <input type="date" id="until" name="until">
+      </div>
+      <div class="field">
+        <label for="level">Breakdown level</label>
+        <select id="level" name="level">
+          <option value="campaign" selected>Campaign</option>
+          <option value="adset">Ad set</option>
+          <option value="ad">Ad</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary" id="refresh">Refresh data</button>
+    </form>
+
+    <!-- Live region: every data change is announced once, politely. -->
+    <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true">Ready.</p>
+    <div id="error-box" class="notice notice-error" role="alert" hidden></div>
+    <div id="results-notice" class="notice notice-warn" hidden></div>
+
+    <!-- KPIs -->
+    <h2 id="kpi-h">Totals for the selected range</h2>
+    <dl class="kpis" aria-labelledby="kpi-h" id="kpis"></dl>
+
+    <!-- Trend -->
+    <section class="panel" aria-labelledby="trend-h">
+      <h2 id="trend-h">Daily trend</h2>
+      <p class="sub" id="trend-desc">Spend, impressions and link clicks per day across the selected range. Each series uses a different line style as well as a different colour.</p>
+      <div class="legend" id="trend-legend" aria-hidden="true"></div>
+      <div class="chart-box">
+        <canvas id="trend-chart" role="img" aria-labelledby="trend-h" aria-describedby="trend-desc trend-summary"></canvas>
+      </div>
+      <p id="trend-summary" class="sr-only"></p>
+      <details class="alt">
+        <summary>View daily trend as a table</summary>
+        <div class="table-scroll"><table id="trend-table"><caption>Daily spend, impressions and link clicks. Same data as the chart above.</caption></table></div>
+      </details>
+    </section>
+
+    <!-- Comparison -->
+    <section class="panel" aria-labelledby="cmp-h">
+      <h2 id="cmp-h">Spend by <span id="cmp-level">campaign</span></h2>
+      <p class="sub" id="cmp-desc">Total spend compared across the selected breakdown level, highest first.</p>
+      <div class="chart-box">
+        <canvas id="cmp-chart" role="img" aria-labelledby="cmp-h" aria-describedby="cmp-desc cmp-summary"></canvas>
+      </div>
+      <p id="cmp-summary" class="sr-only"></p>
+      <details class="alt">
+        <summary>View comparison as a table</summary>
+        <div class="table-scroll"><table id="cmp-table"><caption>Spend and cost efficiency per row. Same data as the chart above.</caption></table></div>
+      </details>
+    </section>
+
+    <!-- Results -->
+    <section class="panel" aria-labelledby="res-h">
+      <h2 id="res-h">Results</h2>
+      <p class="sub" id="res-desc">Reported results and cost per result over time.</p>
+      <div class="notice notice-info" id="lag-note">
+        <span aria-hidden="true">ⓘ</span>
+        <span><strong>Conversion figures can lag.</strong> Meta has a documented issue where purchase and conversion values under-report for some date ranges, and attribution continues to fill in for days after a click. Treat a sudden drop in recent days as possibly incomplete rather than a real decline.</span>
+      </div>
+      <div class="chart-box">
+        <canvas id="res-chart" role="img" aria-labelledby="res-h" aria-describedby="res-desc res-summary"></canvas>
+      </div>
+      <p id="res-summary" class="sr-only"></p>
+      <details class="alt">
+        <summary>View results as a table</summary>
+        <div class="table-scroll"><table id="res-table"><caption>Daily results and cost per result. Same data as the chart above.</caption></table></div>
+      </details>
+    </section>
+
+    <!-- Detail table -->
+    <section class="panel" aria-labelledby="detail-h">
+      <h2 id="detail-h">Breakdown detail</h2>
+      <div class="field" style="max-width:340px; margin-bottom:1rem;">
+        <label for="filter">Filter by name</label>
+        <input type="text" id="filter" placeholder="Type to filter rows" aria-describedby="filter-count">
+      </div>
+      <p id="filter-count" class="sub" role="status" aria-live="polite"></p>
+      <div class="table-scroll">
+        <table id="detail-table">
+          <caption>Every row at the selected breakdown level. Column headers are buttons — activate one to sort by that column.</caption>
+        </table>
+      </div>
+    </section>
+
+    <p class="sub" id="footer-note"></p>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { data: null, sortKey: 'spend', sortDir: 'desc', filter: '' };
+
+  /* ---------------- formatting ---------------- */
+  var fmtMoney = function (n) {
+    return (n === null || n === undefined) ? '—'
+      : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  };
+  var fmtNum = function (n) {
+    return (n === null || n === undefined) ? '—' : new Intl.NumberFormat('en-US').format(Math.round(n));
+  };
+  var fmtPct = function (n) { return (n === null || n === undefined) ? '—' : n.toFixed(2) + '%'; };
+  var fmtDate = function (s) {
+    var d = new Date(s + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  var titleCase = function (s) {
+    return String(s || '').replace(/[._]/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  };
+
+  /* ---------------- accessible series palette ----------------
+     Colour is never the only signal: each series also has its own dash
+     pattern and point shape, and is named in the legend and the table. */
+  var SERIES = [
+    { key: 'spend',       label: 'Spend',       color: '#2F6779', dash: [],      point: 'circle'   },
+    { key: 'impressions', label: 'Impressions', color: '#A33A26', dash: [7, 4],  point: 'triangle' },
+    { key: 'linkClicks',  label: 'Link clicks', color: '#43507A', dash: [2, 3],  point: 'rect'     }
+  ];
+
+  /* ---------------- view switching ---------------- */
+  function showLogin(msg) {
+    $('login-view').hidden = false;
+    $('dash-view').hidden = true;
+    $('logout').hidden = true;
+    if (msg) { $('login-error').textContent = msg; $('login-error').hidden = false; }
+    var pw = $('pw'); if (pw) pw.focus();
+  }
+  function showDash() {
+    $('login-view').hidden = true;
+    $('dash-view').hidden = false;
+    $('logout').hidden = false;
+  }
+
+  /* ---------------- auth ---------------- */
+  async function checkSession() {
+    try {
+      var r = await fetch('/api/dashboard-login', { method: 'GET' });
+      var j = await r.json();
+      if (j.authenticated) { showDash(); load(); } else { showLogin(); }
+    } catch (e) { showLogin('Could not reach the server.'); }
+  }
+
+  $('login-form').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var btn = $('login-btn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    $('login-error').hidden = true;
+    try {
+      var r = await fetch('/api/dashboard-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: $('pw').value })
+      });
+      var j = await r.json();
+      if (r.ok && j.authenticated) { $('pw').value = ''; showDash(); load(); }
+      else { $('login-error').textContent = j.message || 'Sign-in failed.'; $('login-error').hidden = false; $('pw').focus(); }
+    } catch (e) {
+      $('login-error').textContent = 'Could not reach the server.'; $('login-error').hidden = false;
+    } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
+  });
+
+  $('logout').addEventListener('click', async function () {
+    await fetch('/api/dashboard-login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' })
+    });
+    showLogin();
+  });
+
+  /* ---------------- date range ---------------- */
+  function iso(d) { return d.toISOString().slice(0, 10); }
+  function setRangeDays(days) {
+    var until = new Date();
+    var since = new Date(Date.now() - (days - 1) * 86400000);
+    $('until').value = iso(until);
+    $('since').value = iso(since);
+  }
+  setRangeDays(30);
+
+  Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      setRangeDays(Number(b.dataset.days));
+      load();
+    });
+  });
+
+  $('controls').addEventListener('submit', function (ev) { ev.preventDefault(); load(); });
+  $('level').addEventListener('change', function () { load(); });
+
+  /* ---------------- data load ---------------- */
+  async function load() {
+    var btn = $('refresh');
+    btn.setAttribute('aria-disabled', 'true');
+    $('status').textContent = 'Loading data from Meta…';
+    $('error-box').hidden = true;
+
+    var qs = new URLSearchParams({
+      level: $('level').value,
+      since: $('since').value,
+      until: $('until').value
+    });
+
+    try {
+      var r = await fetch('/api/meta-insights?' + qs.toString());
+      if (r.status === 401) { showLogin('Your session expired. Sign in again.'); return; }
+      var j = await r.json();
+      if (!r.ok) {
+        $('error-box').innerHTML = '<span><strong>' + titleCase(j.error || 'Error') + '.</strong> ' +
+          escapeHtml(j.message || '') + (j.detail ? ' <em>Meta said: ' + escapeHtml(j.detail) + '</em>' : '') + '</span>';
+        $('error-box').hidden = false;
+        $('status').textContent = 'Could not load data.';
+        return;
+      }
+      state.data = j;
+      render(j);
+    } catch (e) {
+      $('error-box').textContent = 'Network error: ' + e.message;
+      $('error-box').hidden = false;
+      $('status').textContent = 'Could not load data.';
+    } finally {
+      btn.removeAttribute('aria-disabled');
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* ---------------- render ---------------- */
+  var charts = {};
+
+  function render(d) {
+    var when = new Date(d.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    $('status').textContent =
+      'Loaded ' + d.rows.length + ' ' + d.level + ' rows and ' + d.daily.length +
+      ' days of data. Total spend ' + fmtMoney(d.totals.spend) + '. Last updated ' + when + '.';
+    $('footer-note').textContent =
+      'Account ' + d.account + ' · Graph API ' + d.apiVersion + ' · ' + d.range.since + ' to ' + d.range.until;
+    $('cmp-level').textContent = d.level === 'adset' ? 'ad set' : d.level;
+
+    if (d.results && d.results.note) {
+      $('results-notice').innerHTML = '<span aria-hidden="true">⚠</span><span>' + escapeHtml(d.results.note) + '</span>';
+      $('results-notice').hidden = false;
+    } else { $('results-notice').hidden = true; }
+
+    renderKpis(d);
+    renderTrend(d);
+    renderComparison(d);
+    renderResults(d);
+    renderDetail(d);
+  }
+
+  function renderKpis(d) {
+    var t = d.totals;
+    var items = [
+      ['Spend', fmtMoney(t.spend)],
+      ['Impressions', fmtNum(t.impressions)],
+      ['Link clicks', fmtNum(t.linkClicks)],
+      ['CTR', fmtPct(t.ctr)],
+      ['CPC', fmtMoney(t.cpc)],
+      ['CPM', fmtMoney(t.cpm)],
+      [d.results && d.results.available ? 'Results' : 'Results (proxy)', fmtNum(t.results)],
+      ['Cost per result', fmtMoney(t.costPerResult)]
+    ];
+    if (t.roas) items.push(['ROAS', t.roas.toFixed(2) + '×']);
+
+    $('kpis').innerHTML = items.map(function (kv) {
+      return '<div class="kpi"><dt>' + escapeHtml(kv[0]) + '</dt><dd>' + escapeHtml(kv[1]) + '</dd></div>';
+    }).join('');
+  }
+
+  function baseOpts(extra) {
+    var o = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#111', padding: 10, titleFont: { weight: '700' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(17,17,17,0.06)' }, ticks: { color: 'rgba(17,17,17,0.72)' } },
+        y: { grid: { color: 'rgba(17,17,17,0.06)' }, ticks: { color: 'rgba(17,17,17,0.72)' }, beginAtZero: true }
+      }
+    };
+    return Object.assign(o, extra || {});
+  }
+
+  function renderTrend(d) {
+    var labels = d.daily.map(function (r) { return fmtDate(r.dateStart); });
+
+    $('trend-legend').innerHTML = SERIES.map(function (s) {
+      var style = s.dash.length ? (s.dash[0] > 4 ? 'dashed' : 'dotted') : 'solid';
+      return '<span><i class="swatch" style="border-top-color:' + s.color + '; border-top-style:' + style + ';"></i>' + s.label + '</span>';
+    }).join('');
+
+    if (charts.trend) charts.trend.destroy();
+    charts.trend = new Chart($('trend-chart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: SERIES.map(function (s, i) {
+          return {
+            label: s.label,
+            data: d.daily.map(function (r) { return r[s.key]; }),
+            borderColor: s.color,
+            backgroundColor: s.color,
+            borderDash: s.dash,
+            pointStyle: s.point,
+            pointRadius: 3,
+            borderWidth: 2,
+            tension: 0.25,
+            yAxisID: i === 0 ? 'y' : 'y1'
+          };
+        })
+      },
+      options: baseOpts({
+        scales: {
+          x: { grid: { color: 'rgba(17,17,17,0.06)' } },
+          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Spend (USD)' } },
+          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Impressions / clicks' } }
+        }
+      })
+    });
+
+    var totalSpend = d.totals.spend;
+    $('trend-summary').textContent =
+      'Line chart of ' + d.daily.length + ' days. Total spend ' + fmtMoney(totalSpend) +
+      ', ' + fmtNum(d.totals.impressions) + ' impressions and ' + fmtNum(d.totals.linkClicks) +
+      ' link clicks. The equivalent data is available in the table below.';
+
+    buildTable($('trend-table'), ['Date', 'Spend', 'Impressions', 'Link clicks'],
+      d.daily.map(function (r) {
+        return [fmtDate(r.dateStart), fmtMoney(r.spend), fmtNum(r.impressions), fmtNum(r.linkClicks)];
+      }));
+  }
+
+  function renderComparison(d) {
+    var rows = d.rows.slice().sort(function (a, b) { return b.spend - a.spend; }).slice(0, 12);
+    if (charts.cmp) charts.cmp.destroy();
+    charts.cmp = new Chart($('cmp-chart'), {
+      type: 'bar',
+      data: {
+        labels: rows.map(function (r) { return r.name; }),
+        datasets: [{ label: 'Spend', data: rows.map(function (r) { return r.spend; }), backgroundColor: '#2F6779', borderColor: '#244e5b', borderWidth: 1 }]
+      },
+      options: baseOpts({ indexAxis: 'y' })
+    });
+
+    $('cmp-summary').textContent = rows.length
+      ? 'Bar chart comparing spend across ' + rows.length + ' rows. Highest is ' + rows[0].name +
+        ' at ' + fmtMoney(rows[0].spend) + '. Full figures are in the table below.'
+      : 'No rows returned for this range.';
+
+    buildTable($('cmp-table'), ['Name', 'Spend', 'Impressions', 'CTR', 'CPC'],
+      rows.map(function (r) { return [r.name, fmtMoney(r.spend), fmtNum(r.impressions), fmtPct(r.ctr), fmtMoney(r.cpc)]; }));
+  }
+
+  function renderResults(d) {
+    var labels = d.daily.map(function (r) { return fmtDate(r.dateStart); });
+    var isConv = d.results && d.results.available;
+    var seriesLabel = isConv ? 'Results' : 'Results (' + titleCase(d.results && d.results.actionType || 'none') + ')';
+
+    if (charts.res) charts.res.destroy();
+    charts.res = new Chart($('res-chart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'bar', label: seriesLabel, data: d.daily.map(function (r) { return r.results; }), backgroundColor: isConv ? '#2E7D4F' : '#8A5A00', yAxisID: 'y' },
+          { type: 'line', label: 'Cost per result', data: d.daily.map(function (r) { return r.costPerResult; }), borderColor: '#2F6779', borderDash: [6, 4], pointStyle: 'triangle', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
+        ]
+      },
+      options: baseOpts({
+        scales: {
+          x: { grid: { color: 'rgba(17,17,17,0.06)' } },
+          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: seriesLabel } },
+          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Cost per result (USD)' } }
+        }
+      })
+    });
+
+    $('res-summary').textContent = isConv
+      ? 'Combined bar and line chart. ' + fmtNum(d.totals.results) + ' results at ' + fmtMoney(d.totals.costPerResult) + ' each across the range. Data also in the table below.'
+      : 'No conversion events were reported for this range. The chart shows ' + titleCase(d.results && d.results.actionType || 'no data') + ' as a proxy. Data also in the table below.';
+
+    buildTable($('res-table'), ['Date', seriesLabel, 'Cost per result'],
+      d.daily.map(function (r) { return [fmtDate(r.dateStart), fmtNum(r.results), fmtMoney(r.costPerResult)]; }));
+  }
+
+  /* Static table builder for the chart alternatives. */
+  function buildTable(tableEl, headers, rows) {
+    var caption = tableEl.querySelector('caption');
+    tableEl.innerHTML = '';
+    if (caption) tableEl.appendChild(caption);
+    var thead = document.createElement('thead');
+    var trh = document.createElement('tr');
+    headers.forEach(function (h) {
+      var th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = h;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    tableEl.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      r.forEach(function (cell, i) {
+        var el = document.createElement(i === 0 ? 'th' : 'td');
+        if (i === 0) el.scope = 'row';
+        el.textContent = cell;
+        tr.appendChild(el);
+      });
+      tbody.appendChild(tr);
+    });
+    tableEl.appendChild(tbody);
+  }
+
+  /* ---------------- sortable, filterable detail table ---------------- */
+  var COLS = [
+    { key: 'name',          label: 'Name',          fmt: function (v) { return v; } },
+    { key: 'spend',         label: 'Spend',         fmt: fmtMoney },
+    { key: 'impressions',   label: 'Impressions',   fmt: fmtNum },
+    { key: 'reach',         label: 'Reach',         fmt: fmtNum },
+    { key: 'frequency',     label: 'Frequency',     fmt: function (v) { return v ? v.toFixed(2) : '—'; } },
+    { key: 'linkClicks',    label: 'Link clicks',   fmt: fmtNum },
+    { key: 'ctr',           label: 'CTR',           fmt: fmtPct },
+    { key: 'cpc',           label: 'CPC',           fmt: fmtMoney },
+    { key: 'cpm',           label: 'CPM',           fmt: fmtMoney },
+    { key: 'results',       label: 'Results',       fmt: fmtNum },
+    { key: 'costPerResult', label: 'Cost / result', fmt: fmtMoney }
+  ];
+
+  function renderDetail(d) {
+    var table = $('detail-table');
+    var caption = table.querySelector('caption');
+    table.innerHTML = '';
+    if (caption) table.appendChild(caption);
+
+    var rows = d.rows.filter(function (r) {
+      return !state.filter || String(r.name).toLowerCase().indexOf(state.filter) !== -1;
+    }).sort(function (a, b) {
+      var av = a[state.sortKey], bv = b[state.sortKey];
+      if (typeof av === 'string') { av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+      return state.sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+
+    $('filter-count').textContent = rows.length + ' of ' + d.rows.length + ' rows shown.';
+
+    var thead = document.createElement('thead');
+    var trh = document.createElement('tr');
+    COLS.forEach(function (c) {
+      var th = document.createElement('th');
+      th.scope = 'col';
+      th.setAttribute('aria-sort', state.sortKey === c.key ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = c.label;
+      // Announce what activating the header will do, not just its label.
+      btn.setAttribute('aria-label', 'Sort by ' + c.label +
+        (state.sortKey === c.key ? ', currently sorted ' + (state.sortDir === 'asc' ? 'ascending' : 'descending') : ''));
+      btn.addEventListener('click', function () {
+        if (state.sortKey === c.key) { state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc'; }
+        else { state.sortKey = c.key; state.sortDir = c.key === 'name' ? 'asc' : 'desc'; }
+        renderDetail(state.data);
+        // Keep focus on the equivalent header after the rebuild.
+        var idx = COLS.indexOf(c);
+        var next = $('detail-table').querySelectorAll('thead th button')[idx];
+        if (next) next.focus();
+      });
+      th.appendChild(btn);
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      COLS.forEach(function (c, i) {
+        var el = document.createElement(i === 0 ? 'th' : 'td');
+        if (i === 0) el.scope = 'row';
+        el.textContent = c.fmt(r[c.key]);
+        tr.appendChild(el);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  }
+
+  var filterTimer;
+  $('filter').addEventListener('input', function (e) {
+    clearTimeout(filterTimer);
+    var v = e.target.value.toLowerCase();
+    filterTimer = setTimeout(function () {
+      state.filter = v;
+      if (state.data) renderDetail(state.data);
+    }, 180);
+  });
+
+  checkSession();
+})();
+</script>
+</body>
+</html>

@@ -82,6 +82,7 @@ stays open to any trade.
 | `/leave-a-review` | `leave-a-review.html` | **Do not modify** |
 | `/privacy-policy` | `privacy-policy.html` | **Do not modify** |
 | `/terms` | `terms.html` | **Do not modify** |
+| `/dashboard` | `dashboard.html` | **Internal ads dashboard.** Password-gated, `noindex`. Deliberately breaks several site conventions — see below |
 
 **FAQ lives inside `index.html` at `#faq`.** There is no separate FAQ page.
 
@@ -169,10 +170,71 @@ When changing one, **change it on every page** — nothing is shared.
 **Chat widget:** `/assets/chat-widget.css` + `/assets/chat-widget.js` load at the bottom of the
 main-site pages. **Deliberately omitted from ad landing pages** to keep them single-action.
 
-**Serverless functions:** `api/contact.js`, `api/lead.js`, `api/review.js`.
+**Serverless functions:** `api/contact.js`, `api/lead.js`, `api/review.js`,
+`api/dashboard-login.js`, `api/meta-insights.js` (the last two are the internal dashboard —
+see its section below).
 
 **Known placeholders in the footers** (main site): `tel:[PHONE]` and `href="#"` social links —
 still unfilled, marked with HTML comments.
+
+---
+
+## INTERNAL ADS DASHBOARD (/dashboard)
+
+Private page showing live Meta ad performance for the Peps by Dave Skool sign-up
+campaigns. Not linked from anywhere on the site.
+
+**Files**
+
+| File | Role |
+|---|---|
+| `dashboard.html` | The page. Login view + dashboard view in one document. |
+| `api/dashboard-login.js` | Password -> signed httpOnly session cookie. |
+| `api/meta-insights.js` | Calls the Meta Insights API. The ONLY place the token is read. |
+| `lib/auth.js` | HMAC cookie sign/verify. Node builtins only. |
+| `test/dashboard.test.mjs` | `node test/dashboard.test.mjs` — no deps, no credentials, stubs Meta. |
+
+**Security contract — do not weaken these**
+
+- `META_ADS_TOKEN` is read only inside `api/meta-insights.js` and never appears in a
+  response body, header or error message. `scrubSecrets()` is a backstop on the two
+  outbound message paths; keep it if you add more.
+- Every request to `api/meta-insights.js` must pass `requireSession`. An unauthenticated
+  request must be rejected BEFORE any call to Meta.
+- Responses are `private, no-store`. This data is behind a login and must never enter
+  Vercel's shared edge cache.
+- The tests exist to hold this boundary. Run them after touching auth or the endpoint.
+
+**Deliberate deviations from the site conventions**
+
+- **No GA4 gtag snippet.** Every other page has one; an internal authenticated tool
+  should not send page views into the marketing property.
+- **No site nav links or footer.** Single-purpose internal page, same reasoning as the
+  ad landing pages.
+- **Chart.js loaded from cdnjs.** The first third-party JS library on the site. There is
+  no bundler here, so a CDN build is the only practical option; Recharts and friends
+  need React.
+- **Uses `--warn-text` / `--good-text`.** The brand `--warn #e8b04a` and `--good #4dbf7a`
+  sit at roughly 2:1 on white, which is fine for a chart fill but fails WCAG for text.
+  The darker variants are used wherever the colour carries words. Keep both.
+- **Adds `lib/` and `test/`.** New directories for this project.
+
+**Accessibility is a requirement here, not decoration.** Every chart has a real `<table>`
+alternative carrying the same numbers, series are distinguished by dash pattern and point
+shape as well as colour, the status line is an `aria-live` region, and sortable headers are
+`<button>`s inside `<th>` with `aria-sort`. Do not replace a table alternative with a
+caption, and do not remove focus outlines.
+
+**Known upstream caveats surfaced in the UI**
+
+- Meta conversion values under-report for some date ranges and attribution keeps filling
+  in for days. The results panel carries a standing note saying so.
+- `action_attribution_windows` is deliberately NOT sent. The 7-day and 28-day view-through
+  windows were removed from the API in January 2026; omitting the parameter uses the
+  account default. If explicit windows are ever needed, use click-based windows plus
+  `1d_view` only.
+- If no pixel is reporting, the endpoint says so and labels the figures as a click proxy
+  rather than silently showing clicks where sign-ups are implied.
 
 ---
 
