@@ -388,27 +388,39 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       until: $('until').value
     });
 
+    // Fetching and rendering are caught separately. Wrapping both in one
+    // try/catch meant a rendering fault surfaced as "Network error", which
+    // pointed at entirely the wrong thing.
+    var payload;
     try {
       var r = await fetch('/api/meta-insights?' + qs.toString());
       if (r.status === 401) { showLogin('Your session expired. Sign in again.'); return; }
-      var j = await r.json();
+      payload = await r.json();
       if (!r.ok) {
-        $('error-box').innerHTML = '<span><strong>' + titleCase(j.error || 'Error') + '.</strong> ' +
-          escapeHtml(j.message || '') + (j.detail ? ' <em>Meta said: ' + escapeHtml(j.detail) + '</em>' : '') + '</span>';
+        $('error-box').innerHTML = '<span><strong>' + titleCase(payload.error || 'Error') + '.</strong> ' +
+          escapeHtml(payload.message || '') + (payload.detail ? ' <em>Meta said: ' + escapeHtml(payload.detail) + '</em>' : '') + '</span>';
         $('error-box').hidden = false;
         $('data-area').hidden = true;
         $('status').textContent = 'Could not load data.';
         return;
       }
-      state.data = j;
-      render(j);
     } catch (e) {
-      $('error-box').textContent = 'Network error: ' + e.message;
+      $('error-box').textContent = 'Could not reach the dashboard API: ' + e.message;
       $('error-box').hidden = false;
       $('data-area').hidden = true;
       $('status').textContent = 'Could not load data.';
+      return;
     } finally {
       btn.removeAttribute('aria-disabled');
+    }
+
+    try {
+      state.data = payload;
+      render(payload);
+    } catch (e) {
+      $('error-box').textContent = 'The data loaded but could not be drawn: ' + e.message;
+      $('error-box').hidden = false;
+      $('status').textContent = 'Data loaded, but the page could not render it.';
     }
   }
 
@@ -420,6 +432,20 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ---------------- render ---------------- */
   var charts = {};
+
+  /* Chart.js is loaded with defer, so it is NOT guaranteed to exist while this
+     script is parsing — that mismatch is what produced "Chart is not defined".
+     Init now waits for DOMContentLoaded (which runs after deferred scripts), and
+     every chart goes through this helper so that if the CDN is blocked outright
+     the tables still render. That fallback is the whole point of having table
+     alternatives in the first place. */
+  function chartsReady() { return typeof window.Chart !== "undefined"; }
+
+  function makeChart(key, el, config) {
+    if (!chartsReady()) return;
+    if (charts[key]) charts[key].destroy();
+    charts[key] = new window.Chart(el, config);
+  }
 
   function render(d) {
     $('data-area').hidden = false;
@@ -435,6 +461,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       $('results-notice').innerHTML = '<span aria-hidden="true">⚠</span><span>' + escapeHtml(d.results.note) + '</span>';
       $('results-notice').hidden = false;
     } else { $('results-notice').hidden = true; }
+
+    if (!chartsReady()) {
+      $("error-box").textContent = "The charting library could not be loaded, so the graphs are unavailable. All of the data is still shown in the tables below.";
+      $("error-box").hidden = false;
+    }
 
     renderKpis(d);
     renderTrend(d);
@@ -487,8 +518,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       return '<span><i class="swatch" style="border-top-color:' + s.color + '; border-top-style:' + style + ';"></i>' + s.label + '</span>';
     }).join('');
 
-    if (charts.trend) charts.trend.destroy();
-    charts.trend = new Chart($('trend-chart'), {
+    makeChart('trend', $('trend-chart'), {
       type: 'line',
       data: {
         labels: labels,
@@ -530,8 +560,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderComparison(d) {
     var rows = d.rows.slice().sort(function (a, b) { return b.spend - a.spend; }).slice(0, 12);
-    if (charts.cmp) charts.cmp.destroy();
-    charts.cmp = new Chart($('cmp-chart'), {
+    makeChart('cmp', $('cmp-chart'), {
       type: 'bar',
       data: {
         labels: rows.map(function (r) { return r.name; }),
@@ -554,8 +583,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var isConv = d.results && d.results.available;
     var seriesLabel = isConv ? 'Results' : 'Results (' + titleCase(d.results && d.results.actionType || 'none') + ')';
 
-    if (charts.res) charts.res.destroy();
-    charts.res = new Chart($('res-chart'), {
+    makeChart('res', $('res-chart'), {
       type: 'bar',
       data: {
         labels: labels,
@@ -694,7 +722,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }, 180);
   });
 
-  checkSession();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", checkSession);
+  } else {
+    checkSession();
+  }
 })();
 </script>
 </body>
