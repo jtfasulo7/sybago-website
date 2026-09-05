@@ -268,12 +268,21 @@ export default async function handler(req, res) {
   }
 
   const token = process.env.META_ADS_TOKEN;
-  const accountRaw = process.env.META_AD_ACCOUNT_ID;
+  // META_AD_ACCOUNT_ID and META_ADS_ACCOUNT_ID are trivially easy to confuse
+  // (the token variable is plural, so the plural form is the natural typo).
+  // Accept either rather than fail on one character.
+  const accountRaw = process.env.META_AD_ACCOUNT_ID || process.env.META_ADS_ACCOUNT_ID;
 
   if (!token || !accountRaw) {
+    const missing = [];
+    if (!token) missing.push('META_ADS_TOKEN');
+    if (!accountRaw) missing.push('META_AD_ACCOUNT_ID (or META_ADS_ACCOUNT_ID)');
     return res.status(500).json({
       error: 'server_misconfigured',
-      message: 'META_ADS_TOKEN and META_AD_ACCOUNT_ID must both be set in the Vercel project environment variables.',
+      message:
+        `Missing in this deployment: ${missing.join(' and ')}. ` +
+        'Set them in Vercel → Project → Settings → Environment Variables, then redeploy — ' +
+        'environment changes only apply to new deployments.',
     });
   }
 
