@@ -39,6 +39,12 @@
 }
 body { font-family:var(--ff); background:var(--bg); color:var(--t1); -webkit-font-smoothing:antialiased; line-height:1.6; }
 
+/* The [hidden] attribute only hides via the UA stylesheet's [hidden]{display:none},
+   which any author `display:` rule outranks — .notice sets display:flex, so a
+   hidden notice was still rendering as an empty box. This restores the
+   attribute's meaning for every element. */
+[hidden] { display: none !important; }
+
 /* Visible focus everywhere. Never remove an outline without replacing it. */
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
 
@@ -69,15 +75,15 @@ input[type=date], input[type=text], input[type=password], select { border:1px so
 
 /* ---- login ---- */
 .login-wrap { max-width:400px; margin:4rem auto; }
-.login-card { border:1px solid var(--t4); border-radius:14px; padding:2rem; background:var(--card); }
+.login-card { border:1px solid var(--t4); border-radius:14px; padding:2rem; background:var(--bg-2); }
 
 /* ---- controls ---- */
-.controls { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; padding:1.1rem; border:1px solid var(--t4); border-radius:12px; background:var(--card); margin:1.5rem 0; }
+.controls { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; padding:1.1rem; border:1px solid var(--t4); border-radius:12px; background:var(--bg-2); margin:1.5rem 0; }
 .presets { display:flex; gap:.4rem; flex-wrap:wrap; }
 
 /* ---- kpis ---- */
 .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1rem; margin-bottom:2rem; list-style:none; }
-.kpi { border:1px solid var(--t4); border-radius:12px; padding:1.1rem 1.2rem; background:var(--card); }
+.kpi { border:1px solid var(--t4); border-radius:12px; padding:1.1rem 1.2rem; background:var(--bg-2); }
 .kpi dt { font-size:.76rem; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.07em; }
 .kpi dd { font-size:1.75rem; font-weight:800; letter-spacing:-.02em; margin-top:.35rem; }
 
@@ -189,6 +195,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
 
+    <!-- Everything below depends on loaded data; hidden until it arrives so an
+         error state does not leave empty headings and blank chart boxes. -->
+    <div id="data-area" hidden>
     <!-- KPIs -->
     <h2 id="kpi-h">Totals for the selected range</h2>
     <dl class="kpis" aria-labelledby="kpi-h" id="kpis"></dl>
@@ -256,6 +265,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </section>
 
     <p class="sub" id="footer-note"></p>
+    </div>
   </section>
 </main>
 
@@ -386,6 +396,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         $('error-box').innerHTML = '<span><strong>' + titleCase(j.error || 'Error') + '.</strong> ' +
           escapeHtml(j.message || '') + (j.detail ? ' <em>Meta said: ' + escapeHtml(j.detail) + '</em>' : '') + '</span>';
         $('error-box').hidden = false;
+        $('data-area').hidden = true;
         $('status').textContent = 'Could not load data.';
         return;
       }
@@ -394,6 +405,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     } catch (e) {
       $('error-box').textContent = 'Network error: ' + e.message;
       $('error-box').hidden = false;
+      $('data-area').hidden = true;
       $('status').textContent = 'Could not load data.';
     } finally {
       btn.removeAttribute('aria-disabled');
@@ -410,6 +422,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var charts = {};
 
   function render(d) {
+    $('data-area').hidden = false;
     var when = new Date(d.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     $('status').textContent =
       'Loaded ' + d.rows.length + ' ' + d.level + ' rows and ' + d.daily.length +
