@@ -1,1 +1,9 @@
 .vercel
+
+# Secrets — never commit. Real values live in Vercel project env vars.
+.env
+.env.*
+!.env.example
+
+node_modules/
+.DS_Store
