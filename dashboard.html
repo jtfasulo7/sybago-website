@@ -70,6 +70,12 @@
      white: fine as a chart fill, failing as text. */
   --neg:#A33A26; --warn-text:#8A5A00;
 
+  /* KPI verdict colours. Chosen for contrast as TEXT, not as fills — the
+     brand green sits near 2:1 on white and would fail here. */
+  --kpi-good:#1B6E45; --kpi-good-bg:rgba(27,110,69,.10);
+  --kpi-warn:#8A5A00; --kpi-warn-bg:rgba(138,90,0,.11);
+  --kpi-bad:#A33A26;  --kpi-bad-bg:rgba(163,58,38,.10);
+
   --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:26px;
 }
 
@@ -107,6 +113,10 @@
 
   /* Both already sit far above 4.5:1 on this ground. */
   --neg:#E88A6E; --warn-text:#E8C87A;
+
+  --kpi-good:#5FD39A; --kpi-good-bg:rgba(95,211,154,.12);
+  --kpi-warn:#E8C87A; --kpi-warn-bg:rgba(232,200,122,.12);
+  --kpi-bad:#E88A6E;  --kpi-bad-bg:rgba(232,138,110,.13);
 
   color-scheme: dark;
 }
@@ -366,8 +376,33 @@ details.alt summary::-webkit-details-marker { display:none; }
 details.alt summary::before { content:'▸'; transition:transform .2s var(--eo); display:inline-block; }
 details.alt[open] summary::before { transform:rotate(90deg); }
 
+/* KPI verdict on a cell.
+   Colour cannot be the only signal, so the two states that ask for action
+   carry a marker as well: "!" for within 10% of target, "x" for further off.
+   "Good" is deliberately unmarked — it is the nothing-to-do state. */
+.kpi-legend { font-size:.78rem; line-height:1.5; margin-bottom:.7rem; }
+.kpi-legend .kpi-good, .kpi-legend .kpi-warn, .kpi-legend .kpi-bad { padding:.05rem .3rem; border-radius:4px; }
+
+.kpi-good { color:var(--kpi-good); background:var(--kpi-good-bg); font-weight:700; }
+.kpi-warn { color:var(--kpi-warn); background:var(--kpi-warn-bg); font-weight:700; }
+.kpi-bad  { color:var(--kpi-bad);  background:var(--kpi-bad-bg);  font-weight:700; }
+.kpi-warn::after { content:' !'; font-weight:800; }
+.kpi-bad::after  { content:' \00d7'; font-weight:800; }
+
 .table-scroll { overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; border-radius:var(--r-sm); }
 table { width:100%; border-collapse:collapse; font-size:.87rem; }
+
+/* The breakdown carries thirteen columns. Tightened until they fit the panel,
+   because a horizontal scroller hides the right-hand metrics — which are the
+   cost-per-outcome ones, the whole point of the table. */
+#tb-table { font-size:.78rem; table-layout:fixed; }
+#tb-table th, #tb-table td { padding:.45rem .35rem; }
+#tb-table thead th button { font-size:.64rem; letter-spacing:.04em; }
+#tb-table th[scope="row"] {
+  text-align:left; white-space:normal; word-break:break-word;
+  font-size:.76rem; line-height:1.3; padding-right:.5rem;
+}
+#tb-table thead th:first-child { width:17%; }
 caption { text-align:left; font-size:.82rem; color:var(--t3); padding-bottom:.55rem; }
 th, td { text-align:right; padding:.6rem .7rem; border-bottom:1px solid var(--hairline); white-space:nowrap; font-variant-numeric:tabular-nums; }
 th:first-child, td:first-child { text-align:left; white-space:normal; min-width:170px; font-variant-numeric:normal; }
@@ -436,6 +471,31 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   .panel-ctl .field { flex:1 1 46%; min-width:0; }
   th, td { padding:.5rem .55rem; font-size:.82rem; }
   th:first-child, td:first-child { min-width:120px; }
+
+  /* No width will fit thirteen columns on a phone, and a scroller would hide
+     exactly the columns worth reading. Each row becomes a card instead, so
+     every figure is visible with only vertical scrolling. Sorting moves to the
+     select in the panel head, which is why the header row can go. */
+  #tb-table { font-size:.85rem; table-layout:auto; }
+  #tb-table thead { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  #tb-table tr {
+    display:block; margin-bottom:.7rem; padding:.7rem .85rem;
+    border:1px solid var(--hairline); border-radius:var(--r-sm); background:var(--surface);
+  }
+  #tb-table th[scope="row"] {
+    display:block; font-size:.95rem; font-weight:800; text-align:left;
+    padding:0 0 .45rem; margin-bottom:.35rem; border-bottom:1px solid var(--hairline);
+  }
+  #tb-table td {
+    display:flex; align-items:baseline; justify-content:space-between; gap:1rem;
+    padding:.3rem 0; border:0; text-align:right; white-space:normal;
+  }
+  #tb-table td::before {
+    content:attr(data-label); font-weight:600; color:var(--t3);
+    text-align:left; font-size:.8rem; flex:0 1 auto;
+  }
+  /* The tint would read as a full-width band in the stacked layout. */
+  #tb-table td.kpi-good, #tb-table td.kpi-warn, #tb-table td.kpi-bad { background:transparent; }
   #refresh { width:100%; }
 }
 @media (max-width:380px) {
@@ -601,10 +661,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <div class="panel-ctl">
           <div class="field"><label for="tb-dim">Level</label><select id="tb-dim"></select></div>
           <div class="field"><label for="tb-range">Range</label><select id="tb-range"></select></div>
+          <div class="field"><label for="tb-sort">Sort by</label><select id="tb-sort"></select></div>
           <div class="field"><label for="tb-filter">Filter</label><input type="text" id="tb-filter" placeholder="Name contains…" aria-describedby="tb-count"></div>
         </div>
       </div>
-      <p id="tb-count" class="sub" role="status" aria-live="polite" style="margin-bottom:.6rem"></p>
+      <p id="tb-count" class="sub" role="status" aria-live="polite" style="margin-bottom:.4rem"></p>
+      <p class="sub kpi-legend" id="tb-legend"></p>
       <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
     </div><!-- /#pane-performance -->
@@ -735,20 +797,20 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   };
 
   var METRICS = {
-    spend:                  { label:'Spend',               fmt:money, icon:'coin'    },
-    impressions:            { label:'Impressions',         fmt:num,   icon:'eye'     },
-    reach:                  { label:'Reach',               fmt:num,   icon:'users'   },
-    frequency:              { label:'Frequency',           fmt:dec,   icon:'repeat'  },
-    clicks:                 { label:'Clicks',              fmt:num,   icon:'cursor'  },
-    linkClicks:             { label:'Link clicks',         fmt:num,   icon:'link'    },
-    ctr:                    { label:'CTR',                 fmt:pct,   icon:'percent' },
-    cpc:                    { label:'CPC',                 fmt:money, icon:'tag'     },
-    cpm:                    { label:'CPM',                 fmt:money, icon:'tag'     },
-    registrations:          { label:'Registrations',       fmt:num,   icon:'check'   },
-    costPerRegistration:    { label:'Cost / registration', fmt:money, icon:'tag'     },
-    landingPageViews:       { label:'Landing page views',  fmt:num,   icon:'page'    },
-    costPerLandingPageView: { label:'Cost / LP view',      fmt:money, icon:'tag'     },
-    roas:                   { label:'ROAS',                fmt:mult,  icon:'trend'   }
+    spend:                  { label:'Spend', short:'Spend',               fmt:money, icon:'coin'    },
+    impressions:            { label:'Impressions', short:'Impr.',         fmt:num,   icon:'eye'     },
+    reach:                  { label:'Reach', short:'Reach',               fmt:num,   icon:'users'   },
+    frequency:              { label:'Frequency', short:'Freq.',           fmt:dec,   icon:'repeat'  },
+    clicks:                 { label:'Clicks', short:'Clicks',              fmt:num,   icon:'cursor'  },
+    linkClicks:             { label:'Link clicks', short:'Link clk',         fmt:num,   icon:'link'    },
+    ctr:                    { label:'CTR', short:'CTR',                 fmt:pct,   icon:'percent' },
+    cpc:                    { label:'CPC', short:'CPC',                 fmt:money, icon:'tag'     },
+    cpm:                    { label:'CPM', short:'CPM',                 fmt:money, icon:'tag'     },
+    registrations:          { label:'Registrations', short:'Regs',       fmt:num,   icon:'check'   },
+    costPerRegistration:    { label:'Cost / registration', short:'$/Reg', fmt:money, icon:'tag'     },
+    landingPageViews:       { label:'Landing page views', short:'LPV',  fmt:num,   icon:'page'    },
+    costPerLandingPageView: { label:'Cost / LP view', short:'$/LPV',      fmt:money, icon:'tag'     },
+    roas:                   { label:'ROAS', short:'ROAS',                fmt:mult,  icon:'trend'   }
   };
   var METRIC_KEYS = Object.keys(METRICS);
 
@@ -823,6 +885,83 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     });
     cache.set(key, promise);
     return promise;
+  }
+
+  /* ============================== KPI targets ============================
+     Researched per account, because the two run in different markets under
+     different rules and a shared target would be wrong for both.
+
+     PEPS BY DAVE — peptide education course on Skool.
+     E-learning is the strongest category on Meta (2.74% CTR, $26.80 median CPA,
+     the only vertical whose CPM fell year over year). But peptides sit in Meta's
+     Health & Wellness Special Ad Category, which strips detailed interest,
+     behaviour and narrow-geo targeting. That forced-broad audience is exactly
+     why this account sees a $1.22 CPM against roughly $12 for normal e-learning,
+     and why its CTR sits near 0.7% rather than 2.7% — cheap, unfiltered reach
+     that converts at a lower rate. Targets are therefore set against what broad
+     reach can realistically do, not against the unrestricted benchmark.
+
+     MONTARA FORGE — concrete replacement (driveway, patio, stairs), Utah.
+     Home improvement CTR runs about 2.0%, construction CPM about $20.55, home
+     improvement CPC about $2.45, and concrete leads land between $30 and $60
+     with construction averaging $45. Utah CPCs run roughly 28% under the US
+     average, so the click and impression targets are discounted accordingly
+     while the lead target stays near the low end of the concrete range.
+
+     Only RATE and COST metrics get a target. Spend, impressions, reach, clicks
+     and conversion counts scale with budget and date range, so a fixed number
+     to compare them against would be meaningless — those stay uncoloured. */
+  var KPI_DIRECTION = {
+    ctr: 'up', roas: 'up',
+    cpc: 'down', cpm: 'down', frequency: 'down',
+    costPerRegistration: 'down', costPerLandingPageView: 'down'
+  };
+
+  var KPI_TARGETS = {
+    dave: {
+      ctr: 1.20,                      // vs 0.74% now; 2.74% e-learning is out of reach under broad-only targeting
+      cpc: 0.30,                      // vs $0.16 now — headroom before broad reach stops being cheap
+      cpm: 2.00,                      // vs $1.22 now; a jump here means the audience narrowed or auction heated
+      costPerRegistration: 22.00,     // between current $15.98 and the $26.80 e-learning median CPA
+      costPerLandingPageView: 0.60,   // vs $0.35 now
+      frequency: 3.00,
+      roas: 1.00
+    },
+    sybago: {
+      ctr: 1.80,                      // just under the 2.0% home improvement benchmark
+      cpc: 1.80,                      // $2.45 home improvement, less Utah's ~28% discount
+      cpm: 18.00,                     // $20.55 construction, discounted for Utah
+      costPerRegistration: 40.00,     // concrete leads run $30–60; construction averages $45
+      costPerLandingPageView: 1.20,
+      frequency: 3.00,
+      roas: 1.00
+    }
+  };
+
+  function kpiTarget(key){ return (KPI_TARGETS[state.view] || {})[key]; }
+
+  /* Compares a value with its target in the direction that metric is good in.
+     For a cost metric, being UNDER target is the win, so the ratio is inverted
+     — otherwise a cheap CPC would be scored as a failure. */
+  function kpiVerdict(key, value){
+    var target = kpiTarget(key), dir = KPI_DIRECTION[key];
+    if(target == null || !dir || value == null || !isFinite(value)) return null;
+    if(dir === 'down' && value === 0) return null;   // no spend yet, not a triumph
+
+    var ratio = dir === 'up' ? value / target : target / value;
+    var band = ratio >= 1 ? 'good' : ratio >= 0.9 ? 'warn' : 'bad';
+
+    // Signed distance from target, in the metric's own terms.
+    var delta = ((value - target) / target) * 100;
+    var word = dir === 'up'
+      ? (delta >= 0 ? 'above target' : 'below target')
+      : (delta >= 0 ? 'over target' : 'under target');
+
+    return {
+      target: target, dir: dir, band: band, ratio: ratio,
+      delta: delta,
+      label: Math.abs(delta).toFixed(0) + '% ' + word
+    };
   }
 
   function scopeParams(){ return { campaignId:$('campaign-pick').value||'', adsetId:$('adset-pick').value||'' }; }
@@ -1301,6 +1440,26 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   }
 
   /* ------------------------------------------------------------- table ---- */
+  /* Every column, each way round. Verbose, but it means the select and the
+     header buttons express exactly the same set of orderings. */
+  function fillSortSelect(){
+    var el=$('tb-sort'); if(!el) return;
+    el.innerHTML='';
+    var keys=[{k:'name',label:'Name'}].concat(TABLE_COLS.map(function(k){
+      return { k:k, label:METRICS[k].label };
+    }));
+    keys.forEach(function(c){
+      el.appendChild(opt(c.k+':desc', c.label+(c.k==='name'?' Z–A':' (high to low)')));
+      el.appendChild(opt(c.k+':asc',  c.label+(c.k==='name'?' A–Z':' (low to high)')));
+    });
+    syncSortSelect();
+  }
+
+  function syncSortSelect(){
+    var el=$('tb-sort'); if(!el) return;
+    el.value = state.table.sortKey+':'+state.table.sortDir;
+  }
+
   function renderTable(){
     var s=state.table;
     return loadPanel(s.range, s.dim).then(function(d){
@@ -1315,6 +1474,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       $('tb-count').textContent = rows.length+' of '+all.length+' rows shown.';
 
+      // Spell out the targets being compared against, and say plainly which
+      // columns are not scored — a count of impressions has no fixed target,
+      // and colouring it would imply one exists.
+      var scored = TABLE_COLS.filter(function(k){ return kpiTarget(k) != null; });
+      $('tb-legend').innerHTML =
+        '<span class="kpi-good">At or above target</span> · ' +
+        '<span class="kpi-warn">within 10%</span> · ' +
+        '<span class="kpi-bad">more than 10% off</span>. Scored against ' +
+        scored.map(function(k){ return esc(METRICS[k].label)+' '+METRICS[k].fmt(kpiTarget(k)); }).join(', ') +
+        '. Volume columns are uncoloured — they scale with budget and date range, so no fixed target applies.';
+
       var table=$('tb-table'), cap=table.querySelector('caption');
       table.innerHTML=''; if(cap) table.appendChild(cap);
 
@@ -1325,19 +1495,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         return;
       }
 
-      var cols=[{key:'name',label:'Name',fmt:function(v){return v;}}].concat(TABLE_COLS.map(function(k){
-        return { key:k, label:METRICS[k].label, fmt:METRICS[k].fmt };
+      // Short headers so all thirteen columns fit the panel without a
+      // horizontal scroller. The full name stays in the button's accessible
+      // label, so nothing is lost to a screen reader.
+      var cols=[{key:'name',label:'Name',short:'Name',fmt:function(v){return v;}}].concat(TABLE_COLS.map(function(k){
+        return { key:k, label:METRICS[k].label, short:METRICS[k].short || METRICS[k].label, fmt:METRICS[k].fmt };
       }));
 
       var thead=document.createElement('thead'), tr=document.createElement('tr');
       cols.forEach(function(c){
         var th=document.createElement('th'); th.scope='col';
         th.setAttribute('aria-sort', s.sortKey===c.key ? (s.sortDir==='asc'?'ascending':'descending') : 'none');
-        var b=document.createElement('button'); b.type='button'; b.textContent=c.label;
+        var b=document.createElement('button'); b.type='button'; b.textContent=c.short;
+        b.title=c.label;
         b.setAttribute('aria-label','Sort by '+c.label+(s.sortKey===c.key?', currently sorted '+(s.sortDir==='asc'?'ascending':'descending'):''));
         b.addEventListener('click', function(){
           if(s.sortKey===c.key) s.sortDir = s.sortDir==='asc'?'desc':'asc';
           else { s.sortKey=c.key; s.sortDir = c.key==='name'?'asc':'desc'; }
+          syncSortSelect();
           renderTable().then(function(){
             var i=cols.indexOf(c);
             var next=$('tb-table').querySelectorAll('thead th button')[i];
@@ -1355,6 +1530,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           var cell=document.createElement(i===0?'th':'td');
           if(i===0) cell.scope='row';
           cell.textContent=c.fmt(r[c.key]);
+          // data-label drives the stacked layout on narrow screens, where the
+          // header row is not on screen to label the value.
+          cell.setAttribute('data-label', c.label);
+
+          var v = kpiVerdict(c.key, r[c.key]);
+          if(v){
+            cell.classList.add('kpi-'+v.band);
+            // Colour alone must not carry the verdict.
+            cell.title = c.label+': '+c.fmt(r[c.key])+' — '+v.label+' ('+c.fmt(v.target)+')';
+            cell.setAttribute('aria-label', c.fmt(r[c.key])+', '+v.label);
+          }
           trr.appendChild(cell);
         });
         tb.appendChild(trr);
@@ -2001,6 +2187,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
     fillDimSelect($('tb-dim'), state.table.dim);
     fillRangeSelect($('tb-range'));
+    fillSortSelect();
 
     $('ts-add').addEventListener('click', function(){
       if(state.series.length >= MAX_SERIES) return;
@@ -2014,6 +2201,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     $('bar-dim').addEventListener('change', function(){ state.bar.dim=this.value; renderBar(); });
     $('bar-range').addEventListener('change', function(){ state.bar.range=readRange(this); renderBar(); });
 
+    $('tb-sort').addEventListener('change', function(){
+      var v=this.value.split(':');
+      state.table.sortKey=v[0]; state.table.sortDir=v[1];
+      renderTable();
+    });
     $('tb-dim').addEventListener('change', function(){ state.table.dim=this.value; renderTable(); });
     $('tb-range').addEventListener('change', function(){ state.table.range=readRange(this); renderTable(); });
 
