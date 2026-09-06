@@ -344,6 +344,60 @@ second row ragged. Extra metrics belong in the chart pickers and the table.
   attribution, not extraction. Do not "fix" it by widening `REGISTRATION_TYPES`: those
   aliases are the same conversions counted again, and summing them double-counts.
 
+**KPI targets — researched per account, September 2026**
+
+Live in `KPI_TARGETS` in `dashboard.html`. The two accounts run in different markets
+under different rules, so a shared target would be wrong for both.
+
+| Metric | Peps by Dave | Montara Forge |
+|---|---|---|
+| CTR | 1.20% | 1.80% |
+| CPC | $0.30 | $1.80 |
+| CPM | $2.00 | $18.00 |
+| Cost / registration | $22.00 | $40.00 |
+| Cost / LP view | $0.60 | $1.20 |
+
+*Peps by Dave* — e-learning is the strongest vertical on Meta (2.74% CTR, $26.80 median CPA,
+the only category whose CPM fell year over year). **But peptides sit in Meta's Health and
+Wellness Special Ad Category**, which removes interest, behaviour and sub-15-mile geo
+targeting. That forced-broad audience is why the account runs a ~$1.22 CPM against roughly
+$12 for unrestricted e-learning, and why CTR sits near 0.7% rather than 2.7% — cheap
+unfiltered reach that converts at a lower rate. Targets are set against what broad reach can
+realistically do. **Do not "fix" the CTR target upward to the e-learning benchmark** without
+first checking whether the account has left the Special Ad Category.
+
+*Montara Forge* — home improvement CTR ~2.0%, construction CPM ~$20.55, home improvement CPC
+~$2.45, concrete leads $30–60 with construction averaging $45. Utah CPCs run about 28% under
+the US average, so click and impression targets are discounted and the lead target sits near
+the low end of the concrete range.
+
+**Direction matters.** `KPI_DIRECTION` marks each metric up or down. A cost metric is scored
+inverted — being UNDER a CPC target is the win — so a cheap click is never reported as a
+failure. Adding a metric without adding its direction leaves it unscored, which is the safe
+default.
+
+**Only rate and cost metrics are scored.** Spend, impressions, reach, clicks and conversion
+counts scale with budget and date range, so no fixed target applies and they stay uncoloured.
+The legend says so explicitly rather than leaving it to be inferred.
+
+**Time granularity — hourly is the floor**
+
+Meta's Insights API has no sub-hourly reporting. `time_increment` accepts 1–90 (days),
+`monthly` or `all_days` — nothing below a day. Sub-daily exists only as the
+`hourly_stats_aggregated_by_advertiser_time_zone` **breakdown**, which is what a single-day
+range uses. There is no minute-level ad reporting to build on; do not go looking for one.
+
+- Hourly is a breakdown, not a finer increment. `time_increment=1` over one day returns one
+  row, not twenty-four, and the two cannot be combined.
+- Today stops the axis at the hour in progress; a past day gets all 24. Truncating a completed
+  day at the current clock hour hides almost all of it.
+- The Today button sends `preset=today` so **Meta** resolves the day in the ad account's
+  timezone. Computing it from the browser asks for the wrong day whenever the two differ, and
+  returns an empty set that reads as a fault. Ads Manager reports on the same timezone, so the
+  two agree by construction.
+- Meta lags real time by up to about an hour, so an empty Today shortly after midnight is
+  normal, not a bug.
+
 **Known upstream caveats surfaced in the UI**
 
 - Meta conversion values under-report for some date ranges and attribution keeps filling
