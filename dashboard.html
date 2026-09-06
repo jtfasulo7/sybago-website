@@ -428,6 +428,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     roas:                   { label:'ROAS',                fmt:mult,  icon:'trend'   }
   };
   var METRIC_KEYS = Object.keys(METRICS);
+
+  /* On a day Meta returned no row at all, a counter really is zero, but a rate
+     is undefined — plotting CPC as 0 on a day with no clicks draws a dip that
+     did not happen. Rates are left as gaps instead. */
+  var RATE_METRICS = { ctr:1, cpc:1, cpm:1, frequency:1, costPerRegistration:1, costPerLandingPageView:1, roas:1 };
   /* Exactly ten, laid out five per row. Row 1 is reach-and-efficiency, row 2
      is outcomes paired with what each outcome cost. ROAS is deliberately not
      here — appending it conditionally would leave the second row ragged. It
@@ -678,6 +683,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var MAX_SERIES = SERIES_STYLE.length;
   function styleFor(i){ return SERIES_STYLE[i % SERIES_STYLE.length]; }
 
+  /* Read aloud by a screen reader, "a and b and c" is worse than "a, b and c". */
+  function listSentence(items){
+    if(items.length < 2) return items[0] || '';
+    return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+
   /* Rebuilds the Y-axis series rows. Each row is a metric picker plus a remove
      button; remove is disabled on the last remaining row, because a chart with
      no series is not a state worth being able to reach. */
@@ -725,6 +736,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   }
 
   /* First metric not already plotted, so "Add metric" never opens on a duplicate. */
+  /* Every date in the range, inclusive, as YYYY-MM-DD. Built in UTC so a
+     local timezone offset cannot drop or duplicate a day at the boundary. */
+  function eachDay(since, until){
+    var out = [], d = new Date(since + 'T00:00:00Z'), stop = new Date(until + 'T00:00:00Z');
+    while(d <= stop && out.length < 400){
+      out.push(d.toISOString().slice(0, 10));
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return out;
+  }
+
   function nextUnusedMetric(){
     for(var i = 0; i < METRIC_KEYS.length; i++){
       if(state.series.indexOf(METRIC_KEYS[i]) === -1) return METRIC_KEYS[i];
@@ -736,10 +758,21 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var ms = state.series.map(function(k){ return METRICS[k]; });
     $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') + ' over the selected date range.';
 
-    return loadPanel({ mode:'global' }, 'day').then(function(d){
-      var days = (d.daily || []).slice().sort(function(a, b){ return a.dateStart < b.dateStart ? -1 : 1; });
+    var range = resolveRange({ mode:'global' });
 
-      if(!days.length){
+    return loadPanel({ mode:'global' }, 'day').then(function(d){
+      /* Meta only returns rows for days that had delivery, so the response
+         alone would shrink the axis to whatever ran. The user asked for the
+         exact selected timeframe, so the spine is the range itself and the
+         response is mapped onto it. */
+      var byDate = {};
+      (d.daily || []).forEach(function(x){ byDate[x.dateStart] = x; });
+      var days = eachDay(range.since, range.until).map(function(iso){
+        return byDate[iso] || { dateStart:iso, __empty:true };
+      });
+      var hasAny = (d.daily || []).length > 0;
+
+      if(!days.length || !hasAny){
         if(charts.ts){ charts.ts.destroy(); charts.ts = null; }
         $('ts-box').innerHTML = emptyState('No data in this range yet.');
         $('ts-legend').innerHTML = '';
@@ -766,10 +799,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         };
         return {
           label:m.label, yAxisID:axis,
-          data:days.map(function(x){ return x[key] == null ? null : x[key]; }),
+          data:days.map(function(x){
+            if(x[key] != null) return x[key];
+            return (x.__empty && !RATE_METRICS[key]) ? 0 : null;
+          }),
           borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
           borderDash:st.dash, pointStyle:st.point,
-          pointRadius:days.length > 45 ? 0 : 3.5, pointHoverRadius:7,
+          pointRadius:days.length > 45 ? 0 : (days.length > 20 ? 2.5 : 3.5), pointHoverRadius:7,
           pointBackgroundColor:'#fff', pointBorderColor:st.line, pointBorderWidth:2,
           fill:state.series.length === 1, tension:0.32, spanGaps:true
         };
@@ -809,7 +845,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       }).join('');
 
       $('ts-summary').textContent =
-        ms.map(function(m){ return m.label; }).join(' and ') + ' across ' + days.length +
+        listSentence(ms.map(function(m){ return m.label; })) + ' across ' + days.length +
         ' day' + (days.length === 1 ? '' : 's') + ', from ' + labels[0] + ' to ' + labels[labels.length - 1] +
         '. Each metric is drawn on its own scale. Exact figures are in the table below.';
 
