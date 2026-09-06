@@ -40,7 +40,7 @@ const VIEWS = {
     masterOnly: false,
   },
   sybago: {
-    label: 'Sybago — Russell',
+    label: 'Montara Forge',
     env: ['META_ADS_ACCOUNT_ID_SYBAGO', 'META_AD_ACCOUNT_ID_SYBAGO'],
     tokenEnv: ['META_ADS_TOKEN_SYBAGO', 'META_ADS_TOKEN'],
     masterOnly: true,

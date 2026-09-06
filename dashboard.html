@@ -410,7 +410,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <button type="button" role="tab" id="tab-dave" data-view="dave"
               aria-selected="true" aria-controls="dash-body" tabindex="0">Peps by Dave</button>
       <button type="button" role="tab" id="tab-sybago" data-view="sybago"
-              aria-selected="false" aria-controls="dash-body" tabindex="-1">Sybago — Russell</button>
+              aria-selected="false" aria-controls="dash-body" tabindex="-1">Montara Forge</button>
     </div>
 
     <div id="dash-body" role="tabpanel" aria-labelledby="tab-dave">
@@ -669,7 +669,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   var VIEW_META = {
     dave:   { label:'Peps by Dave', sub:'Peps by Dave — Skool sign-up campaigns', eyebrow:'Meta ads' },
-    sybago: { label:'Sybago — Russell', sub:'Sybago — Russell', eyebrow:'Agency client' }
+    sybago: { label:'Montara Forge', sub:'Montara Forge — Sybago client', eyebrow:'Agency client' }
   };
 
   /* Meta's own pipeline is the floor on freshness here — spend and impressions
@@ -684,6 +684,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   // switch would otherwise be swallowed by the in-flight guard and leave the
   // new view showing the old account's numbers.
   var pendingRefresh = false;
+  // Which view the figures currently on screen were fetched for. Compared
+  // against state.view so a failure can tell "this data is stale for the wrong
+  // account" from "this data is fine, the refresh just blipped".
+  var renderedView = null;
   var charts = {};
 
   /* ============================== utilities =============================== */
@@ -1247,6 +1251,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           $('error-box').hidden=false;
         }
 
+        renderedView = state.view;
         return Promise.all([renderTimeSeries(), renderBar(), renderTable()]).then(function(){
           var when=new Date(d.fetchedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
           $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
@@ -1260,6 +1265,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           state.view = 'dave';
           applyView();
         }
+        // Nothing on screen belongs to the view that is selected now, so it
+        // must go. A same-account refresh failure keeps its data — renderedView
+        // still matches — and only the status line changes.
+        if(renderedView !== state.view) clearData();
         panelError(e); $('status').textContent='Could not load data.';
       })
       .then(function(){
@@ -1292,6 +1301,29 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }
   }
 
+  /* Wipe everything the previous account rendered.
+     Leaving it up is not a cosmetic problem: a failed load on the new view
+     leaves the other client's spend and conversions sitting under the new
+     client's heading, which reads as that client's numbers. Blank is honest,
+     stale is a lie. */
+  function clearData(){
+    $('kpis').innerHTML = '';
+    ['ts','bar'].forEach(function(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } });
+    ['ts-box','bar-box'].forEach(function(id){ $(id).innerHTML = emptyState('Loading…'); });
+    // Drop the head and body but keep the <caption>: buildTable() re-appends
+    // the caption it finds, so wiping innerHTML here would strip every table
+    // of its description permanently after the first view switch.
+    ['ts-table','bar-table','tb-table'].forEach(function(id){
+      var el=$(id); if(!el) return;
+      var parts = el.querySelectorAll('thead, tbody');
+      for(var i=0;i<parts.length;i++) parts[i].remove();
+    });
+    ['ts-readout','bar-readout','ts-summary','bar-summary','tb-count'].forEach(function(id){
+      var el=$(id); if(el) el.textContent='';
+    });
+    $('results-notice').hidden = true;
+  }
+
   function switchView(next){
     if(next === state.view || !VIEW_META[next]) return;
     state.view = next;
@@ -1305,6 +1337,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     state.campaigns = [];
 
     applyView();
+    clearData();
+    $('status').textContent = 'Loading…';
     var body = $('dash-body');
     body.classList.add('swapping');
     refreshAll().then(function(){ body.classList.remove('swapping'); });
