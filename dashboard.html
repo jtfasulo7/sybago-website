@@ -1297,7 +1297,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      vertical line at the target, and vice versa. */
   var kpiLinePlugin = {
     id: 'kpiLine',
-    afterDatasetsDraw: function(chart, args, opts){
+    afterDatasetsDraw: function(chart, args, pluginOpts){
+      // Chart.js hands a plugin hook whatever sits at options.plugins.<id>, and
+      // this config lives at options.kpiLine, next to indexAxis and scales. The
+      // hook was therefore getting undefined and returning on its first guard —
+      // the line silently never drew while everything about it looked correctly
+      // configured. Read both, so it works wherever the config is set.
+      var opts = (pluginOpts && pluginOpts.value != null) ? pluginOpts : chart.options.kpiLine;
       if(opts == null || opts.value == null || !isFinite(opts.value)) return;
       var area = chart.chartArea; if(!area) return;
       var horizontal = chart.options.indexAxis === 'y';
