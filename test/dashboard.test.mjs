@@ -17,9 +17,13 @@ import crypto from 'node:crypto';
 process.env.DASHBOARD_SESSION_SECRET = 's'.repeat(40);
 process.env.META_ADS_TOKEN = 'FAKE_TOKEN_should_never_appear_in_output_0123456789';
 process.env.META_AD_ACCOUNT_ID = 'act_123456';
+process.env.META_ADS_ACCOUNT_ID_SYBAGO = 'act_777777';
+process.env.DASHBOARD_PASSWORD = 'daves-standard-password';
+process.env.DASHBOARD_MASTER_PASSWORD = 'the-master-password';
 
 const auth = await import('../lib/auth.js');
 const { default: insights } = await import('../api/meta-insights.js');
+const { default: login } = await import('../api/dashboard-login.js');
 
 let pass = 0;
 let fail = 0;
@@ -219,6 +223,128 @@ await insights(
   res,
 );
 t('reversed date range is rejected', () => assert.equal(res.code, 400));
+
+
+/* --------------------------------------------------- roles and views ---- */
+console.log('\nMaster password and view access');
+
+const masterCookie = cookieOf(auth.createSessionCookie(SECRET, auth.ROLE_MASTER));
+const daveCookie = validCookie; // created with the default role
+
+t('the default role is the narrow one', () =>
+  assert.equal(auth.readSession({ headers: { cookie: daveCookie } }, SECRET).role, auth.ROLE_DAVE));
+
+t('a master cookie reads back as master', () =>
+  assert.equal(auth.readSession({ headers: { cookie: masterCookie } }, SECRET).role, auth.ROLE_MASTER));
+
+t('an unknown role in a signed payload degrades to the narrow role', () => {
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + 6e5, role: 'superuser' })).toString('base64url');
+  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
+  assert.equal(
+    auth.readSession({ headers: { cookie: 'sybago_dash=' + payload + '.' + sig } }, SECRET).role,
+    auth.ROLE_DAVE,
+  );
+});
+
+// THE ESCALATION THIS GUARDS: the role must come from the signed payload, so
+// editing it in the cookie has to invalidate the signature rather than grant
+// master access.
+t('forging role=master into a cookie is rejected outright', () => {
+  const raw = daveCookie.split('=')[1];
+  const sig = raw.slice(raw.lastIndexOf('.') + 1);
+  const forged = Buffer.from(JSON.stringify({ exp: Date.now() + 6e5, role: 'master' })).toString('base64url');
+  assert.equal(auth.readSession({ headers: { cookie: 'sybago_dash=' + forged + '.' + sig } }, SECRET), null);
+});
+
+// Login issues the right tier.
+async function signIn(password) {
+  const r = mockRes();
+  await login({ method: 'POST', body: { password }, headers: {}, socket: {} }, r);
+  return r;
+}
+
+let lr = await signIn('daves-standard-password');
+t('the standard password signs in as the narrow role', () =>
+  assert.ok(lr.code === 200 && lr.body.role === auth.ROLE_DAVE));
+
+lr = await signIn('the-master-password');
+t('the master password signs in as master', () =>
+  assert.ok(lr.code === 200 && lr.body.role === auth.ROLE_MASTER));
+t('the master session cookie actually carries the master role', () =>
+  assert.equal(
+    auth.readSession({ headers: { cookie: cookieOf(lr.headers['Set-Cookie']) } }, SECRET).role,
+    auth.ROLE_MASTER,
+  ));
+
+lr = await signIn('neither-of-them');
+t('a wrong password is still rejected', () => assert.equal(lr.code, 401));
+
+// A deployment that sets both passwords to the same string must not silently
+// promote the standard password to master.
+{
+  const saved = process.env.DASHBOARD_MASTER_PASSWORD;
+  process.env.DASHBOARD_MASTER_PASSWORD = process.env.DASHBOARD_PASSWORD;
+  const r = await signIn(process.env.DASHBOARD_PASSWORD);
+  t('identical passwords do not grant master', () =>
+    assert.ok(r.code === 200 && r.body.role === auth.ROLE_DAVE));
+  process.env.DASHBOARD_MASTER_PASSWORD = saved;
+}
+
+// View authorisation on the data endpoint.
+globalThis.fetch = stubOk(() => DAILY);
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'dave' }, headers: { cookie: daveCookie } }, res);
+t('the narrow role may read its own view', () => assert.equal(res.code, 200));
+t('the response names the view it answered for', () => assert.equal(res.body.view, 'dave'));
+
+// THE BOUNDARY: a standard-password session must not reach the agency account.
+reached = false;
+globalThis.fetch = async () => { reached = true; throw new Error('unreachable'); };
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: daveCookie } }, res);
+t('the narrow role is refused the master-only view', () =>
+  assert.ok(res.code === 403 && res.body.error === 'forbidden_view'));
+t('Meta is never contacted for a refused view', () => assert.equal(reached, false));
+
+// Master reaches the other account — and it must be the OTHER account.
+lastUrls = [];
+globalThis.fetch = async (u) => {
+  lastUrls.push(String(u));
+  return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+};
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+t('master may read the agency view', () => assert.equal(res.code, 200));
+t('the agency view queries the agency account', () =>
+  assert.ok(lastUrls.length > 0 && lastUrls.every((u) => u.includes('act_777777'))));
+t("the agency view never touches Dave's account", () =>
+  assert.ok(!lastUrls.some((u) => u.includes('act_123456'))));
+
+// An unknown view name falls back to the narrow account, never the wide one.
+lastUrls = [];
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'nonsense' }, headers: { cookie: daveCookie } }, res);
+t('an unknown view falls back to the default account', () =>
+  assert.ok(res.code === 200 && lastUrls.every((u) => u.includes('act_123456'))));
+
+// A missing agency account id must be reported as configuration, not as a
+// silent fallback to whichever account happens to be set.
+{
+  const saved = process.env.META_ADS_ACCOUNT_ID_SYBAGO;
+  delete process.env.META_ADS_ACCOUNT_ID_SYBAGO;
+  lastUrls = [];
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('an unset agency account id is a configuration error, not a fallback', () =>
+    assert.ok(r.code === 500 && r.body.error === 'server_misconfigured'));
+  t('the error names the variable to set', () =>
+    assert.match(r.body.message, /META_ADS_ACCOUNT_ID_SYBAGO/));
+  t('nothing is requested when the account is unset', () => assert.equal(lastUrls.length, 0));
+  process.env.META_ADS_ACCOUNT_ID_SYBAGO = saved;
+}
+
+t('no password appears in any login response', () =>
+  assert.ok(!JSON.stringify(lr.body).includes('the-master-password')));
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

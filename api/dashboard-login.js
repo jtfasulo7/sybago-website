@@ -7,7 +7,10 @@
 // The password never round-trips back to the client and the session cookie is
 // httpOnly, so no credential is ever readable from JavaScript.
 
-import { createSessionCookie, clearSessionCookie, hasValidSession, noStore, safeEqual } from '../lib/auth.js';
+import {
+  createSessionCookie, clearSessionCookie, readSession, noStore, safeEqual,
+  ROLE_DAVE, ROLE_MASTER,
+} from '../lib/auth.js';
 
 // Best-effort throttle. Serverless instances are ephemeral and there may be
 // several at once, so this is not a real rate limiter — it just makes a naive
@@ -36,8 +39,14 @@ export default async function handler(req, res) {
   const secret = process.env.DASHBOARD_SESSION_SECRET;
   const password = process.env.DASHBOARD_PASSWORD;
 
+  const master = process.env.DASHBOARD_MASTER_PASSWORD;
+
   if (req.method === 'GET') {
-    return res.status(200).json({ authenticated: hasValidSession(req, secret) });
+    const session = readSession(req, secret);
+    return res.status(200).json({
+      authenticated: session !== null,
+      role: session ? session.role : null,
+    });
   }
 
   if (req.method !== 'POST') {
@@ -72,12 +81,22 @@ export default async function handler(req, res) {
     });
   }
 
-  if (typeof body.password !== 'string' || !safeEqual(body.password, password)) {
+  // Both passwords are always compared, and the result is chosen afterwards,
+  // so how long this takes does not reveal which one was closer to matching.
+  // The master password only counts when it is actually configured AND is not
+  // the same string as the standard one — otherwise a deployment that set them
+  // identically would silently hand master access to the standard password.
+  const supplied = typeof body.password === 'string' ? body.password : '';
+  const matchesStandard = safeEqual(supplied, password);
+  const matchesMaster = Boolean(master) && !safeEqual(master, password) && safeEqual(supplied, master);
+
+  if (!matchesStandard && !matchesMaster) {
     // Small fixed delay so a failure is not measurably faster than a success.
     await sleep(400);
     return res.status(401).json({ error: 'invalid_password', message: 'Incorrect password.' });
   }
 
-  res.setHeader('Set-Cookie', createSessionCookie(secret));
-  return res.status(200).json({ ok: true, authenticated: true });
+  const role = matchesMaster ? ROLE_MASTER : ROLE_DAVE;
+  res.setHeader('Set-Cookie', createSessionCookie(secret, role));
+  return res.status(200).json({ ok: true, authenticated: true, role });
 }

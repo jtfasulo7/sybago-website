@@ -10,7 +10,7 @@
 //
 // GET /api/meta-insights?level=campaign&since=YYYY-MM-DD&until=YYYY-MM-DD
 
-import { requireSession, noStore } from '../lib/auth.js';
+import { requireSession, noStore, ROLE_MASTER } from '../lib/auth.js';
 
 // Meta ships a new Graph API version roughly quarterly and retires old ones
 // after about two years. This is the one value likely to need bumping over the
@@ -19,6 +19,35 @@ import { requireSession, noStore } from '../lib/auth.js';
 const API_VERSION = process.env.META_API_VERSION || 'v23.0';
 
 const LEVELS = new Set(['account', 'campaign', 'adset', 'ad']);
+
+// Which ad account each dashboard view reads, and who is allowed to ask for it.
+//
+// The browser sends a view NAME, never an account id. That is the point: an
+// account id in the query string would let anyone with a session read any
+// account the token can see, and the standard-password session is meant to see
+// only Dave's. The mapping from name to account lives here, on the server, and
+// masterOnly is checked against the role in the signed cookie.
+const VIEWS = {
+  dave: {
+    label: 'Peps by Dave',
+    env: ['META_AD_ACCOUNT_ID', 'META_ADS_ACCOUNT_ID'],
+    masterOnly: false,
+  },
+  sybago: {
+    label: 'Sybago — Russell',
+    env: ['META_ADS_ACCOUNT_ID_SYBAGO', 'META_AD_ACCOUNT_ID_SYBAGO'],
+    masterOnly: true,
+  },
+};
+const DEFAULT_VIEW = 'dave';
+
+function resolveAccount(view) {
+  for (const name of VIEWS[view].env) {
+    const v = (process.env[name] || '').trim();
+    if (v) return { id: v.startsWith('act_') ? v : `act_${v}`, envName: name };
+  }
+  return { id: null, envName: VIEWS[view].env[0] };
+}
 
 const BASE_FIELDS = [
   'spend',
@@ -264,23 +293,38 @@ function scrubSecrets(text) {
 
 export default async function handler(req, res) {
   noStore(res);
-  if (!requireSession(req, res)) return;
+  const session = requireSession(req, res);
+  if (!session) return;
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
+  // An unknown view name falls back to the default rather than erroring: it is
+  // a stale bookmark, not an attack, and the fallback is the narrower account.
+  const view = Object.prototype.hasOwnProperty.call(VIEWS, req.query.view) ? req.query.view : DEFAULT_VIEW;
+
+  // THE authorisation check. A standard-password session asking for the agency
+  // view is refused here, before any account id is resolved and long before
+  // anything reaches Meta.
+  if (VIEWS[view].masterOnly && session.role !== ROLE_MASTER) {
+    return res.status(403).json({
+      error: 'forbidden_view',
+      message: 'This dashboard requires the master password.',
+    });
+  }
+
   const token = process.env.META_ADS_TOKEN;
   // META_AD_ACCOUNT_ID and META_ADS_ACCOUNT_ID are trivially easy to confuse
-  // (the token variable is plural, so the plural form is the natural typo).
-  // Accept either rather than fail on one character.
-  const accountRaw = process.env.META_AD_ACCOUNT_ID || process.env.META_ADS_ACCOUNT_ID;
+  // (the token variable is plural, so the plural form is the natural typo), so
+  // each view accepts either spelling.
+  const account = resolveAccount(view);
 
-  if (!token || !accountRaw) {
+  if (!token || !account.id) {
     const missing = [];
     if (!token) missing.push('META_ADS_TOKEN');
-    if (!accountRaw) missing.push('META_AD_ACCOUNT_ID (or META_ADS_ACCOUNT_ID)');
+    if (!account.id) missing.push(`${account.envName} (for the "${VIEWS[view].label}" dashboard)`);
     return res.status(500).json({
       error: 'server_misconfigured',
       message:
@@ -290,7 +334,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const accountId = accountRaw.startsWith('act_') ? accountRaw : `act_${accountRaw}`;
+  const accountId = account.id;
 
   const level = LEVELS.has(req.query.level) ? req.query.level : 'campaign';
   const since = DATE_RE.test(req.query.since || '') ? req.query.since : isoDaysAgo(29);
@@ -467,6 +511,8 @@ export default async function handler(req, res) {
     const campaigns = [...byCampaign.values()].sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
+      view,
+      viewLabel: VIEWS[view].label,
       account: accountId,
       apiVersion: API_VERSION,
       level,
