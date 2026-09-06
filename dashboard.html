@@ -453,6 +453,7 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 .series-del[disabled] { opacity:.3; cursor:not-allowed; }
 .series-del[disabled]:hover { color:var(--t3); background:transparent; }
 .add-series { min-height:38px; padding:.4rem .8rem; font-size:.85rem; }
+.metric-note { flex:1 1 100%; font-size:.78rem; line-height:1.45; max-width:62ch; }
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
@@ -768,6 +769,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="series-bar">
         <span class="lbl" id="ts-series-lbl">Y axis</span>
         <div id="ts-series" role="group" aria-labelledby="ts-series-lbl"></div>
+        <span class="sub metric-note" id="ts-metric-note" hidden></span>
         <button type="button" class="btn btn-ghost add-series" id="ts-add">
           <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
           Add metric
@@ -1277,6 +1279,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var state = {
     // The over-time panel plots N metrics against the globally selected range.
     series: ['spend', 'registrations'],
+    // Holds the multi-metric list while ads are selected, since ad mode allows
+    // only one. Restored when the last ad is removed.
+    seriesBeforeAds: null,
     bar:    { m:'spend', dim:'campaign', range:{mode:'global'} },
     table:  { dim:'campaign', range:{mode:'global'}, sortKey:'spend', sortDir:'desc', filter:'' },
     campaigns:[],
@@ -1640,7 +1645,31 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* Rebuilds the Y-axis series rows. Each row is a metric picker plus a remove
      button; remove is disabled on the last remaining row, because a chart with
      no series is not a state worth being able to reach. */
+  /* Ads and multiple metrics are mutually exclusive.
+     Both dimensions multiply: three metrics across three ads is nine lines on
+     one plot, which is not a comparison, it is a mess. Selecting ads means the
+     question is "which ad is doing better", and that only has an answer against
+     ONE metric at a time. Multiple metrics stay available at campaign and ad
+     set level, where there is a single subject and the lines cannot multiply.
+
+     The wider metric list is put aside rather than discarded, so removing the
+     ads restores exactly what was on screen before. */
+  function adMode(){ return selectedAds.length > 0; }
+
+  function syncMetricMode(){
+    if(adMode()){
+      if(state.series.length > 1){
+        state.seriesBeforeAds = state.series.slice();
+        state.series = [state.series[0]];
+      }
+    } else if(state.seriesBeforeAds){
+      state.series = state.seriesBeforeAds;
+      state.seriesBeforeAds = null;
+    }
+  }
+
   function renderSeriesRows(){
+    syncMetricMode();
     var wrap = $('ts-series');
     wrap.innerHTML = '';
     state.series.forEach(function(key, i){
@@ -1658,7 +1687,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         (st.dash.length ? ' stroke-dasharray="' + st.dash.join(' ') + '"' : '') + '/></svg>';
 
       var sel = document.createElement('select');
-      sel.setAttribute('aria-label', 'Metric ' + (i + 1) + ' on the Y axis');
+      sel.setAttribute('aria-label', adMode()
+        ? 'Metric compared across the selected ads'
+        : 'Metric ' + (i + 1) + ' on the Y axis');
       fillMetricSelect(sel, key);
       sel.addEventListener('change', function(){ state.series[i] = this.value; renderSeriesRows(); renderTimeSeries(); });
 
@@ -1667,7 +1698,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       del.className = 'series-del';
       del.setAttribute('aria-label', 'Remove ' + METRICS[key].label + ' from the chart');
       del.innerHTML = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
-      if(state.series.length < 2) del.disabled = true;
+      // Nothing to remove when there is only one metric, by rule or by choice.
+      if(state.series.length < 2 || adMode()) del.disabled = true;
+      if(adMode()) del.hidden = true;
       del.addEventListener('click', function(){
         state.series.splice(i, 1);
         renderSeriesRows();
@@ -1677,19 +1710,30 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         renderTimeSeries();
       });
 
-      row.appendChild(sw); row.appendChild(sel); row.appendChild(del);
+      if(!adMode()) row.appendChild(sw);
+      row.appendChild(sel); row.appendChild(del);
       wrap.appendChild(row);
     });
 
     var lbl = $('ts-series-lbl');
-    if(lbl){
-      lbl.textContent = selectedAds.length > 1 ? 'Metric compared across ads' : 'Y axis';
-    }
+    if(lbl) lbl.textContent = adMode() ? 'Metric' : 'Y axis';
 
+    /* The add button is removed rather than disabled: a disabled control invites
+       the reader to work out why, and here the reason is a rule about what is
+       being compared, not a temporary state. */
     var add = $('ts-add');
+    add.hidden = adMode();
     var full = state.series.length >= MAX_SERIES;
     add.disabled = full;
     add.title = full ? 'Up to ' + MAX_SERIES + ' metrics can be overlaid at once.' : '';
+
+    var why = $('ts-metric-note');
+    if(why){
+      why.hidden = !adMode();
+      why.textContent = adMode()
+        ? 'One metric while ads are selected — the chart is already using a line per ad. Remove the ads to compare several metrics again.'
+        : '';
+    }
   }
 
   /* First metric not already plotted, so "Add metric" never opens on a duplicate. */
@@ -1739,10 +1783,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderTimeSeries(){
     var ms = state.series.map(function(k){ return METRICS[k]; });
-    var perAd = selectedAds.length > 1;
     $('ts-desc').textContent =
-      (perAd
-        ? METRICS[state.series[0]].label + ' per ad, comparing ' + selectedAds.length + ' ads'
+      (adMode()
+        ? METRICS[state.series[0]].label + (selectedAds.length > 1
+            ? ' per ad, comparing ' + selectedAds.length + ' ads'
+            : ' for one ad')
         : ms.map(function(m){ return m.label; }).join(', ')) +
       (isSingleDay({mode:'global'})
         ? (selectedDayIsToday() ? ' by hour, up to the current hour.' : ' by hour across the day.')
@@ -1750,7 +1795,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
     var range = resolveRange({ mode:'global' });
     // Ads are only overlaid when the server actually split the series per ad.
-    var overlayAds = selectedAds.length > 1;
+    // One selected ad is still a line per ad; it just happens to be one line.
+    // Keeping the same path means the line carries the ad's name either way.
+    var overlayAds = selectedAds.length > 0;
 
     return loadPanel({ mode:'global' }, 'day').then(function(d){
       overlayAds = overlayAds && d.seriesLevel === 'ad';
@@ -2262,6 +2309,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
         selectedAds = sc.ads;
         renderAdPicker();
+        // Dropping the last ad leaves ad mode, which restores the wider metric
+        // list — so the chips have to be rebuilt, not just the picker.
+        renderSeriesRows();
 
         syncStickyBar();
         renderKpis(d);
