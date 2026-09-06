@@ -668,7 +668,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     b.addEventListener('click', function(){
       Array.prototype.forEach.call($('range-seg').querySelectorAll('button'), function(o){ o.setAttribute('aria-pressed', String(o===b)); });
       if(b.dataset.days==='custom'){ setCustomVisible(true); $('since').focus(); }
-      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); cache.clear(); refreshAll(); }
+      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); refreshAll(); }
     });
   });
   ['since','until'].forEach(function(id){
@@ -678,13 +678,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(a>z){ $('error-box').textContent='Start date must be on or before end date.'; $('error-box').hidden=false; return; }
       $('error-box').hidden=true;
       globalRange={mode:'custom',since:a,until:z};
-      cache.clear(); refreshAll();
+      refreshAll();
     });
   });
 
-  $('controls').addEventListener('submit', function(e){ e.preventDefault(); cache.clear(); refreshAll(); });
-  $('campaign-pick').addEventListener('change', function(){ fillAdsets(state.campaigns,this.value,''); cache.clear(); refreshAll(); });
-  $('adset-pick').addEventListener('change', function(){ cache.clear(); refreshAll(); });
+  $('controls').addEventListener('submit', function(e){ e.preventDefault(); refreshAll(); });
+  $('campaign-pick').addEventListener('change', function(){ fillAdsets(state.campaigns,this.value,''); refreshAll(); });
+  $('adset-pick').addEventListener('change', function(){ refreshAll(); });
 
   function fillAdsets(camps, campaignId, want){
     var a=$('adset-pick'); a.innerHTML=''; a.appendChild(opt('','All ad sets'));
@@ -1051,6 +1051,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // double the load for no new data.
     if(isLoading) return Promise.resolve();
     isLoading = true;
+    // The response cache exists to stop the three panels each re-requesting the
+    // same range within one render pass. It has no expiry, so a refresh must
+    // clear it first — otherwise auto-refresh would hand back the very first
+    // response for the life of the session and the page would never update.
+    cache.clear();
     var btn=$('refresh'); btn.setAttribute('aria-disabled','true');
     $('status').textContent='Loading…'; $('error-box').hidden=true;
 
