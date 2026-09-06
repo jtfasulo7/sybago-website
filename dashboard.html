@@ -1221,6 +1221,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         currentScope().ads.splice(i, 1);
         selectedAds = currentScope().ads;
         renderAdPicker();
+        renderSeriesRows();
         refreshAll();
       });
       chip.appendChild(label); chip.appendChild(x);
@@ -1266,6 +1267,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     currentScope().ads.push(ad);
     selectedAds = currentScope().ads;
     renderAdPicker();
+    // The chips relabel themselves once several ads are being compared, so they
+    // have to be redrawn when the ad count crosses that line.
+    renderSeriesRows();
     refreshAll();
   }
 
