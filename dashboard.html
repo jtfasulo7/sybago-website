@@ -1290,7 +1290,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       (c.adsets || []).forEach(function(a){
         if(aid && a.id !== aid) return;
         (a.ads || []).forEach(function(ad){
-          out.push({ id: ad.id, name: ad.name, adsetName: a.name });
+          out.push({ id: ad.id, name: assetLabel(ad), adsetName: a.name });
         });
       });
     });
@@ -1634,10 +1634,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   $('ad-add-btn').addEventListener('click', addSelectedAd);
   $('ad-add').addEventListener('change', function(){ if(this.value) addSelectedAd(); });
 
+  /* The picker lists everything that EXISTS, which is what makes a new ad set
+     appear before it has spent — but it also means old paused work is in the
+     list. Marking anything not ACTIVE keeps the live entries findable without
+     hiding history, which someone may still want to look back at. */
+  function assetLabel(x){
+    if(!x.status || x.status === 'ACTIVE') return x.name;
+    return x.name + ' · ' + x.status.toLowerCase().replace(/_/g, ' ');
+  }
+
   function fillAdsets(camps, campaignId, want){
     var a=$('adset-pick'); a.innerHTML=''; a.appendChild(opt('','All ad sets'));
     var c=camps.filter(function(x){ return x.id===campaignId; })[0];
-    if(c) c.adsets.forEach(function(s){ a.appendChild(opt(s.id,s.name)); });
+    if(c) c.adsets.forEach(function(s){ a.appendChild(opt(s.id, assetLabel(s))); });
     a.disabled=!c; a.value=want||'';
   }
 
@@ -2512,7 +2521,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         var cSel=$('campaign-pick');
         cSel.innerHTML=''; cSel.appendChild(opt('','All campaigns'));
-        state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id,c.name)); });
+        state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id, assetLabel(c))); });
         cSel.value = sc.campaignId || '';
 
         var camp = state.campaigns.filter(function(c){ return c.id===sc.campaignId; })[0];
