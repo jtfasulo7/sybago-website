@@ -296,6 +296,8 @@ function shapeRow(r, level) {
     // Landing page views — a separate traffic metric, never folded into the above.
     landingPageViews: m.landingPageView.count,
     costPerLandingPageView: m.landingPageView.costPer,
+    adId: r.ad_id || null,
+    adName: r.ad_name || null,
     dateStart: r.date_start,
     dateStop: r.date_stop,
     // Present only on an hourly request. Meta returns a range like
@@ -642,7 +644,9 @@ export default async function handler(req, res) {
           // When scoped, the trend must be scoped too, so it is requested at
           // the scoped level rather than at account level.
           level: scope.adIds ? 'ad' : scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
-          fields: BASE_FIELDS.join(','),
+          // Ad name comes along when the series is per-ad, so the client can
+          // draw one line per ad rather than one merged line.
+          fields: (scope.adIds ? ['ad_id', 'ad_name', ...BASE_FIELDS] : BASE_FIELDS).join(','),
           ...period,
           // Hourly replaces the daily increment; the two cannot be combined.
           ...(hourly ? {} : { time_increment: '1' }), // one row per day, for the trend charts
@@ -696,9 +700,12 @@ export default async function handler(req, res) {
     const rows = (breakdown.json.data || []).map((r) => shapeRow(r, level));
     const daily = (series.json.data || [])
       .map((r) => shapeRow(r, 'account'))
-      .sort((a, b) =>
-        hourly ? (a.hour ?? 0) - (b.hour ?? 0) : a.dateStart < b.dateStart ? -1 : 1,
-      );
+      .sort((a, b) => {
+        // With several ads there are multiple rows per period, so the ad is the
+        // primary key and time is the secondary one.
+        if (a.adId !== b.adId) return String(a.adId).localeCompare(String(b.adId));
+        return hourly ? (a.hour ?? 0) - (b.hour ?? 0) : a.dateStart < b.dateStart ? -1 : 1;
+      });
 
     // Totals are summed from the daily series rather than the breakdown, so the
     // headline numbers stay correct regardless of which level is selected.
@@ -771,6 +778,8 @@ export default async function handler(req, res) {
       view,
       viewLabel: VIEWS[view].label,
       granularity: hourly ? 'hour' : 'day',
+      // Tells the client the daily series is split per ad rather than merged.
+      seriesLevel: scope.adIds ? 'ad' : 'aggregate',
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,

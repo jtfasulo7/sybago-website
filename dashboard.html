@@ -353,8 +353,11 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
   /* The account name is already in the heading above; the width is worth more. */
   .stickybar .sb-label { display:none; }
 
-  .stickybar .seg { flex:1 1 auto; display:grid; grid-template-columns:repeat(5,1fr); min-width:0; }
-  .stickybar .seg button { padding:.45rem .1rem; font-size:.76rem; min-height:38px; }
+  .stickybar .seg { flex:1 1 0; display:grid; grid-template-columns:repeat(5,1fr); min-width:0; }
+  .stickybar .seg button {
+    padding:.45rem .05rem; font-size:.74rem; min-height:38px;
+    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .sb-more { display:grid; place-items:center; }
   .sb-top, .sb-more { min-height:38px; width:38px; flex:0 0 38px; }
 
@@ -364,7 +367,6 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
   .sb-scope select { flex:1 1 0; max-width:none; min-width:0; }
 
   /* Room for the bar, so it never sits on top of the last row of the table. */
-  main { padding-bottom:calc(7rem + env(safe-area-inset-bottom, 0px)); }
 }
 
 .statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
@@ -529,7 +531,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 .login-card { border-radius:var(--r-xl); padding:2.1rem; }
 
 @media (max-width:880px) {
-  main { padding:1.1rem 1rem 4.5rem; }
+  /* The bottom value clears the sticky bar, which is anchored down there on a
+     phone, plus the iPhone home indicator. A padding-bottom in an earlier block
+     would lose to this shorthand, so it has to live here. */
+  main { padding:1.1rem 1rem calc(7.5rem + env(safe-area-inset-bottom, 0px)); }
   .nav { padding:.7rem 1rem; }
   /* The single stacked column put five full-width blocks between the top of
      the page and the numbers, which is most of a phone screen spent on
@@ -1241,9 +1246,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       btn.disabled = false;
     }
 
-    $('ad-hint').textContent = selectedAds.length
-      ? 'Showing ' + selectedAds.length + ' ad' + (selectedAds.length === 1 ? '' : 's') + ' combined. Remove all to return to the whole ad set.'
-      : 'With no ads added, figures are for the whole ad set.';
+    $('ad-hint').textContent =
+      selectedAds.length > 1
+        ? selectedAds.length + ' ads compared. The chart draws one line each and the panels break down by ad.'
+        : selectedAds.length === 1
+          ? 'Scoped to one ad. Add another to compare them side by side.'
+          : 'With no ads added, figures are for the whole ad set.';
   }
 
   function addSelectedAd(){
@@ -1516,11 +1524,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   }
 
   /* ================================ panels ================================ */
+  /* With ads selected the panels have to describe ads. Leaving the bar chart
+     and the table grouped by campaign would show one row for the campaign the
+     ads happen to sit in, which is not what was asked for and hides exactly the
+     comparison the selection was made to see. */
+  function effectiveDim(dim){
+    return selectedAds.length && dim !== 'day' ? 'ad' : dim;
+  }
+
   function loadPanel(panelRange, dim){
     var r=resolveRange(panelRange), sp=scopeParams();
     // "Day" is a time breakdown, not an entity level — the daily series comes
     // back on every response, so any level will do for it.
-    var level = dim==='day' ? 'campaign' : dim;
+    var level = dim==='day' ? 'campaign' : effectiveDim(dim);
     return fetchInsights({
       level:level, since:r.since, until:r.until,
       campaignId:sp.campaignId, adsetId:sp.adsetId,
@@ -1657,6 +1673,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       wrap.appendChild(row);
     });
 
+    var lbl = $('ts-series-lbl');
+    if(lbl){
+      lbl.textContent = selectedAds.length > 1 ? 'Metric compared across ads' : 'Y axis';
+    }
+
     var add = $('ts-add');
     var full = state.series.length >= MAX_SERIES;
     add.disabled = full;
@@ -1710,14 +1731,21 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderTimeSeries(){
     var ms = state.series.map(function(k){ return METRICS[k]; });
-    $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') +
+    var perAd = selectedAds.length > 1;
+    $('ts-desc').textContent =
+      (perAd
+        ? METRICS[state.series[0]].label + ' per ad, comparing ' + selectedAds.length + ' ads'
+        : ms.map(function(m){ return m.label; }).join(', ')) +
       (isSingleDay({mode:'global'})
         ? (selectedDayIsToday() ? ' by hour, up to the current hour.' : ' by hour across the day.')
         : ' over the selected date range.');
 
     var range = resolveRange({ mode:'global' });
+    // Ads are only overlaid when the server actually split the series per ad.
+    var overlayAds = selectedAds.length > 1;
 
     return loadPanel({ mode:'global' }, 'day').then(function(d){
+      overlayAds = overlayAds && d.seriesLevel === 'ad';
       /* Meta only returns rows for periods that had delivery, so the response
          alone would shrink the axis to whatever ran. The selected timeframe is
          the spine, and the response is mapped onto it.
@@ -1759,6 +1787,88 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         x:{ grid:{ color:palette().grid }, border:{ display:false },
             ticks:{ color:palette().tick, font:{ size:11 }, maxRotation:0, autoSkipPadding:14 } }
       };
+
+      /* ---- one line per ad, when ads are selected ----------------------
+         The whole point of adding several ads is comparing them against each
+         other, so the chart switches question: instead of N metrics for one
+         merged total, it draws one line per ad for a single metric. Metrics
+         share an axis here because every line is now the same metric, which is
+         also what makes them directly comparable. */
+      if(overlayAds){
+        var metricKey = state.series[0];
+        var mo = METRICS[metricKey];
+        scales.y0 = {
+          type:'linear', display:true, position:'left', beginAtZero:true,
+          title:{ display:true, text:mo.label, color:palette().tick, font:{ size:11, weight:'600' } },
+          grid:{ display:true, color:palette().grid },
+          border:{ display:false },
+          ticks:{ color:palette().tick, font:{ size:11 } }
+        };
+
+        var byAd = {};
+        (d.daily || []).forEach(function(r){
+          if(!r.adId) return;
+          (byAd[r.adId] = byAd[r.adId] || {})[isHourly ? r.hour : r.dateStart] = r;
+        });
+
+        var datasets = selectedAds.map(function(ad, i){
+          var st = styleFor(i);
+          var rowsForAd = byAd[ad.id] || {};
+          return {
+            label: ad.name, yAxisID:'y0',
+            data: days.map(function(x){
+              var r = rowsForAd[isHourly ? x.hour : x.dateStart];
+              if(r && r[metricKey] != null) return r[metricKey];
+              return RATE_METRICS[metricKey] ? null : 0;
+            }),
+            borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
+            borderDash:st.dash, pointStyle:st.point,
+            pointRadius:days.length > 45 ? 0 : (days.length > 20 ? 2.5 : 3.5), pointHoverRadius:7,
+            pointBackgroundColor:palette().pointFill, pointBorderColor:st.line, pointBorderWidth:2,
+            fill:false, tension:0.32, spanGaps:true
+          };
+        });
+
+        var cvo = ensureCanvas('ts-box', 'ts-chart', 'ts-h', 'ts-desc ts-summary');
+        makeChart('ts', cvo, {
+          type:'line',
+          data:{ labels:labels, datasets:datasets },
+          options: baseOpts({
+            interaction:{ mode:'index', intersect:false, axis:'x' },
+            onHover:function(e, active, chart){
+              var el = $('ts-readout'); if(!el) return;
+              if(!active || !active.length){ el.textContent = ''; return; }
+              var idx = active[0].index;
+              el.textContent = labels[idx] + ' — ' + selectedAds.map(function(a, i){
+                var v = chart.data.datasets[i].data[idx];
+                return a.name + ' ' + (v == null ? '—' : mo.fmt(v));
+              }).join('  ·  ');
+            },
+            plugins:{
+              legend:{ display:false },
+              tooltip:{ backgroundColor:palette().tooltipBg, padding:11, cornerRadius:10,
+                callbacks:{ label:function(c){ return c.dataset.label + ': ' + mo.fmt(c.raw); } } }
+            },
+            scales:scales
+          })
+        });
+
+        $('ts-summary').textContent =
+          mo.label + ' for ' + listSentence(selectedAds.map(function(a){ return a.name; })) +
+          ' across ' + days.length + (isHourly ? ' hour' : ' day') + (days.length === 1 ? '' : 's') +
+          '. All lines share one scale, so they can be compared directly. Exact figures are in the table below.';
+
+        buildTable($('ts-table'),
+          [isHourly ? 'Hour' : 'Date'].concat(selectedAds.map(function(a){ return a.name; })),
+          days.map(function(x){
+            return [isHourly ? fmtHour(x.hour) : fmtDate(x.dateStart)].concat(
+              selectedAds.map(function(a){
+                var r = (byAd[a.id] || {})[isHourly ? x.hour : x.dateStart];
+                return mo.fmt(r ? r[metricKey] : (RATE_METRICS[metricKey] ? null : 0));
+              }));
+          }));
+        return;
+      }
 
       var datasets = state.series.map(function(key, i){
         var st = styleFor(i), m = METRICS[key], axis = 'y' + i;
@@ -1873,7 +1983,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     $('bar-desc').textContent = m.label+' by '+(s.dim==='day'?'day':s.dim)+'.';
     return loadPanel(s.range, s.dim).then(function(d){
       renderBarKpi(d, s.m);
-      var rows=rowsFor(d,s.dim).filter(function(r){ return r[s.m]!=null; });
+      var rows=rowsFor(d,effectiveDim(s.dim)).filter(function(r){ return r[s.m]!=null; });
       var horizontal = s.dim!=='day';
       if(horizontal) rows=rows.slice().sort(function(a,b){ return (b[s.m]||0)-(a[s.m]||0); }).slice(0,12);
 
@@ -1881,7 +1991,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         if(charts.bar){ charts.bar.destroy(); charts.bar=null; }
         $('bar-box').innerHTML=emptyState('No data in this range yet.');
         var bv = kpiVerdict(s.m, (d.totals||{})[s.m]);
-      $('bar-desc').textContent = m.label + ' by ' + (s.dim==='day'?'day':s.dim) +
+      $('bar-desc').textContent = m.label + ' by ' + (s.dim==='day'?'day':effectiveDim(s.dim)) +
         (bv ? '. Overall ' + bv.label + ' against a target of ' + m.fmt(bv.target) + '.' : '.');
       $('bar-summary').textContent='No data in this range.';
         buildTable($('bar-table'),['Name',m.label],[]);
@@ -1955,7 +2065,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function renderTable(){
     var s=state.table;
     return loadPanel(s.range, s.dim).then(function(d){
-      var all=rowsFor(d,s.dim);
+      var all=rowsFor(d,effectiveDim(s.dim));
       var rows=all.filter(function(r){ return !s.filter || String(r.name).toLowerCase().indexOf(s.filter)!==-1; })
         .sort(function(a,b){
           var av=a[s.sortKey], bv=b[s.sortKey];
