@@ -446,7 +446,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      are display:none, so the custom date row collapses out of the grid. */
   #range-field, #refresh { grid-column:1 / -1; }
   .toolbar select, .toolbar input[type=date] { min-height:42px; padding-top:.45rem; padding-bottom:.45rem; }
-  .seg { display:grid; grid-template-columns:repeat(5,1fr); width:100%; padding:2px; }
+  .seg { display:grid; grid-template-columns:repeat(6,1fr); width:100%; padding:2px; }
   .seg button { padding:.5rem .2rem; font-size:.78rem; min-height:40px; }
   #refresh { min-height:46px; margin-top:.15rem; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
@@ -566,6 +566,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="field" id="range-field" style="flex:0 0 auto;">
         <span class="lbl" id="range-lbl">Date range</span>
         <div class="seg" role="group" aria-labelledby="range-lbl" id="range-seg">
+          <button type="button" data-days="0"  aria-pressed="false">Today</button>
           <button type="button" data-days="7"  aria-pressed="false">7d</button>
           <button type="button" data-days="14" aria-pressed="false">14d</button>
           <button type="button" data-days="30" aria-pressed="true">30d</button>
@@ -846,6 +847,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function resolveRange(r) {
     if (!r || r.mode === 'global') return resolveRange(globalRange);
     if (r.mode === 'custom' && r.since && r.until) return { since:r.since, until:r.until };
+    // Today is a single day, so since and until are both today. Anything
+    // else counts back from today inclusive.
+    if (r.days === 0) return { since: daysAgo(0), until: daysAgo(0) };
     var d = r.days || 30;
     return { since: daysAgo(d - 1), until: daysAgo(0) };
   }
@@ -867,13 +871,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var cache = new Map();
   function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||''].join('|'); }
 
+  /* Hourly only makes sense for one day. Asking for it across a month would
+     return 24 rows of month totals, which reads as a plausible chart and is
+     not one. */
+  function isSingleDay(r){
+    var x = resolveRange(r || {mode:'global'});
+    return x.since === x.until;
+  }
+
   function fetchInsights(p) {
     // The view belongs in the key: two accounts answering the same date range
     // are different data, and without it a tab switch inside one refresh cycle
     // would redraw the previous account's numbers.
-    var key = state.view + '|' + queryKey(p);
+    var key = state.view + '|' + (p.hourly ? 'h|' : '') + queryKey(p);
     if (cache.has(key)) return cache.get(key);
     var qs = new URLSearchParams({ level:p.level, since:p.since, until:p.until, view:state.view });
+    if (p.hourly) qs.set('hourly', '1');
     if (p.campaignId) qs.set('campaignId', p.campaignId);
     if (p.adsetId) qs.set('adsetId', p.adsetId);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
@@ -1150,11 +1163,23 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // "Day" is a time breakdown, not an entity level — the daily series comes
     // back on every response, so any level will do for it.
     var level = dim==='day' ? 'campaign' : dim;
-    return fetchInsights({ level:level, since:r.since, until:r.until, campaignId:sp.campaignId, adsetId:sp.adsetId });
+    return fetchInsights({
+      level:level, since:r.since, until:r.until,
+      campaignId:sp.campaignId, adsetId:sp.adsetId,
+      hourly: isSingleDay(panelRange),
+    });
   }
 
   function rowsFor(d, dim){
-    if(dim==='day') return (d.daily||[]).map(function(x){ return Object.assign({},x,{name:fmtDate(x.dateStart)}); });
+    if(dim==='day'){
+      return (d.daily||[]).map(function(x){
+        // On a single day the server answers hourly, so the row's identity is
+        // its hour rather than its date.
+        return Object.assign({}, x, {
+          name: d.granularity === 'hour' && x.hour != null ? fmtHour(x.hour) : fmtDate(x.dateStart)
+        });
+      });
+    }
     return d.rows||[];
   }
 
@@ -1291,6 +1316,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return out;
   }
 
+  /* Hours of today, up to the hour now in progress. Running the axis out to
+     23:00 would draw fourteen hours of flat zero that have not happened yet and
+     read as a collapse in performance. */
+  function eachHourSoFar(){
+    var now = new Date();
+    var out = [];
+    for(var h = 0; h <= now.getHours(); h++) out.push(h);
+    return out;
+  }
+
+  function fmtHour(h){
+    var ampm = h < 12 ? 'AM' : 'PM';
+    var v = h % 12; if(v === 0) v = 12;
+    return v + ' ' + ampm;
+  }
+
   function nextUnusedMetric(){
     for(var i = 0; i < METRIC_KEYS.length; i++){
       if(state.series.indexOf(METRIC_KEYS[i]) === -1) return METRIC_KEYS[i];
@@ -1300,20 +1341,36 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderTimeSeries(){
     var ms = state.series.map(function(k){ return METRICS[k]; });
-    $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') + ' over the selected date range.';
+    $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') +
+      (isSingleDay({mode:'global'}) ? ' by hour, up to the current hour.' : ' over the selected date range.');
 
     var range = resolveRange({ mode:'global' });
 
     return loadPanel({ mode:'global' }, 'day').then(function(d){
-      /* Meta only returns rows for days that had delivery, so the response
-         alone would shrink the axis to whatever ran. The user asked for the
-         exact selected timeframe, so the spine is the range itself and the
-         response is mapped onto it. */
-      var byDate = {};
-      (d.daily || []).forEach(function(x){ byDate[x.dateStart] = x; });
-      var days = eachDay(range.since, range.until).map(function(iso){
-        return byDate[iso] || { dateStart:iso, __empty:true };
-      });
+      /* Meta only returns rows for periods that had delivery, so the response
+         alone would shrink the axis to whatever ran. The selected timeframe is
+         the spine, and the response is mapped onto it.
+
+         On a single day the server returns an hourly breakdown instead, so the
+         spine becomes hours-so-far rather than dates. */
+      var isHourly = d.granularity === 'hour';
+      var days, labels;
+
+      if(isHourly){
+        var byHour = {};
+        (d.daily || []).forEach(function(x){ if(x.hour != null) byHour[x.hour] = x; });
+        days = eachHourSoFar().map(function(h){
+          return byHour[h] || { hour:h, __empty:true };
+        });
+        labels = days.map(function(x){ return fmtHour(x.hour); });
+      } else {
+        var byDate = {};
+        (d.daily || []).forEach(function(x){ byDate[x.dateStart] = x; });
+        days = eachDay(range.since, range.until).map(function(iso){
+          return byDate[iso] || { dateStart:iso, __empty:true };
+        });
+        labels = days.map(function(x){ return fmtDate(x.dateStart); });
+      }
       var hasAny = (d.daily || []).length > 0;
 
       if(!days.length || !hasAny){
@@ -1321,11 +1378,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         $('ts-box').innerHTML = emptyState('No data in this range yet.');
         $('ts-summary').textContent = 'No data in this range.';
         $('ts-readout').textContent = '';
-        buildTable($('ts-table'), ['Date'].concat(ms.map(function(m){ return m.label; })), []);
+        buildTable($('ts-table'), [isHourly ? 'Hour' : 'Date'].concat(ms.map(function(m){ return m.label; })), []);
         return;
       }
-
-      var labels = days.map(function(x){ return fmtDate(x.dateStart); });
       var scales = {
         x:{ grid:{ color:palette().grid }, border:{ display:false },
             ticks:{ color:palette().tick, font:{ size:11 }, maxRotation:0, autoSkipPadding:14 } }
@@ -1387,13 +1442,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       $('ts-summary').textContent =
         listSentence(ms.map(function(m){ return m.label; })) + ' across ' + days.length +
-        ' day' + (days.length === 1 ? '' : 's') + ', from ' + labels[0] + ' to ' + labels[labels.length - 1] +
+        (isHourly ? ' hour' : ' day') + (days.length === 1 ? '' : 's') +
+        ', from ' + labels[0] + ' to ' + labels[labels.length - 1] +
         '. Each metric is drawn on its own scale. Exact figures are in the table below.';
 
       buildTable($('ts-table'),
-        ['Date'].concat(ms.map(function(m){ return m.label; })),
+        [isHourly ? 'Hour' : 'Date'].concat(ms.map(function(m){ return m.label; })),
         days.map(function(x){
-          return [fmtDate(x.dateStart)].concat(state.series.map(function(k){ return METRICS[k].fmt(x[k]); }));
+          return [isHourly ? fmtHour(x.hour) : fmtDate(x.dateStart)]
+            .concat(state.series.map(function(k){ return METRICS[k].fmt(x[k]); }));
         }));
     }).catch(function(e){ panelError(e, 'ts-summary'); });
   }

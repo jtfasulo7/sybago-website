@@ -298,6 +298,12 @@ function shapeRow(r, level) {
     costPerLandingPageView: m.landingPageView.costPer,
     dateStart: r.date_start,
     dateStop: r.date_stop,
+    // Present only on an hourly request. Meta returns a range like
+    // "13:00:00 - 13:59:59"; the leading hour is the useful part.
+    hour: r.hourly_stats_aggregated_by_advertiser_time_zone
+      ? Number(String(r.hourly_stats_aggregated_by_advertiser_time_zone).slice(0, 2))
+      : null,
+    hourLabel: r.hourly_stats_aggregated_by_advertiser_time_zone || null,
     level,
   };
 }
@@ -550,6 +556,15 @@ export default async function handler(req, res) {
   }
 
   const time_range = { since, until };
+
+  // Hourly is a BREAKDOWN, not a finer time_increment: asking for
+  // time_increment=1 across a single day returns one row for that day, not
+  // twenty-four. The advertiser-timezone variant is the one that lines up with
+  // what Ads Manager shows, rather than the viewer's timezone.
+  const hourly = req.query.hourly === '1';
+  const hourlyParams = hourly
+    ? { breakdowns: 'hourly_stats_aggregated_by_advertiser_time_zone' }
+    : {};
   const warnings = [];
 
   // Optional scoping to one campaign or ad set.
@@ -608,9 +623,11 @@ export default async function handler(req, res) {
           level: scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
           fields: BASE_FIELDS.join(','),
           time_range,
-          time_increment: '1', // one row per day, for the trend charts
+          // Hourly replaces the daily increment; the two cannot be combined.
+          ...(hourly ? {} : { time_increment: '1' }), // one row per day, for the trend charts
           limit: '500',
           ...attribution,
+          ...hourlyParams,
           ...filterParam,
         }, token),
         { env: envNames },
@@ -656,7 +673,9 @@ export default async function handler(req, res) {
     const rows = (breakdown.json.data || []).map((r) => shapeRow(r, level));
     const daily = (series.json.data || [])
       .map((r) => shapeRow(r, 'account'))
-      .sort((a, b) => (a.dateStart < b.dateStart ? -1 : 1));
+      .sort((a, b) =>
+        hourly ? (a.hour ?? 0) - (b.hour ?? 0) : a.dateStart < b.dateStart ? -1 : 1,
+      );
 
     // Totals are summed from the daily series rather than the breakdown, so the
     // headline numbers stay correct regardless of which level is selected.
@@ -721,6 +740,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       view,
       viewLabel: VIEWS[view].label,
+      granularity: hourly ? 'hour' : 'day',
       // The variable NAME only — so it is possible to tell which credential
       // answered without any part of the credential leaving the server.
       tokenSource: tokenHit.envName,
