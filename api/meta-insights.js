@@ -629,6 +629,22 @@ export default async function handler(req, res) {
   }
   const filterParam = filtering.length ? { filtering } : {};
 
+
+
+  // NOTE ON ATTRIBUTION.
+  //
+  // action_attribution_windows is deliberately NOT sent. The 7-day and 28-day
+  // view-through windows were removed from the API in January 2026, and passing
+  // a retired window is an error.
+  //
+  // use_unified_attribution_setting=true IS sent. Without it the Insights API
+  // falls back to a legacy default window instead of the attribution setting
+  // the ad set is actually configured with, so the API returns a lower
+  // conversion count than the same date range in Ads Manager — the exact
+  // symptom of "the dashboard says 6 and Ads Manager says 10". With it, both
+  // read the ad set's own setting and agree.
+  const attribution = { use_unified_attribution_setting: 'true' };
+
   /* ?breakdown=geo — where the delivery actually happened.
      country and region are requested TOGETHER so a row reads "US, Utah" rather
      than just "US", which is the difference between knowing a campaign reached
@@ -689,20 +705,6 @@ export default async function handler(req, res) {
     }
   }
 
-
-  // NOTE ON ATTRIBUTION.
-  //
-  // action_attribution_windows is deliberately NOT sent. The 7-day and 28-day
-  // view-through windows were removed from the API in January 2026, and passing
-  // a retired window is an error.
-  //
-  // use_unified_attribution_setting=true IS sent. Without it the Insights API
-  // falls back to a legacy default window instead of the attribution setting
-  // the ad set is actually configured with, so the API returns a lower
-  // conversion count than the same date range in Ads Manager — the exact
-  // symptom of "the dashboard says 6 and Ads Manager says 10". With it, both
-  // read the ad set's own setting and agree.
-  const attribution = { use_unified_attribution_setting: 'true' };
 
   try {
     // A third request fetches the campaign/ad set list for the picker. It is
