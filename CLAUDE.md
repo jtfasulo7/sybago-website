@@ -189,10 +189,51 @@ campaigns. Not linked from anywhere on the site.
 | File | Role |
 |---|---|
 | `dashboard.html` | The page. Login view + dashboard view in one document. |
-| `api/dashboard-login.js` | Password -> signed httpOnly session cookie. |
+| `api/dashboard-login.js` | Password -> signed httpOnly session cookie carrying a role. |
 | `api/meta-insights.js` | Calls the Meta Insights API. The ONLY place the token is read. |
 | `lib/auth.js` | HMAC cookie sign/verify. Node builtins only. |
 | `test/dashboard.test.mjs` | `node test/dashboard.test.mjs` — no deps, no credentials, stubs Meta. |
+
+**Two dashboards, two tiers of access**
+
+| Password | Role in cookie | Sees |
+|---|---|---|
+| `DASHBOARD_PASSWORD` | `dave` | Dave's account only. No tab bar. |
+| `DASHBOARD_MASTER_PASSWORD` | `master` | Both, via a tablist at the top of the page. |
+
+- The browser sends a **view name** (`dave` / `sybago`), never an account id. The
+  name-to-account map and the `masterOnly` flag live in the `VIEWS` registry in
+  `api/meta-insights.js`. Accepting an account id from the query string would let the
+  narrow session read any account the token can see — do not add one.
+- The role is inside the **signed** cookie payload, so editing it client-side breaks the
+  signature rather than granting access. `requireSession()` returns the session (or null),
+  not a boolean, so authorisation is decided in one place.
+- The tab bar is a convenience, not the control. It is hidden for a narrow session, and the
+  server still returns 403 `forbidden_view` if that session asks for the agency view anyway.
+- A missing `META_ADS_ACCOUNT_ID_SYBAGO` is a 500 naming the variable — never a silent
+  fallback to Dave's account.
+- Both passwords are compared before either result is used, and a deployment that sets them
+  to the same string does **not** promote the standard password to master.
+
+**Theming**
+
+- Every colour that differs between the two views is a token on `:root`, overridden wholesale
+  in `:root[data-view="dave"]`. Sybago = the site palette, unchanged. Dave = gold on
+  near-black with warm white (`#F6F2E8`) text — pure white glares on that ground.
+- The accent is stored as an RGB triplet (`--accent-rgb`) so tints are
+  `rgba(var(--accent-rgb), a)` and a palette swap is one line. Do not reintroduce
+  pre-mixed `rgba(47,103,121,…)`.
+- Inverting only the text tokens is not enough: `--surface-solid`, `--thead-bg`,
+  `--nav-bg`, `--seg-track`, `--on-accent` and the `--lift-*` shadows all have to be
+  restated, or the glass edges and sticky table head stay white.
+- `--on-accent` exists because text on the gold accent must be dark; warm white on gold
+  fails contrast.
+- **Chart colours cannot be CSS custom properties** — Chart.js paints to a canvas, where
+  `var()` does not resolve. They live in the `PALETTES` object in the page script. Black
+  and gold offers little hue for six series, so separation there is luminance plus dash
+  pattern, which is what has to carry it regardless.
+- The login screen always forces the Sybago palette, so signing out of Dave's view does not
+  leave a black sign-in page.
 
 **Security contract — do not weaken these**
 
