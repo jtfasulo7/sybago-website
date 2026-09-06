@@ -555,7 +555,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'bad_range', message: 'Start date must be on or before end date.' });
   }
 
+  // "Today" is resolved by META, not by us.
+  //
+  // Computing it from the caller's clock asks for the wrong day whenever the
+  // browser and the ad account are in different timezones: at 00:30 Mountain
+  // the account may still be on the previous day in Pacific, so an explicit
+  // date range returns an empty set and the dashboard reads as broken when
+  // nothing is wrong. date_preset=today is evaluated in the ad account's own
+  // timezone, which is also the timezone Ads Manager reports in.
+  const useToday = req.query.preset === 'today';
   const time_range = { since, until };
+  const period = useToday ? { date_preset: 'today' } : { time_range };
 
   // Hourly is a BREAKDOWN, not a finer time_increment: asking for
   // time_increment=1 across a single day returns one row for that day, not
@@ -620,7 +630,7 @@ export default async function handler(req, res) {
         buildUrl(accountId, {
           level,
           fields: [...LEVEL_FIELDS[level], ...BASE_FIELDS].join(','),
-          time_range,
+          ...period,
           limit: '500',
           ...attribution,
           ...filterParam,
@@ -633,7 +643,7 @@ export default async function handler(req, res) {
           // the scoped level rather than at account level.
           level: scope.adIds ? 'ad' : scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
           fields: BASE_FIELDS.join(','),
-          time_range,
+          ...period,
           // Hourly replaces the daily increment; the two cannot be combined.
           ...(hourly ? {} : { time_increment: '1' }), // one row per day, for the trend charts
           limit: '500',
@@ -649,7 +659,7 @@ export default async function handler(req, res) {
           // deeper than the scoping needs, but it is the same single request.
           level: 'ad',
           fields: 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name',
-          time_range,
+          ...period,
           limit: '500',
         }, token),
         { env: envNames },
@@ -761,6 +771,9 @@ export default async function handler(req, res) {
       view,
       viewLabel: VIEWS[view].label,
       granularity: hourly ? 'hour' : 'day',
+      // With date_preset the day is whatever the account's timezone says, so
+      // the range is read back off a returned row rather than assumed.
+      resolvedFromAccountTimezone: useToday,
       // The variable NAME only — so it is possible to tell which credential
       // answered without any part of the credential leaving the server.
       tokenSource: tokenHit.envName,

@@ -924,14 +924,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return x.since === x.until;
   }
 
+  /* True only for the Today button, not for a custom single-day range in the
+     past — a past day is unambiguous and needs no preset. */
+  function isToday(r){
+    var rr = (!r || r.mode === 'global') ? globalRange : r;
+    return rr && rr.mode === 'preset' && rr.days === 0;
+  }
+
   function fetchInsights(p) {
     // The view belongs in the key: two accounts answering the same date range
     // are different data, and without it a tab switch inside one refresh cycle
     // would redraw the previous account's numbers.
-    var key = state.view + '|' + (p.hourly ? 'h|' : '') + queryKey(p);
+    var key = state.view + '|' + (p.hourly ? 'h|' : '') + (p.preset || '') + '|' + queryKey(p);
     if (cache.has(key)) return cache.get(key);
     var qs = new URLSearchParams({ level:p.level, since:p.since, until:p.until, view:state.view });
     if (p.hourly) qs.set('hourly', '1');
+    // Let Meta resolve "today" in the ad account's timezone rather than the
+    // browser's — see the note in api/meta-insights.js.
+    if (p.preset) qs.set('preset', p.preset);
     if (p.campaignId) qs.set('campaignId', p.campaignId);
     if (p.adsetId) qs.set('adsetId', p.adsetId);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
@@ -1331,6 +1341,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       level:level, since:r.since, until:r.until,
       campaignId:sp.campaignId, adsetId:sp.adsetId,
       hourly: isSingleDay(panelRange),
+      preset: isToday(panelRange) ? 'today' : '',
     });
   }
 
@@ -1539,8 +1550,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       if(!days.length || !hasAny){
         if(charts.ts){ charts.ts.destroy(); charts.ts = null; }
-        $('ts-box').innerHTML = emptyState('No data in this range yet.');
-        $('ts-summary').textContent = 'No data in this range.';
+        var msg = isToday()
+          ? 'Nothing has delivered yet today. Meta reports on the ad account\u2019s timezone and lags real time by up to an hour.'
+          : 'No data in this range yet.';
+        $('ts-box').innerHTML = emptyState(msg);
+        $('ts-summary').textContent = msg;
         $('ts-readout').textContent = '';
         buildTable($('ts-table'), [isHourly ? 'Hour' : 'Date'].concat(ms.map(function(m){ return m.label; })), []);
         return;
@@ -1857,7 +1871,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     $('status').textContent='Loading…'; $('error-box').hidden=true;
 
     var r=resolveRange(globalRange), sp=scopeParams();
-    return fetchInsights({ level:'campaign', since:r.since, until:r.until, campaignId:sp.campaignId, adsetId:sp.adsetId })
+    return fetchInsights({
+      level:'campaign', since:r.since, until:r.until,
+      campaignId:sp.campaignId, adsetId:sp.adsetId,
+      preset: isToday(globalRange) ? 'today' : '',
+    })
       .then(function(d){
         state.campaigns=d.campaigns||[];
         var sc = currentScope();
