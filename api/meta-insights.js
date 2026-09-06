@@ -377,14 +377,21 @@ export default async function handler(req, res) {
     // ?debug=actions — every action type present, with its total, so a
     // missing conversion can be traced to the right cause without guessing.
     if (req.query.debug === 'actions') {
+      // Tallied per source. Keying off date_start === date_stop would put the
+      // breakdown rows into the daily bucket whenever the range is a single
+      // day, and report every figure twice.
       const tally = new Map();
-      for (const r of [...(breakdown.json.data || []), ...(series.json.data || [])]) {
-        for (const a of r.actions || []) {
-          const k = a.action_type;
-          if (!tally.has(k)) tally.set(k, { actionType: k, breakdown: 0, daily: 0 });
-          tally.get(k)[r.date_start === r.date_stop ? 'daily' : 'breakdown'] += num(a.value);
+      const add = (rowsIn, bucket) => {
+        for (const r of rowsIn || []) {
+          for (const a of r.actions || []) {
+            const k = a.action_type;
+            if (!tally.has(k)) tally.set(k, { actionType: k, breakdown: 0, daily: 0 });
+            tally.get(k)[bucket] += num(a.value);
+          }
         }
-      }
+      };
+      add(breakdown.json.data, 'breakdown');
+      add(series.json.data, 'daily');
       return res.status(200).json({
         range: time_range,
         knownRegistrationTypes: REGISTRATION_TYPES,
