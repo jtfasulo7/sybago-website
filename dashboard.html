@@ -2970,17 +2970,56 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     });
   }
 
+  /* Some files report a duration of Infinity until they have been seeked —
+     anything written by MediaRecorder, and some exports, ship without a
+     duration in the header. Seeking far past the end forces the browser to work
+     it out. */
+  function resolveDuration(v){
+    return new Promise(function(done){
+      if(isFinite(v.duration) && v.duration > 0) return done(v.duration);
+      var settle = function(){ done(v.duration); };
+      v.addEventListener('durationchange', function h(){
+        if(isFinite(v.duration) && v.duration > 0){
+          v.removeEventListener('durationchange', h);
+          v.currentTime = 0;
+          settle();
+        }
+      });
+      setTimeout(settle, 2500);
+      v.currentTime = 1e6;
+    });
+  }
+
   function sampleFrames(file){
     return new Promise(function(resolve, reject){
       var url = URL.createObjectURL(file);
       var v = document.createElement('video');
       v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
 
-      var fail = function(e){ URL.revokeObjectURL(url); reject(e || new Error('Could not read the video.')); };
+      var settled = false;
+      var fail = function(e){
+        if(settled) return; settled = true;
+        URL.revokeObjectURL(url);
+        reject(e || new Error('Could not read the video.'));
+      };
+      var succeed = function(frames){
+        if(settled) return; settled = true;
+        URL.revokeObjectURL(url);
+        resolve(frames);
+      };
+
+      /* THE FAILURE THIS CATCHES: a file where neither 'loadeddata' nor 'error'
+         ever fires. Without a deadline the promise simply never settles, and
+         the panel sits there with no frames and no message — the user is left
+         wondering why the captions got worse. */
+      setTimeout(function(){
+        fail(new Error('Reading this video timed out. It may use a codec the browser cannot decode.'));
+      }, 25000);
+
       v.addEventListener('error', function(){ fail(new Error('The browser could not decode this video.')); });
 
       v.addEventListener('loadeddata', function(){
-        var dur = v.duration;
+        resolveDuration(v).then(function(dur){
         if(!isFinite(dur) || dur <= 0) return fail(new Error('The video has no readable duration.'));
 
         var scale = Math.min(1, FRAME_MAX_W / (v.videoWidth || FRAME_MAX_W));
@@ -2994,8 +3033,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         var next = function(){
           if(i >= FRAME_COUNT){
-            URL.revokeObjectURL(url);
-            return resolve(out);
+            return succeed(out);
           }
           // Skips the first and last few percent: openers are often black and
           // end cards are often a logo, neither of which describes the video.
@@ -3012,6 +3050,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           });
         };
         next();
+        });
       });
     });
   }
@@ -3241,6 +3280,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     social.file = file;
     social.frames = [];
     renderFrames([]);
+    $('sc-status').textContent = 'Reading frames from the video…';
 
     /* Started BEFORE the upload and not awaited: sampling is local and fast,
        the upload is neither, and there is no reason for one to wait on the
@@ -3248,6 +3288,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     sampleFrames(file).then(function(frames){
       social.frames = frames;
       renderFrames(frames);
+      $('sc-status').textContent = frames.length
+        ? 'Read ' + frames.length + ' frames. Generate captions when the upload finishes.'
+        : '';
       updatePostButton();
     }).catch(function(e){
       social.frames = [];
@@ -3255,6 +3298,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       $('sc-status').textContent =
         (e && e.message ? e.message : 'Could not read frames from this video.') +
         ' Describe the video below instead and the captions will be written from that.';
+      updatePostButton();
     });
 
     $('sv-drop').hidden = true;
