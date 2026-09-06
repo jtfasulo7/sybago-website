@@ -142,23 +142,36 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .panel-ctl { display:flex; flex-wrap:wrap; gap:.7rem; align-items:flex-end; }
 .panel-ctl .field { min-width:142px; }
 
-/* Multi-series Y builder */
-#ts-series { display:flex; flex-direction:column; gap:.45rem; }
-.series-row { display:flex; align-items:center; gap:.5rem; }
-.series-row .swatch { width:4px; height:30px; border-radius:3px; flex:0 0 4px; }
-.series-row select { flex:1 1 auto; min-height:42px; }
-.series-del {
-  flex:0 0 38px; width:38px; height:38px; display:grid; place-items:center;
-  border:1px solid var(--hairline); border-radius:var(--r-sm); background:var(--surface-solid);
-  cursor:pointer; color:var(--t3); box-shadow:var(--lift-1);
-  transition:color .18s var(--eo), border-color .18s var(--eo), background .18s var(--eo);
+/* Multi-series Y builder. Each metric is a chip carrying its own line style,
+   which is also the chart's legend — a separate legend strip would repeat it. */
+.series-bar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .65rem; margin:.1rem 0 1rem; }
+.series-bar > .lbl { flex:0 0 auto; }
+#ts-series { display:flex; flex-wrap:wrap; gap:.5rem; min-width:0; }
+.series-row {
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.2rem .25rem .2rem .55rem; border-radius:var(--r-md);
+  border:1px solid var(--hairline); background:var(--surface-solid);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9), var(--lift-1);
+  transition:border-color .18s var(--eo), box-shadow .18s var(--eo);
 }
-.series-del:hover { color:var(--neg); border-color:rgba(163,58,38,.4); background:rgba(163,58,38,.05); }
-.series-del[disabled] { opacity:.35; cursor:not-allowed; }
-.add-series { min-height:40px; padding:.45rem .85rem; font-size:.85rem; align-self:flex-start; }
-.ts-legend { display:flex; flex-wrap:wrap; gap:.4rem .95rem; margin-bottom:.6rem; font-size:.8rem; color:var(--t2); }
-.ts-legend span { display:inline-flex; align-items:center; gap:.4rem; }
-.ts-legend i { width:20px; height:0; border-top-width:3px; display:inline-block; border-radius:2px; }
+.series-row:focus-within { border-color:rgba(47,103,121,.45); box-shadow:var(--lift-2); }
+/* The swatch draws the series' actual dash pattern, so line identity does not
+   rest on colour alone. */
+.series-row .swatch { flex:0 0 auto; display:block; }
+.series-row select {
+  border:0; box-shadow:none; background-color:transparent; width:auto;
+  min-height:34px; padding:.2rem 1.6rem .2rem .15rem;
+  font-size:.88rem; font-weight:600; background-position:right .4rem center;
+}
+.series-del {
+  flex:0 0 30px; width:30px; height:30px; display:grid; place-items:center;
+  border:0; border-radius:8px; background:transparent; cursor:pointer; color:var(--t3);
+  transition:color .18s var(--eo), background .18s var(--eo);
+}
+.series-del:hover { color:var(--neg); background:rgba(163,58,38,.08); }
+.series-del[disabled] { opacity:.3; cursor:not-allowed; }
+.series-del[disabled]:hover { color:var(--t3); background:transparent; }
+.add-series { min-height:38px; padding:.4rem .8rem; font-size:.85rem; }
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
@@ -223,7 +236,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .series-bar { gap:.4rem .5rem; }
   #ts-series { width:100%; }
+  .series-row { width:100%; }
+  .series-row select { flex:1 1 auto; width:100%; }
+  .add-series { width:100%; }
   .kpi { padding:.8rem .85rem; }
   .kpi dd { font-size:1.28rem; }
   .panel { padding:1rem; border-radius:var(--r-md); }
@@ -325,18 +342,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.5 7 9.5l3.2 3 4.8-6"/><circle cx="7" cy="9.5" r="1.3"/><circle cx="10.2" cy="12.5" r="1.3"/></svg></span>
           <div><h2 id="ts-h">Over time</h2><p class="sub" id="ts-desc">Metrics across the selected date range.</p></div>
         </div>
-        <div class="panel-ctl" style="align-items:flex-start">
-          <div class="field" style="min-width:min(100%,320px)">
-            <span class="lbl" id="ts-series-lbl">Y axis</span>
-            <div id="ts-series" role="group" aria-labelledby="ts-series-lbl"></div>
-            <button type="button" class="btn btn-ghost add-series" id="ts-add">
-              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
-              Add metric
-            </button>
-          </div>
-        </div>
       </div>
-      <div class="ts-legend" id="ts-legend"></div>
+      <div class="series-bar">
+        <span class="lbl" id="ts-series-lbl">Y axis</span>
+        <div id="ts-series" role="group" aria-labelledby="ts-series-lbl"></div>
+        <button type="button" class="btn btn-ghost add-series" id="ts-add">
+          <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
+          Add metric
+        </button>
+      </div>
       <div class="chart-box" id="ts-box"><canvas id="ts-chart" role="img" aria-labelledby="ts-h" aria-describedby="ts-desc ts-summary"></canvas></div>
       <p class="readout" id="ts-readout" data-hint="Drag across the chart to read every metric at a point in time."></p>
       <p id="ts-summary" class="sr-only"></p>
@@ -700,10 +714,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       var row = document.createElement('div');
       row.className = 'series-row';
 
+      /* An inline SVG rather than a coloured block: it can reproduce the
+         chart's dasharray exactly, so the chip doubles as the legend. */
       var sw = document.createElement('span');
       sw.className = 'swatch';
-      sw.style.background = st.line;
       sw.setAttribute('aria-hidden', 'true');
+      sw.innerHTML = '<svg width="22" height="10" viewBox="0 0 22 10" fill="none">' +
+        '<path d="M0 5h22" stroke="' + st.line + '" stroke-width="2.6" stroke-linecap="round"' +
+        (st.dash.length ? ' stroke-dasharray="' + st.dash.join(' ') + '"' : '') + '/></svg>';
 
       var sel = document.createElement('select');
       sel.setAttribute('aria-label', 'Metric ' + (i + 1) + ' on the Y axis');
@@ -775,7 +793,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(!days.length || !hasAny){
         if(charts.ts){ charts.ts.destroy(); charts.ts = null; }
         $('ts-box').innerHTML = emptyState('No data in this range yet.');
-        $('ts-legend').innerHTML = '';
         $('ts-summary').textContent = 'No data in this range.';
         $('ts-readout').textContent = '';
         buildTable($('ts-table'), ['Date'].concat(ms.map(function(m){ return m.label; })), []);
@@ -836,13 +853,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           scales:scales
         })
       });
-
-      /* Colour alone must not carry which line is which. */
-      $('ts-legend').innerHTML = state.series.map(function(k, i){
-        var st = styleFor(i);
-        return '<span><i style="border-top-style:' + (st.dash.length ? 'dashed' : 'solid') +
-               ';border-top-color:' + st.line + '"></i>' + esc(METRICS[k].label) + '</span>';
-      }).join('');
 
       $('ts-summary').textContent =
         listSentence(ms.map(function(m){ return m.label; })) + ' across ' + days.length +
