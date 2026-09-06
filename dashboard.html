@@ -816,9 +816,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         };
         return {
           label:m.label, yAxisID:axis,
+          /* A missing value means one of two things. For a counter it means
+             nothing happened, which is zero — Meta omits the action entirely
+             on a day with no conversions, and leaving that as a gap draws a
+             line straight over a day that genuinely scored none. For a rate it
+             means undefined: CPC on a day with no clicks is not zero. */
           data:days.map(function(x){
             if(x[key] != null) return x[key];
-            return (x.__empty && !RATE_METRICS[key]) ? 0 : null;
+            return RATE_METRICS[key] ? null : 0;
           }),
           borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
           borderDash:st.dash, pointStyle:st.point,
