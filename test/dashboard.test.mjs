@@ -483,5 +483,40 @@ t("an unloadable account names that view's account variable", () =>
 
 delete process.env.META_ADS_TOKEN_SYBAGO;
 
+
+/* ---------------------------------------------- blocked vs unpermitted ---- */
+console.log('\nBlocked access is not a permission gap');
+
+// Meta sends both of these on code 200, and the fix for one is useless for the
+// other: an assignment in Business Settings solves a missing permission and does
+// nothing at all for an enforcement block.
+globalThis.fetch = stubErr(403, { code: 200, message: 'API access blocked.' });
+res = mockRes();
+await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, res);
+t('a blocked account is not reported as a missing permission', () =>
+  assert.equal(res.body.error, 'api_access_blocked'));
+t('it does not tell the reader to assign the System User', () =>
+  assert.ok(!/assign the System User to it/i.test(res.body.message)));
+t('it names where the restriction is actually visible', () =>
+  assert.match(res.body.message, /accountquality/i));
+t("it says a permission change will not help", () =>
+  assert.match(res.body.message, /not a missing permission/i));
+t('Meta\'s own words are preserved', () =>
+  assert.match(res.body.detail || '', /API access blocked/));
+
+// A genuine permission gap must still get the assignment advice.
+globalThis.fetch = stubErr(403, { code: 200, message: 'Permissions error' });
+res = mockRes();
+await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, res);
+t('an ordinary permission error still advises assignment', () =>
+  assert.ok(res.body.error === 'insufficient_permission' && /View Performance/.test(res.body.message)));
+
+// A disabled account reads as enforcement too, whatever wording Meta picks.
+globalThis.fetch = stubErr(400, { code: 100, message: 'Ad account is disabled' });
+res = mockRes();
+await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, res);
+t('a disabled ad account is classified as blocked, not as a bad id', () =>
+  assert.equal(res.body.error, 'api_access_blocked'));
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

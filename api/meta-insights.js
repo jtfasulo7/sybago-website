@@ -146,6 +146,26 @@ function classifyMetaError(err, status, env = DEFAULT_ENV) {
     return { http: 401, error: 'token_invalid', message: `Meta rejected the access token. Check that ${TOKEN} is the System User token and was copied in full.`, metaMessage: msg };
   }
 
+  // Meta returns several distinct problems under code 200. A missing asset
+  // assignment is fixed in Business Settings; a BLOCKED account is Meta
+  // enforcement against the account, app or business, and no permission change
+  // will touch it. Telling the two apart matters more than the shared code
+  // suggests, because the advice for one is useless for the other.
+  if (/access blocked|api access is blocked|account.*(disabled|restricted)|business.*restricted/i.test(msg)) {
+    return {
+      http: 403,
+      error: 'api_access_blocked',
+      message:
+        'Meta has blocked API access to this ad account. This is an enforcement action against ' +
+        'the ad account, the app, or the business that owns them — not a missing permission, so ' +
+        'assigning the System User will not fix it. Check Account Quality at ' +
+        'business.facebook.com/accountquality for a restriction on the account or business, and ' +
+        'the app status at developers.facebook.com. If the owning business was restricted, access ' +
+        'stays blocked until that is appealed and restored.',
+      metaMessage: msg,
+    };
+  }
+
   if (code === 200 || code === 10 || code === 294) {
     return { http: 403, error: 'insufficient_permission', message: `The token in ${TOKEN} is valid but cannot read this ad account. If the account is in the same Meta business as that token, assign the System User to it with View Performance (ads_read) in Business Settings. If it belongs to a different business, assignment cannot help — generate a token inside that business and set it there instead.`, metaMessage: msg };
   }
