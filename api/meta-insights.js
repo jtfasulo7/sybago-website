@@ -629,6 +629,67 @@ export default async function handler(req, res) {
   }
   const filterParam = filtering.length ? { filtering } : {};
 
+  /* ?breakdown=geo — where the delivery actually happened.
+     country and region are requested TOGETHER so a row reads "US, Utah" rather
+     than just "US", which is the difference between knowing a campaign reached
+     America and knowing it reached the state being sold to.
+
+     Answered on its own request rather than folded into the main payload: a geo
+     breakdown multiplies the row count by every region delivered to, and the
+     other panels would carry that weight for a widget that may never be opened.
+     It reuses the period, scope and filter resolved above so it can never
+     disagree with the rest of the page about what is being looked at. */
+  if (req.query.breakdown === 'geo') {
+    try {
+      const { json } = await fetchWithBackoff(
+        buildUrl(
+          accountId,
+          {
+            level: 'account',
+            fields: BASE_FIELDS.join(','),
+            ...period,
+            breakdowns: 'country,region',
+            limit: '500',
+            ...attribution,
+            ...filterParam,
+          },
+          token,
+        ),
+        { env: envNames },
+      );
+
+      const rows = (json.data || []).map((r) => {
+        const shaped = shapeRow(r, 'account');
+        const country = r.country || null;
+        const region = r.region || null;
+        return {
+          ...shaped,
+          country,
+          region,
+          // Region alone is ambiguous across countries; country alone is too
+          // coarse to act on.
+          name: country && region ? country + ', ' + region : region || country || 'Unknown',
+        };
+      });
+
+      return res.status(200).json({
+        view,
+        viewLabel: VIEWS[view].label,
+        range: time_range,
+        rows,
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      const payload = {
+        error: e.error || 'meta_error',
+        message: scrubSecrets(e.message) || 'Request to Meta failed.',
+      };
+      if (e.metaMessage) payload.detail = scrubSecrets(e.metaMessage);
+      return res.status(e.http || 502).json(payload);
+    }
+  }
+
+
   // NOTE ON ATTRIBUTION.
   //
   // action_attribution_windows is deliberately NOT sent. The 7-day and 28-day

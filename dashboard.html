@@ -459,6 +459,19 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
    Each entry carries the line's exact colour, dash and point marker, plus that
    ad's figure for the metric — so the chart can be read, and ranked, without
    touching it. */
+/* The pie needs its legend beside it, not above: a circle is squarer than the
+   panel, so the space to its right is free. Stacks below on a narrow screen. */
+.geo-wrap { display:flex; gap:1.2rem; align-items:center; flex-wrap:wrap; }
+.geo-box { flex:0 0 clamp(210px,26vw,290px); height:clamp(210px,26vw,290px); }
+.geo-legend { flex:1 1 300px; align-content:center; margin-bottom:0; }
+.geo-legend .lg { flex:1 1 100%; }
+.geo-legend .lg-name { flex:1 1 auto; max-width:none; }
+.geo-share { font-size:.78rem; color:var(--t3); font-variant-numeric:tabular-nums; padding-left:.45rem; }
+@media (max-width:880px) {
+  .geo-box { flex:1 1 100%; height:min(64vw,270px); }
+  .geo-legend { flex:1 1 100%; }
+}
+
 .ad-legend { display:flex; flex-wrap:wrap; gap:.45rem .5rem; margin-bottom:.85rem; }
 .ad-legend .lg {
   display:inline-flex; align-items:center; gap:.5rem; min-width:0;
@@ -847,6 +860,25 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <p class="sub kpi-legend" id="tb-legend"></p>
       <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
+      <!-- ---------- 4. WHERE IT CAME FROM ---------- -->
+      <section class="panel glass" id="panel-geo" aria-labelledby="geo-h">
+        <div class="panel-head">
+          <div class="panel-title">
+            <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.2"/><path d="M2.8 10h14.4M10 2.8c1.9 2 2.9 4.6 2.9 7.2S11.9 15.2 10 17.2C8.1 15.2 7.1 12.6 7.1 10S8.1 4.8 10 2.8z"/></svg></span>
+            <div><h2 id="geo-h">Where it came from</h2><p class="sub" id="geo-desc">Delivery by country and region.</p></div>
+          </div>
+          <div class="panel-ctl">
+            <div class="field"><label for="geo-m">Metric</label><select id="geo-m"></select></div>
+          </div>
+        </div>
+        <div class="geo-wrap">
+          <div class="chart-box geo-box" id="geo-box"><canvas id="geo-chart" role="img" aria-labelledby="geo-h" aria-describedby="geo-desc geo-summary"></canvas></div>
+          <div class="ad-legend geo-legend" id="geo-legend"></div>
+        </div>
+        <p id="geo-summary" class="sr-only"></p>
+        <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="geo-table"><caption>Every location, with its share of the selected metric.</caption></table></div></details>
+      </section>
+
     </div><!-- /#pane-performance -->
 
     <!-- ===================== SOCIAL POST ===================== -->
@@ -1091,6 +1123,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return promise;
   }
 
+  /* A pie divides a WHOLE into parts, so only metrics that genuinely sum
+     across locations belong in it. A pie of CPC by region would be nonsense:
+     rates and costs cannot be added, and the slices would total something with
+     no meaning. Reach is included because a person is in one region, so
+     per-region reach does not double count. Frequency, CTR, CPC, CPM and the
+     cost-per figures are deliberately absent. */
+  var GEO_METRICS = ['spend','impressions','reach','clicks','linkClicks','registrations','landingPageViews'];
+
   /* ============================== KPI targets ============================
      Researched per account, because the two run in different markets under
      different rules and a shared target would be wrong for both.
@@ -1317,6 +1357,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var state = {
     // The over-time panel plots N metrics against the globally selected range.
     series: ['spend', 'registrations'],
+    geoMetric: 'impressions',
     // Holds the multi-metric list while ads are selected, since ad mode allows
     // only one. Restored when the last ad is removed.
     seriesBeforeAds: null,
@@ -2479,7 +2520,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         }
 
         renderedView = state.view;
-        return Promise.all([renderTimeSeries(), renderBar(), renderTable()]).then(function(){
+        return Promise.all([renderTimeSeries(), renderBar(), renderTable(), renderGeo()]).then(function(){
           var when=new Date(d.fetchedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
           $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
         });
@@ -2544,12 +2585,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      stale is a lie. */
   function clearData(msg){
     $('kpis').innerHTML = '';
-    ['ts','bar'].forEach(function(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } });
-    ['ts-box','bar-box'].forEach(function(id){ $(id).innerHTML = emptyState(msg || 'Loading…'); });
+    ['ts','bar','geo'].forEach(function(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } });
+    ['ts-box','bar-box','geo-box'].forEach(function(id){ $(id).innerHTML = emptyState(msg || 'Loading…'); });
     // Drop the head and body but keep the <caption>: buildTable() re-appends
     // the caption it finds, so wiping innerHTML here would strip every table
     // of its description permanently after the first view switch.
-    ['ts-table','bar-table','tb-table'].forEach(function(id){
+    var gl = $('geo-legend'); if(gl) gl.innerHTML = '';
+    ['ts-table','bar-table','tb-table','geo-table'].forEach(function(id){
       var el=$(id); if(!el) return;
       var parts = el.querySelectorAll('thead, tbody');
       for(var i=0;i<parts.length;i++) parts[i].remove();
@@ -2695,6 +2737,125 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     window.addEventListener('scroll', onScroll, { passive:true });
     window.addEventListener('resize', onScroll, { passive:true });
     evaluate();
+  }
+
+  /* ---------------------------------------------------------- geography ---- */
+  /* Slice colours. Distinct enough to tell eight apart, and reused between the
+     chart and the legend so they cannot drift. */
+  function geoColours(){
+    var p = palette();
+    var base = (p.adSeries || p.series).map(function(x){ return x.line; });
+    // Two extra steps so eight slices do not wrap onto a repeat.
+    return base.concat([p.tick, p.grid]).slice(0, 8);
+  }
+
+  var GEO_MAX_SLICES = 7;   // plus an "Other" slice
+
+  function renderGeo(){
+    var key = state.geoMetric, m = METRICS[key];
+    var r = resolveRange({ mode:'global' }), sp = scopeParams();
+
+    var qs = new URLSearchParams({
+      breakdown:'geo', view:state.view,
+      since:r.since, until:r.until, level:'account'
+    });
+    if(sp.campaignId) qs.set('campaignId', sp.campaignId);
+    if(sp.adsetId) qs.set('adsetId', sp.adsetId);
+    if(sp.adIds) qs.set('adIds', sp.adIds);
+    if(isToday({mode:'global'})) qs.set('preset','today');
+
+    $('geo-desc').textContent = m.label + ' by country and region.';
+
+    return fetch('/api/meta-insights?' + qs.toString())
+      .then(function(resp){ return resp.json().then(function(j){ if(!resp.ok) throw Object.assign(new Error(j.message||'Failed'), {payload:j}); return j; }); })
+      .then(function(d){
+        var rows = (d.rows || [])
+          .map(function(x){ return { name:x.name, value:Number(x[key]) || 0 }; })
+          .filter(function(x){ return x.value > 0; })
+          .sort(function(a,b){ return b.value - a.value; });
+
+        if(!rows.length){
+          if(charts.geo){ charts.geo.destroy(); charts.geo = null; }
+          $('geo-box').innerHTML = emptyState('No delivery in this range yet.');
+          $('geo-legend').innerHTML = '';
+          $('geo-summary').textContent = 'No location data in this range.';
+          buildTable($('geo-table'), ['Location', m.label, 'Share'], []);
+          return;
+        }
+
+        var total = rows.reduce(function(a,x){ return a + x.value; }, 0);
+
+        /* Fifty regions is not a pie, it is a colour wheel. The long tail is
+           collapsed into one slice, and the table below keeps every row. */
+        var shown = rows.slice(0, GEO_MAX_SLICES);
+        var rest = rows.slice(GEO_MAX_SLICES);
+        if(rest.length){
+          shown = shown.concat([{
+            name: rest.length + ' other location' + (rest.length === 1 ? '' : 's'),
+            value: rest.reduce(function(a,x){ return a + x.value; }, 0),
+            isOther: true
+          }]);
+        }
+
+        var cols = geoColours();
+        var cv = ensureCanvas('geo-box','geo-chart','geo-h','geo-desc geo-summary');
+        makeChart('geo', cv, {
+          type:'pie',
+          data:{
+            labels: shown.map(function(x){ return x.name; }),
+            datasets:[{
+              data: shown.map(function(x){ return x.value; }),
+              backgroundColor: shown.map(function(x,i){ return x.isOther ? palette().tick : cols[i % cols.length]; }),
+              borderColor: palette().pointFill,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            animation:{ duration:500, easing:'easeOutQuart' },
+            plugins:{
+              // The legend is rendered as HTML beside the chart, where the
+              // share and the figure fit alongside each name.
+              legend:{ display:false },
+              tooltip:{
+                backgroundColor:palette().tooltipBg, padding:11, cornerRadius:10,
+                callbacks:{ label:function(c){
+                  return c.label + ': ' + m.fmt(c.raw) + ' (' + ((c.raw/total)*100).toFixed(1) + '%)';
+                } }
+              }
+            }
+          }
+        });
+
+        var legend = $('geo-legend');
+        legend.innerHTML = '';
+        shown.forEach(function(x,i){
+          var colour = x.isOther ? palette().tick : cols[i % cols.length];
+          var share = (x.value/total)*100;
+          var item = document.createElement('span');
+          item.className = 'lg';
+          item.innerHTML =
+            '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="' + colour + '"/></svg>' +
+            '<span class="lg-name"></span>' +
+            '<span class="geo-share"></span>' +
+            '<span class="lg-val" style="color:' + colour + '"></span>';
+          item.querySelector('.lg-name').textContent = x.name;
+          item.querySelector('.geo-share').textContent = share.toFixed(1) + '%';
+          item.querySelector('.lg-val').textContent = m.fmt(x.value);
+          item.setAttribute('aria-label', x.name + ': ' + m.fmt(x.value) + ', ' + share.toFixed(1) + ' percent');
+          legend.appendChild(item);
+        });
+
+        $('geo-summary').textContent =
+          m.label + ' by location. ' + rows.length + ' location' + (rows.length===1?'':'s') +
+          ', led by ' + rows[0].name + ' at ' + m.fmt(rows[0].value) +
+          ' (' + ((rows[0].value/total)*100).toFixed(1) + '%). Every location is listed in the table below.';
+
+        // The table keeps the full list, not the collapsed one.
+        buildTable($('geo-table'), ['Location', m.label, 'Share'],
+          rows.map(function(x){ return [x.name, m.fmt(x.value), ((x.value/total)*100).toFixed(1) + '%']; }));
+      })
+      .catch(function(e){ panelError(e, 'geo-summary'); });
   }
 
   /* ------------------------------------------------------- auto-refresh ---- */
@@ -3159,6 +3320,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     });
 
     fillMetricSelect($('bar-m'), state.bar.m);
+    var gm = $('geo-m');
+    gm.innerHTML = '';
+    GEO_METRICS.forEach(function(k){ gm.appendChild(opt(k, METRICS[k].label)); });
+    gm.value = state.geoMetric;
+    gm.addEventListener('change', function(){ state.geoMetric = this.value; renderGeo(); });
+
     fillDimSelect($('bar-dim'), state.bar.dim);
     fillRangeSelect($('bar-range'));
 
