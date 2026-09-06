@@ -2250,22 +2250,40 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(first) first.focus();
     });
 
-    /* Shown only once the real toolbar has left the viewport. An observer
-       rather than a scroll handler, so nothing runs on every frame. */
-    var io = new IntersectionObserver(function(entries){
-      var visible = entries[0].isIntersecting;
-      if(visible){
-        bar.classList.remove('is-in');
-        // Kept in the DOM until the fade finishes, or it would snap away.
-        setTimeout(function(){ if(!bar.classList.contains('is-in')) bar.hidden = true; }, 200);
-      } else {
+    /* Shown once the real toolbar has scrolled past.
+       A scroll listener rather than IntersectionObserver: main carries
+       overflow-x:clip, which makes the other axis a scroll container, and a
+       viewport-rooted observer never fires against a target inside it. The
+       handler is throttled to one animation frame, so this costs a rect read
+       per frame while scrolling and nothing at all when still. */
+    var ticking = false, shown = false;
+
+    function evaluate(){
+      ticking = false;
+      var gone = toolbar.getBoundingClientRect().bottom < 8;
+      if(gone === shown) return;      // nothing to do unless the state flipped
+      shown = gone;
+
+      if(gone){
         syncStickyBar();
         bar.hidden = false;
         requestAnimationFrame(function(){ bar.classList.add('is-in'); });
+      } else {
+        bar.classList.remove('is-in');
+        // Kept in the DOM until the fade finishes, or it would snap away.
+        setTimeout(function(){ if(!bar.classList.contains('is-in')) bar.hidden = true; }, 200);
       }
-    }, { rootMargin:'-8px 0px 0px 0px', threshold:0 });
+    }
 
-    io.observe(toolbar);
+    function onScroll(){
+      if(ticking) return;
+      ticking = true;
+      requestAnimationFrame(evaluate);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', onScroll, { passive:true });
+    evaluate();
   }
 
   /* ------------------------------------------------------- auto-refresh ---- */
