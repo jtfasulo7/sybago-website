@@ -183,6 +183,66 @@ input[type=date], input[type=text], input[type=password] { padding-right:.8rem; 
 select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
 select:hover, input:hover { border-color:rgba(var(--accent-rgb),.35); }
 
+/* Sub-tabs sit inside a view, so they read as a level down from the view
+   tabs: no track, an underline instead of a raised pill. */
+.subtabs { display:flex; gap:.2rem; margin:1.1rem 0 .25rem; border-bottom:1px solid var(--hairline); }
+.subtabs button {
+  border:0; background:transparent; cursor:pointer; padding:.7rem 1rem; min-height:44px;
+  font-size:.92rem; font-weight:600; color:var(--t3); position:relative;
+  transition:color .2s var(--eo);
+}
+.subtabs button:hover { color:var(--t1); }
+.subtabs button[aria-selected="true"] { color:var(--accent-d); font-weight:700; }
+.subtabs button[aria-selected="true"]::after {
+  content:''; position:absolute; left:.7rem; right:.7rem; bottom:-1px; height:2px;
+  background:var(--accent); border-radius:2px 2px 0 0;
+}
+
+/* Drop zone */
+.drop {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:2.2rem 1rem; border:1.5px dashed var(--hairline); border-radius:var(--r-md);
+  text-align:center; transition:border-color .2s var(--eo), background .2s var(--eo);
+}
+.drop.is-over { border-color:var(--accent); background:rgba(var(--accent-rgb),.06); }
+.drop label { cursor:pointer; }
+
+.bar { height:8px; border-radius:99px; background:var(--seg-track); overflow:hidden; }
+.bar span { display:block; height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent-b)); transition:width .25s var(--eo); }
+
+.ready-row { display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; }
+.preview { width:132px; aspect-ratio:9/16; object-fit:cover; border-radius:var(--r-sm); background:#000; flex:0 0 auto; }
+
+.two-up { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; }
+textarea {
+  appearance:none; border:1px solid var(--hairline); border-radius:var(--r-sm);
+  padding:.6rem .8rem; width:100%; background:var(--surface-solid); resize:vertical;
+  box-shadow:inset 0 1px 0 var(--hairline-2), var(--lift-1); font:inherit; color:inherit;
+  min-height:82px;
+}
+textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
+
+/* Per-platform card */
+.plat { margin-bottom:1rem; }
+.plat-head { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin-bottom:.8rem; }
+.plat-head h3 { font-size:1rem; font-weight:700; }
+.pill { font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; padding:.22rem .55rem; border-radius:99px; border:1px solid; }
+.pill-on { color:var(--accent-d); border-color:rgba(var(--accent-rgb),.4); background:rgba(var(--accent-rgb),.09); }
+.pill-off { color:var(--t3); border-color:var(--hairline); background:var(--seg-track); }
+.pill-warn { color:var(--warn-text); border-color:rgba(var(--warn-rgb),.4); background:rgba(var(--warn-rgb),.09); }
+.count { font-size:.78rem; font-variant-numeric:tabular-nums; color:var(--t3); margin-left:auto; }
+.count.over { color:var(--neg); font-weight:700; }
+.tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; }
+.tag { font-size:.78rem; padding:.2rem .55rem; border-radius:99px; background:rgba(var(--accent-rgb),.09); color:var(--accent-d); border:1px solid rgba(var(--accent-rgb),.22); }
+.plat-toggle { display:inline-flex; align-items:center; gap:.5rem; cursor:pointer; font-size:.9rem; font-weight:600; }
+.plat-toggle input { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
+
+.result-row { display:flex; gap:.6rem; align-items:flex-start; padding:.7rem 0; border-top:1px solid var(--hairline); font-size:.9rem; }
+.result-row:first-child { border-top:0; }
+.result-mark { flex:0 0 auto; font-weight:800; }
+.ok-mark { color:var(--accent-d); }
+.bad-mark { color:var(--neg); }
+
 /* View tabs. Only a master session ever sees these, so they are hidden by
    default and revealed after the role comes back from the server. */
 .viewtabs {
@@ -357,6 +417,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .two-up { grid-template-columns:1fr; }
+  .subtabs button { flex:1 1 auto; padding:.65rem .5rem; font-size:.88rem; }
+  .preview { width:104px; }
   .viewtabs { width:100%; margin-top:.9rem; }
   .viewtabs button { flex:1 1 auto; padding:.55rem .6rem; font-size:.85rem; }
   .statusbar { gap:.4rem .6rem; }
@@ -423,6 +486,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </div>
 
     <div id="dash-body" role="tabpanel" aria-labelledby="tab-dave">
+
+    <!-- Sub-tabs, only ever shown on Dave's dashboard. -->
+    <div class="subtabs" id="subtabs" role="tablist" aria-label="Section" hidden>
+      <button type="button" role="tab" id="sub-tab-performance" data-pane="performance"
+              aria-selected="true" aria-controls="pane-performance" tabindex="0">Performance</button>
+      <button type="button" role="tab" id="sub-tab-social" data-pane="social"
+              aria-selected="false" aria-controls="pane-social" tabindex="-1">Social post</button>
+    </div>
+
+    <div id="pane-performance" role="tabpanel" aria-labelledby="sub-tab-performance">
     <header class="rise">
       <p class="eyebrow" id="eyebrow">Meta ads</p>
       <h1 id="dash-h" style="margin-top:.3rem">Performance</h1>
@@ -534,6 +607,99 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <p id="tb-count" class="sub" role="status" aria-live="polite" style="margin-bottom:.6rem"></p>
       <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
+    </div><!-- /#pane-performance -->
+
+    <!-- ===================== SOCIAL POST ===================== -->
+    <div id="pane-social" role="tabpanel" aria-labelledby="sub-tab-social" hidden>
+      <header class="rise">
+        <p class="eyebrow">Peps by Dave</p>
+        <h2 id="social-h" style="font-size:clamp(1.5rem,3.4vw,2.15rem);font-weight:800;letter-spacing:-.03em;margin-top:.3rem">Social post</h2>
+        <p class="sub" style="margin-top:.35rem">Upload a finished video, write a caption for each platform, post everywhere at once.</p>
+      </header>
+
+      <!-- 1. VIDEO -->
+      <section class="panel glass" aria-labelledby="sv-h">
+        <div class="panel-head">
+          <div class="panel-title">
+            <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h7A1.5 1.5 0 0 1 13 6.5v7A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5z"/><path d="m13 9 4-2.5v7L13 11z"/></svg></span>
+            <div><h3 id="sv-h" style="font-size:1.05rem;font-weight:700">The video</h3><p class="sub">MP4 or MOV, up to 512 MB.</p></div>
+          </div>
+        </div>
+
+        <div class="drop" id="sv-drop">
+          <input type="file" id="sv-file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm" class="sr-only">
+          <label for="sv-file" class="btn btn-ghost" id="sv-pick">Choose a video</label>
+          <p class="sub" id="sv-hint" style="margin-top:.6rem">or drop the file here</p>
+        </div>
+
+        <div id="sv-progress-wrap" hidden>
+          <div class="bar" role="progressbar" aria-labelledby="sv-progress-label" aria-valuemin="0" aria-valuemax="100" id="sv-bar">
+            <span id="sv-bar-fill"></span>
+          </div>
+          <p class="sub" id="sv-progress-label" role="status" aria-live="polite" style="margin-top:.5rem"></p>
+        </div>
+
+        <div id="sv-ready" hidden>
+          <div class="ready-row">
+            <video id="sv-preview" class="preview" muted playsinline controls preload="metadata"></video>
+            <div style="min-width:0">
+              <p style="font-weight:700" id="sv-name"></p>
+              <p class="sub" id="sv-meta"></p>
+              <button type="button" class="btn btn-ghost" id="sv-clear" style="margin-top:.6rem;min-height:38px;padding:.4rem .8rem;font-size:.85rem">Replace video</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. CAPTIONS -->
+      <section class="panel glass" aria-labelledby="sc-h">
+        <div class="panel-head">
+          <div class="panel-title">
+            <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12M4 9h12M4 13h7"/></svg></span>
+            <div><h3 id="sc-h" style="font-size:1.05rem;font-weight:700">Captions</h3><p class="sub">Written separately for each platform, not one caption reposted four times.</p></div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:.9rem">
+          <label for="sc-context">What happens in the video</label>
+          <textarea id="sc-context" rows="3" placeholder="Dave walks through the first week of the program and what most people get wrong."></textarea>
+        </div>
+        <div class="two-up">
+          <div class="field">
+            <label for="sc-tone">Tone (optional)</label>
+            <input type="text" id="sc-tone" placeholder="blunt, no hype">
+          </div>
+          <div class="field">
+            <label for="sc-link">Link (optional)</label>
+            <input type="text" id="sc-link" placeholder="https://…">
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="sc-generate" style="margin-top:1rem">
+          <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v14M3 10h14"/></svg>
+          Generate captions
+        </button>
+        <p class="sub" id="sc-status" role="status" aria-live="polite" style="margin-top:.6rem"></p>
+      </section>
+
+      <!-- 3. PER-PLATFORM -->
+      <div id="sp-list"></div>
+
+      <!-- 4. POST -->
+      <section class="panel glass" aria-labelledby="sp-h">
+        <div class="panel-head">
+          <div class="panel-title">
+            <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m17 3-8 8M17 3l-5 14-3-6-6-3z"/></svg></span>
+            <div><h3 id="sp-h" style="font-size:1.05rem;font-weight:700">Post</h3><p class="sub" id="sp-sub">Nothing is sent until you press this.</p></div>
+          </div>
+        </div>
+        <div id="sp-notice" class="notice notice-warn" hidden></div>
+        <button type="button" class="btn btn-primary" id="sp-post" aria-disabled="true">Post to selected platforms</button>
+        <p class="sub" id="sp-status" role="status" aria-live="polite" style="margin-top:.6rem"></p>
+        <div id="sp-results"></div>
+      </section>
+    </div><!-- /#pane-social -->
+
     </div><!-- /#dash-body -->
 
   </section>
@@ -1300,6 +1466,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var tc = document.querySelector('meta[name="theme-color"]');
     if(tc) tc.setAttribute('content', state.view === 'dave' ? '#0B0B0C' : '#eef2f4');
 
+    // Social posting is Dave's, so the sub-tabs only exist on that view. On
+    // any other view the pane is left as well as hidden, or the page would show
+    // an empty Performance area under a Social heading.
+    var subs = $('subtabs');
+    if(subs){
+      subs.hidden = state.view !== 'dave';
+      if(state.view !== 'dave') showPane('performance');
+    }
+
     var tabs = document.querySelectorAll('#viewtabs button');
     for(var i=0;i<tabs.length;i++){
       var on = tabs[i].dataset.view === state.view;
@@ -1386,6 +1561,406 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(on) refreshAll(); else if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   }
 
+
+  /* ============================ social post =============================== */
+  /* Upload a finished video straight to Blob, write a caption per platform,
+     post to all of them at once.
+
+     The video never passes through our own server: a Vercel function caps
+     request bodies at 4.5 MB and these files are far bigger, so the browser
+     talks to Blob directly and the server only authorises it. */
+
+  var social = {
+    pane: 'performance',
+    blobUrl: null,
+    file: null,
+    platforms: [],   // status from the server
+    captions: {},    // per-platform, edited in place
+    selected: {},    // which platforms to post to
+    posting: false
+  };
+
+  /* The Blob browser SDK is an npm ES module and this page has no bundler, so
+     it is pulled from a CDN at the moment it is first needed rather than on
+     every dashboard load. Pinned, because an upload silently changing shape is
+     worse than one that fails loudly. */
+  var BLOB_SDK = 'https://esm.sh/@vercel/blob@2.8.0/client';
+  var blobSdk = null;
+  function loadBlobSdk(){
+    if(!blobSdk) blobSdk = import(BLOB_SDK);
+    return blobSdk;
+  }
+
+  function fmtBytes(n){
+    if(n < 1024*1024) return (n/1024).toFixed(0)+' KB';
+    return (n/1024/1024).toFixed(1)+' MB';
+  }
+
+  /* ------------------------------------------------------------- panes ---- */
+  function showPane(name){
+    social.pane = name;
+    ['performance','social'].forEach(function(p){
+      var pane=$('pane-'+p), tab=$('sub-tab-'+p);
+      if(!pane||!tab) return;
+      var on = p===name;
+      pane.hidden = !on;
+      tab.setAttribute('aria-selected', on?'true':'false');
+      tab.tabIndex = on?0:-1;
+    });
+    if(name==='social' && !social.platforms.length) loadPlatformStatus();
+  }
+
+  /* ------------------------------------------------------- platform list -- */
+  function loadPlatformStatus(){
+    return fetch('/api/social-publish').then(function(r){ return r.json(); })
+      .then(function(j){
+        social.platforms = j.platforms || [];
+        social.platforms.forEach(function(p){
+          // Default to posting anywhere that is actually connected.
+          if(social.selected[p.id] === undefined) social.selected[p.id] = p.configured;
+        });
+        renderPlatforms();
+      })
+      .catch(function(){ $('sp-status').textContent = 'Could not load platform status.'; });
+  }
+
+  function renderPlatforms(){
+    var wrap = $('sp-list');
+    wrap.innerHTML = '';
+
+    social.platforms.forEach(function(p){
+      var cap = social.captions[p.id];
+      var sec = document.createElement('section');
+      sec.className = 'panel glass plat';
+
+      var head = document.createElement('div');
+      head.className = 'plat-head';
+
+      var toggle = document.createElement('label');
+      toggle.className = 'plat-toggle';
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = !!social.selected[p.id];
+      box.disabled = !p.configured;
+      box.setAttribute('aria-label', 'Post to ' + p.label);
+      box.addEventListener('change', function(){ social.selected[p.id] = this.checked; updatePostButton(); });
+      var name = document.createElement('h3');
+      name.textContent = p.label;
+      toggle.appendChild(box); toggle.appendChild(name);
+      head.appendChild(toggle);
+
+      var pill = document.createElement('span');
+      if(p.configured){ pill.className='pill pill-on'; pill.textContent='Connected'; }
+      else { pill.className='pill pill-off'; pill.textContent='Not connected'; }
+      head.appendChild(pill);
+
+      if(p.quotaNote){
+        var q=document.createElement('span');
+        q.className='pill pill-warn'; q.textContent=p.quotaNote;
+        head.appendChild(q);
+      }
+
+      var count = document.createElement('span');
+      count.className = 'count';
+      count.id = 'count-'+p.id;
+      head.appendChild(count);
+      sec.appendChild(head);
+
+      if(!p.configured){
+        var missing = document.createElement('p');
+        missing.className = 'sub';
+        missing.textContent = 'Set ' + p.missing.join(', ') + '. ' + p.setup;
+        sec.appendChild(missing);
+        wrap.appendChild(sec);
+        return;
+      }
+
+      // YouTube posts a title and a description, not one caption.
+      if(p.titleLimit){
+        var tf = document.createElement('div');
+        tf.className = 'field';
+        tf.style.marginBottom = '.7rem';
+        var tl = document.createElement('label');
+        tl.setAttribute('for','title-'+p.id); tl.textContent = 'Title';
+        var ti = document.createElement('input');
+        ti.type='text'; ti.id='title-'+p.id;
+        ti.value = (cap && cap.title) || '';
+        ti.addEventListener('input', function(){
+          social.captions[p.id] = social.captions[p.id] || {};
+          social.captions[p.id].title = this.value;
+          updateCount(p);
+        });
+        tf.appendChild(tl); tf.appendChild(ti);
+        sec.appendChild(tf);
+      }
+
+      var f = document.createElement('div');
+      f.className = 'field';
+      var lab = document.createElement('label');
+      lab.setAttribute('for','cap-'+p.id);
+      lab.textContent = p.titleLimit ? 'Description' : 'Caption';
+      var ta = document.createElement('textarea');
+      ta.id = 'cap-'+p.id;
+      ta.rows = 4;
+      ta.value = (cap && cap.caption) || '';
+      ta.placeholder = 'Generate captions above, or write it here.';
+      ta.addEventListener('input', function(){
+        social.captions[p.id] = social.captions[p.id] || {};
+        social.captions[p.id].caption = this.value;
+        updateCount(p);
+        updatePostButton();
+      });
+      f.appendChild(lab); f.appendChild(ta);
+      sec.appendChild(f);
+
+      if(cap && cap.hashtags && cap.hashtags.length){
+        var tags = document.createElement('div');
+        tags.className = 'tags';
+        cap.hashtags.forEach(function(h){
+          var t=document.createElement('span'); t.className='tag'; t.textContent=h; tags.appendChild(t);
+        });
+        sec.appendChild(tags);
+      }
+
+      if(cap && cap.problems && cap.problems.length){
+        var prob = document.createElement('p');
+        prob.className = 'sub';
+        prob.style.color = 'var(--neg)';
+        prob.style.marginTop = '.5rem';
+        prob.textContent = 'Needs attention: ' + cap.problems.join('; ') + '.';
+        sec.appendChild(prob);
+      }
+
+      wrap.appendChild(sec);
+      updateCount(p);
+    });
+
+    updatePostButton();
+  }
+
+  /* Counting here rather than trusting the model, and counting the composed
+     text rather than the caption alone, because hashtags come out of the same
+     budget on every one of these platforms. */
+  function updateCount(p){
+    var el = $('count-'+p.id); if(!el) return;
+    var cap = social.captions[p.id] || {};
+    var tags = cap.hashtags || [];
+    var body = (cap.caption || '');
+    var total = body.length + (tags.length ? tags.join(' ').length + 2 : 0);
+    el.textContent = total + ' / ' + p.captionLimit;
+    el.classList.toggle('over', total > p.captionLimit);
+  }
+
+  function updatePostButton(){
+    var btn = $('sp-post');
+    var chosen = social.platforms.filter(function(p){ return p.configured && social.selected[p.id]; });
+    var haveCaptions = chosen.every(function(p){
+      var c = social.captions[p.id];
+      return c && c.caption && c.caption.trim();
+    });
+    var ready = !!social.blobUrl && chosen.length > 0 && haveCaptions && !social.posting;
+    btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+    btn.textContent = chosen.length
+      ? 'Post to ' + chosen.length + ' platform' + (chosen.length===1?'':'s')
+      : 'Post to selected platforms';
+
+    var why = [];
+    if(!social.blobUrl) why.push('upload a video');
+    if(!chosen.length) why.push('select a platform');
+    if(chosen.length && !haveCaptions) why.push('every selected platform needs a caption');
+    $('sp-sub').textContent = why.length
+      ? 'Still needed: ' + why.join(', ') + '.'
+      : 'Nothing is sent until you press this.';
+  }
+
+  /* ------------------------------------------------------------ upload ---- */
+  function resetVideo(){
+    social.blobUrl = null; social.file = null;
+    $('sv-ready').hidden = true;
+    $('sv-progress-wrap').hidden = true;
+    $('sv-drop').hidden = false;
+    $('sv-file').value = '';
+    updatePostButton();
+  }
+
+  async function uploadVideo(file){
+    if(!file) return;
+    if(!/^video\//.test(file.type)){
+      $('sv-progress-label').textContent = 'That is not a video file.';
+      $('sv-progress-wrap').hidden = false;
+      return;
+    }
+
+    social.file = file;
+    $('sv-drop').hidden = true;
+    $('sv-progress-wrap').hidden = false;
+    $('sv-bar-fill').style.width = '0%';
+    $('sv-progress-label').textContent = 'Preparing ' + file.name + ' (' + fmtBytes(file.size) + ')…';
+
+    try {
+      var sdk = await loadBlobSdk();
+      var blob = await sdk.upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/social-upload',
+        onUploadProgress: function(p){
+          var pct = Math.round(p.percentage || 0);
+          $('sv-bar-fill').style.width = pct + '%';
+          $('sv-bar').setAttribute('aria-valuenow', String(pct));
+          $('sv-progress-label').textContent = 'Uploading ' + file.name + ' — ' + pct + '%';
+        }
+      });
+
+      social.blobUrl = blob.url;
+      $('sv-progress-wrap').hidden = true;
+      $('sv-ready').hidden = false;
+      $('sv-name').textContent = file.name;
+      $('sv-meta').textContent = fmtBytes(file.size) + ' · uploaded';
+      var v = $('sv-preview');
+      v.src = URL.createObjectURL(file);
+      updatePostButton();
+    } catch (e) {
+      $('sv-progress-wrap').hidden = false;
+      var msg = (e && e.message) ? e.message : 'Upload failed.';
+      // The most likely first-run failure, and unhelpful in its raw form.
+      if(/BLOB_READ_WRITE_TOKEN|store/i.test(msg)){
+        msg = 'No Blob store is connected. Create one in Vercel → Storage and redeploy.';
+      }
+      $('sv-progress-label').textContent = msg;
+      $('sv-drop').hidden = false;
+    }
+  }
+
+  /* ---------------------------------------------------------- captions ---- */
+  function generateCaptions(){
+    var context = $('sc-context').value.trim();
+    if(context.length < 10){
+      $('sc-status').textContent = 'Describe the video first — a sentence is enough.';
+      return;
+    }
+    var btn = $('sc-generate');
+    btn.setAttribute('aria-disabled','true');
+    $('sc-status').textContent = 'Writing captions…';
+
+    fetch('/api/social-captions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        context: context,
+        tone: $('sc-tone').value.trim(),
+        link: $('sc-link').value.trim(),
+        platforms: social.platforms.map(function(p){ return p.id; })
+      })
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(o){
+        if(!o.ok){ $('sc-status').textContent = o.j.message || 'Could not generate captions.'; return; }
+        social.captions = o.j.captions || {};
+        renderPlatforms();
+        var flagged = Object.keys(social.captions).filter(function(k){
+          return (social.captions[k].problems || []).length;
+        });
+        $('sc-status').textContent = flagged.length
+          ? 'Written. ' + flagged.length + ' need a look before posting.'
+          : 'Written. Edit anything below before posting.';
+      })
+      .catch(function(){ $('sc-status').textContent = 'Could not reach the server.'; })
+      .then(function(){ btn.removeAttribute('aria-disabled'); });
+  }
+
+  /* ------------------------------------------------------------- post ----- */
+  function postEverywhere(){
+    if($('sp-post').getAttribute('aria-disabled') === 'true') return;
+
+    var posts = {};
+    social.platforms.forEach(function(p){
+      if(!p.configured || !social.selected[p.id]) return;
+      var c = social.captions[p.id] || {};
+      posts[p.id] = { caption: c.caption || '', hashtags: c.hashtags || [], title: c.title || '' };
+    });
+
+    social.posting = true;
+    updatePostButton();
+    $('sp-status').textContent = 'Posting…';
+    $('sp-results').innerHTML = '';
+
+    fetch('/api/social-publish', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ videoUrl: social.blobUrl, posts: posts })
+    })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(o){
+        if(!o.ok){ $('sp-status').textContent = o.j.message || 'Could not post.'; return; }
+        var sum = o.j.summary || {};
+        $('sp-status').textContent =
+          sum.posted + ' of ' + sum.requested + ' posted' + (sum.failed ? ', ' + sum.failed + ' failed.' : '.');
+
+        // Per platform, because a partial success is the normal outcome here
+        // and a single summary line would hide which one needs attention.
+        var box = $('sp-results');
+        Object.keys(o.j.results).forEach(function(id){
+          var r = o.j.results[id];
+          var p = social.platforms.filter(function(x){ return x.id===id; })[0] || {label:id};
+          var row = document.createElement('div');
+          row.className = 'result-row';
+          var mark = document.createElement('span');
+          mark.className = 'result-mark ' + (r.ok ? 'ok-mark' : 'bad-mark');
+          mark.textContent = r.ok ? '✓' : '✕';
+          mark.setAttribute('aria-hidden','true');
+          var text = document.createElement('div');
+          var strong = document.createElement('strong');
+          strong.textContent = p.label + (r.ok ? ' — posted' : ' — failed') + '. ';
+          var msg = document.createElement('span');
+          msg.className = 'sub';
+          msg.textContent = r.message || '';
+          text.appendChild(strong); text.appendChild(msg);
+          if(r.url){
+            var a = document.createElement('a');
+            a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+            a.textContent = ' View';
+            a.style.color = 'var(--accent-d)';
+            text.appendChild(a);
+          }
+          row.appendChild(mark); row.appendChild(text);
+          box.appendChild(row);
+        });
+      })
+      .catch(function(){ $('sp-status').textContent = 'Could not reach the server.'; })
+      .then(function(){ social.posting = false; updatePostButton(); });
+  }
+
+  /* ------------------------------------------------------------- wiring --- */
+  function bootSocial(){
+    var tabs = [].slice.call(document.querySelectorAll('#subtabs button'));
+    tabs.forEach(function(btn, i){
+      btn.addEventListener('click', function(){ showPane(btn.dataset.pane); });
+      btn.addEventListener('keydown', function(ev){
+        var to = null;
+        if(ev.key === 'ArrowRight') to = tabs[(i+1) % tabs.length];
+        else if(ev.key === 'ArrowLeft') to = tabs[(i-1+tabs.length) % tabs.length];
+        if(!to) return;
+        ev.preventDefault(); to.focus(); showPane(to.dataset.pane);
+      });
+    });
+
+    $('sv-file').addEventListener('change', function(){ uploadVideo(this.files[0]); });
+    $('sv-clear').addEventListener('click', resetVideo);
+
+    var drop = $('sv-drop');
+    ['dragenter','dragover'].forEach(function(t){
+      drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add('is-over'); });
+    });
+    ['dragleave','drop'].forEach(function(t){
+      drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove('is-over'); });
+    });
+    drop.addEventListener('drop', function(e){
+      if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) uploadVideo(e.dataTransfer.files[0]);
+    });
+
+    $('sc-generate').addEventListener('click', generateCaptions);
+    $('sp-post').addEventListener('click', postEverywhere);
+  }
+
   /* ================================= boot ================================= */
   function boot(){
     renderSeriesRows();
@@ -1408,6 +1983,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       });
     });
     applyView();
+
+    bootSocial();
 
     $('live-toggle').addEventListener('click', function(){ setAuto(!state.auto); });
     setAuto(true, true);
