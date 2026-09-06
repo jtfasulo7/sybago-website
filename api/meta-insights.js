@@ -440,14 +440,22 @@ export default async function handler(req, res) {
       });
     }
 
-    const names = [...new Set(Object.values(VIEWS).flatMap((v) => v.tokenEnv))];
+    // Includes the POSTING credentials, not just the ads ones. Publishing
+    // belongs in its own Meta app: App Review is per app and per permission, so
+    // an app awaiting review for pages_manage_posts cannot disturb the ads
+    // dashboard, and a revoked posting token does not take insights down.
+    const names = [...new Set([
+      ...Object.values(VIEWS).flatMap((v) => v.tokenEnv),
+      'FB_PAGE_ACCESS_TOKEN',
+      'IG_ACCESS_TOKEN',
+    ])];
     const tokens = [];
 
     for (const name of names) {
       const value = (process.env[name] || '').trim();
       if (!value) { tokens.push({ envName: name, configured: false }); continue; }
 
-      const entry = { envName: name, configured: true };
+      const entry = { envName: name, configured: true, purpose: /PAGE|IG_/.test(name) ? 'posting' : 'ads' };
 
       // Which scopes the token actually carries. Publishing needs more than
       // reading insights does, so a token that works for the dashboard can
