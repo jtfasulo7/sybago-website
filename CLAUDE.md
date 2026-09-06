@@ -215,6 +215,32 @@ campaigns. Not linked from anywhere on the site.
 - Both passwords are compared before either result is used, and a deployment that sets them
   to the same string does **not** promote the standard password to master.
 
+**Meta tokens — one or two**
+
+A Meta token is scoped to a **user**, not to an ad account. One token reads every ad
+account that user holds a role on, so two dashboards on two different ad accounts still
+normally need only `META_ADS_TOKEN`. A second token is required only when the accounts
+sit under Business Managers with no user in common.
+
+Each view therefore names its token with a fallback (`tokenEnv` in the `VIEWS` registry):
+
+| View | Token used |
+|---|---|
+| `dave` | `META_ADS_TOKEN_DAVE` if set, else `META_ADS_TOKEN` |
+| `sybago` | `META_ADS_TOKEN_SYBAGO` if set, else `META_ADS_TOKEN` |
+
+- `buildUrl()` takes the token as an argument. Do not make it read the environment
+  again — which account is queried and which credential is used must be decided together.
+- `scrubSecrets()` iterates `allTokens()`. **If you add another token variable, add it to
+  a view's `tokenEnv`**, or it becomes the one credential the safety net does not catch.
+- Responses carry `tokenSource` — the variable NAME only, never any part of the value.
+- `?debug=accounts` (master only) lists what each configured token can read and whether
+  each view's account id is among them. Use it before concluding a second token is needed.
+
+**The role is fixed at sign-in.** It is baked into the signed cookie, which lasts 12 hours.
+Setting `DASHBOARD_MASTER_PASSWORD` does not upgrade a session that is already open —
+sign out and sign back in with the master password, or the tab bar stays hidden.
+
 **Theming**
 
 - Every colour that differs between the two views is a token on `:root`, overridden wholesale
