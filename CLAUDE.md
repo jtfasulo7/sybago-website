@@ -487,6 +487,69 @@ Instagram ids and check which scopes a token actually holds.
   streams blob → function → Google without buffering, but a large file can still exceed
   the function time limit. That is the known weak point.
 
+---
+
+## FINANCES (/dashboard → Peps by Dave → Finances)
+
+Cash flow for Dave's business: what is coming in against what is going out, this month.
+Sits behind the same sub-tabs as Social post, so it is **Dave's view only** and hidden
+entirely on Montara Forge.
+
+| File | Role |
+|---|---|
+| `api/finance.js` | Reads current budgets from Meta, projects the month, merges the entered figures. |
+| `lib/finance/config.js` | The entered figures: Skool MRR, fixed recurring costs. |
+| `test/finance.test.mjs` | `node test/finance.test.mjs` — no creds, no network. |
+
+**Two kinds of figure, kept visibly apart.** Every row carries a `live` or `entered` tag.
+That is not decoration — a stale number nobody can tell is stale is worse than a blank. Do
+not remove the tags or merge the two kinds into one undifferentiated table.
+
+**Ad spend is a PROJECTION from the budgets set right now**, not last month's spend. That is
+what makes changing a budget in Ads Manager change this page, which was the requirement.
+Month-to-date actual spend is fetched alongside it and shown under the budget table, because
+a projection with nothing to check it against is a guess with a decimal point.
+
+Things that are easy to get wrong here, all covered by tests:
+
+- **Meta returns budgets in MINOR UNITS.** A `daily_budget` of `1000` is ten dollars. Reading
+  it as whole currency overstates the costs a hundredfold and the page still looks entirely
+  normal. `minorToMajor()` is the only place that conversion happens.
+- **Campaign budget optimisation vs ad set budgets.** A CBO campaign holds the budget and its
+  ad sets hold none, but Meta returns both objects. Summing both levels doubles the total, so
+  a campaign with a budget short-circuits its ad sets.
+- **A lifetime budget is a total, not a monthly rate.** It is listed and warned about, never
+  multiplied by the days in the month.
+- **The month is the real number of days in the current month**, not a flat 30.4. A page whose
+  job is cash flow should agree with the bank statement, and February does not cost the same
+  as March.
+- **Only entities whose effective status is ACTIVE count.** An active ad set under a paused
+  campaign spends nothing. Paused work is still listed — the page shows what exists — but it
+  contributes zero.
+- **Margin on zero revenue is `null`, not zero.** The UI renders it as an em dash.
+
+**Skool has no public API.** No REST, no webhooks, no analytics export. Stripe is the only
+programmatic surface, via Skool's payment flow. Until that is wired, MRR is entered:
+`SKOOL_MRR` as an environment variable, falling back to `SKOOL_MRR_DEFAULT` in
+`lib/finance/config.js`. The response reports `skoolMrrSource` so the page can never imply a
+typed figure was fetched. Do not go looking for a Skool API — there isn't one.
+
+**Recurring costs live in `RECURRING_COSTS`.** Monthly, whole currency units. The `note` field
+is load-bearing: six months from now it is the only thing that explains why a line exists.
+Higgsfield is seeded at `amount: 0` pending a confirmed figure.
+
+**`buildRichTable()` exists because these rows carry markup** — source tags and signed,
+coloured figures — which `buildTable()`'s `textContent` cannot express. Its cell strings are
+built in the page, never from user input.
+
+**The sticky time selector is pane-aware.** `#controls` lives inside the Performance pane, so
+on any other pane its rect is all zeros, which reads as "scrolled past" and floats a date
+picker over a page it does not drive. `evaluate()` therefore tests
+`social.pane === 'performance'` first, and `showPane()` re-runs it — no scroll event fires on
+a tab click.
+
+---
+
 ## WORKING RULES
 
 - Match the existing design language exactly. Do not introduce a new component pattern,
