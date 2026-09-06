@@ -292,5 +292,86 @@ t('hashtags are appended, not interleaved', () =>
 t('no trailing whitespace when there are no hashtags', () =>
   assert.equal(adapters.fullCaption({ caption: 'Body.', hashtags: [] }), 'Body.'));
 
+
+/* --------------------------------------------------- one Meta credential ---- */
+console.log('\nOne Meta token serves both Meta platforms');
+
+t('Facebook needs its page id and a token', () =>
+  assert.deepEqual(platforms.missingEnv('facebook', {}), ['FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN']));
+
+t('Instagram falls back to the Facebook token', () =>
+  assert.equal(
+    platforms.isConfigured('instagram', { IG_USER_ID: '1', FB_PAGE_ACCESS_TOKEN: 'x' }),
+    true,
+  ));
+
+t('Instagram is still fine with its own token', () =>
+  assert.equal(
+    platforms.isConfigured('instagram', { IG_USER_ID: '1', IG_ACCESS_TOKEN: 'x' }),
+    true,
+  ));
+
+t('a dedicated Instagram token wins over the shared one', () =>
+  assert.equal(
+    platforms.resolveTokenName('instagram', { IG_ACCESS_TOKEN: 'a', FB_PAGE_ACCESS_TOKEN: 'b' }),
+    'IG_ACCESS_TOKEN',
+  ));
+
+// Naming every fallback would read as "set all of these" when any one will do.
+t('only one token variable is asked for when none is set', () =>
+  assert.deepEqual(platforms.missingEnv('instagram', { IG_USER_ID: '1' }), ['IG_ACCESS_TOKEN']));
+
+t('an id is still required even when the token is shared', () =>
+  assert.equal(platforms.isConfigured('instagram', { FB_PAGE_ACCESS_TOKEN: 'x' }), false));
+
+/* THE FAILURE THIS PREVENTS: Meta hands out user tokens and page tokens that
+   look identical in a config field, and the wrong one fails at publish time
+   with something that reads like a missing permission. */
+process.env.FB_PAGE_ID = '123';
+process.env.FB_PAGE_ACCESS_TOKEN = 'USER-TOKEN-not-a-page-token';
+{
+  const seen = [];
+  globalThis.fetch = async (u, o) => {
+    const url = String(u);
+    seen.push(url);
+    if (url.includes('/videos')) return { ok: true, status: 200, json: async () => ({ id: 'fb_9' }) };
+    // The Page hands back its own token when asked with a user token.
+    return { ok: true, status: 200, json: async () => ({ access_token: 'REAL-PAGE-TOKEN' }) };
+  };
+  const r = mockRes();
+  await publish({
+    method: 'POST',
+    headers: { cookie },
+    body: { videoUrl: BLOB, posts: { facebook: { caption: 'hi' } } },
+  }, r);
+
+  t('a user token is exchanged for the page token before publishing', () =>
+    assert.ok(seen.some((u) => u.includes('fields=access_token'))));
+  t('the publish call uses the exchanged token', () => {
+    const post = seen.find((u) => u.includes('/videos'));
+    assert.ok(post, 'no publish call was made');
+  });
+  t('publishing still succeeds', () => assert.equal(r.body.results.facebook.ok, true));
+}
+
+// If the exchange fails, the configured token is used rather than nothing.
+{
+  globalThis.fetch = async (u) => {
+    const url = String(u);
+    if (url.includes('fields=access_token')) {
+      return { ok: false, status: 400, json: async () => ({ error: { message: 'nope' } }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ id: 'fb_10' }) };
+  };
+  const r = mockRes();
+  await publish({
+    method: 'POST',
+    headers: { cookie },
+    body: { videoUrl: BLOB, posts: { facebook: { caption: 'hi' } } },
+  }, r);
+  t('a failed token exchange falls back rather than breaking the post', () =>
+    assert.equal(r.body.results.facebook.ok, true));
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
