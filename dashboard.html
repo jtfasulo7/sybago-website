@@ -121,7 +121,13 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 
 .statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
 .statusbar #status { margin:0; }
-.attrib-note { font-size:.8rem; line-height:1.5; max-width:78ch; margin-bottom:.9rem; color:var(--t3); }
+/* Collapsed by default: it is the answer to a question you ask once, and left
+   open it costs most of a phone screen before the first number. */
+.attrib-note { margin-bottom:.9rem; }
+.attrib-note > summary { display:inline-flex; align-items:center; gap:.35rem; cursor:pointer; font-size:.8rem; color:var(--t3); width:fit-content; }
+.attrib-note > summary::marker { color:var(--t3); }
+.attrib-note > summary:hover { color:var(--teal-d); }
+.attrib-note > p { font-size:.8rem; line-height:1.55; max-width:78ch; margin-top:.4rem; color:var(--t3); }
 
 /* Live pill. The dot is the state: filled and pulsing while auto-refresh is
    on, hollow when it is off, so the state is not carried by colour alone. */
@@ -262,7 +268,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
   .statusbar { gap:.4rem .6rem; }
-  .attrib-note { font-size:.78rem; }
+  .attrib-note > summary, .attrib-note > p { font-size:.78rem; }
   .series-bar { gap:.4rem .5rem; }
   #ts-series { width:100%; }
   .series-row { width:100%; }
@@ -360,7 +366,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <span class="live-dot" aria-hidden="true"></span><span id="live-label">Live</span>
       </button>
     </div>
-    <p class="sub attrib-note">Meta keeps attributing conversions for up to about three days, so today's and yesterday's sign-up counts rise after the fact. Meta also only counts a sign-up it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, joins on Skool without appearing here.</p>
+    <details class="attrib-note">
+      <summary>Why a sign-up count can look low</summary>
+      <p>Meta keeps attributing conversions for up to about three days, so today's and yesterday's sign-up counts rise after the fact. Meta also only counts a sign-up it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, joins on Skool without ever appearing here. Expect this figure to sit below Skool's own member count.</p>
+    </details>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
 
