@@ -125,23 +125,29 @@ const LANDING_PAGE_VIEW_TYPES = ['landing_page_view'];
  * dead token and a missing permission and a bad account id should not all
  * surface as "request failed".
  */
-function classifyMetaError(err, status) {
+// Default names, used when a caller has no more specific pair — the account
+// and token variables the shared single-account setup uses.
+const DEFAULT_ENV = { tokenEnv: 'META_ADS_TOKEN', accountEnv: 'META_AD_ACCOUNT_ID' };
+
+function classifyMetaError(err, status, env = DEFAULT_ENV) {
   const code = err?.code;
   const sub = err?.error_subcode;
   const msg = err?.message || 'Unknown error from Meta.';
+  const TOKEN = env.tokenEnv || DEFAULT_ENV.tokenEnv;
+  const ACCOUNT = env.accountEnv || DEFAULT_ENV.accountEnv;
 
   if (code === 190) {
     if (sub === 463) {
-      return { http: 401, error: 'token_expired', message: 'The Meta access token has expired. Generate a new System User token and update META_ADS_TOKEN.', metaMessage: msg };
+      return { http: 401, error: 'token_expired', message: `The Meta access token has expired. Generate a new System User token and update ${TOKEN}.`, metaMessage: msg };
     }
     if (sub === 467) {
-      return { http: 401, error: 'token_invalidated', message: 'The Meta access token was invalidated (password change, or the token was revoked). Generate a new one and update META_ADS_TOKEN.', metaMessage: msg };
+      return { http: 401, error: 'token_invalidated', message: `The Meta access token was invalidated (password change, or the token was revoked). Generate a new one and update ${TOKEN}.`, metaMessage: msg };
     }
-    return { http: 401, error: 'token_invalid', message: 'Meta rejected the access token. Check that META_ADS_TOKEN is the System User token and was copied in full.', metaMessage: msg };
+    return { http: 401, error: 'token_invalid', message: `Meta rejected the access token. Check that ${TOKEN} is the System User token and was copied in full.`, metaMessage: msg };
   }
 
   if (code === 200 || code === 10 || code === 294) {
-    return { http: 403, error: 'insufficient_permission', message: 'The token is valid but lacks permission. Confirm the System User has the ads_read scope AND has been assigned this ad account with View Performance in Business Settings.', metaMessage: msg };
+    return { http: 403, error: 'insufficient_permission', message: `The token in ${TOKEN} is valid but cannot read this ad account. If the account is in the same Meta business as that token, assign the System User to it with View Performance (ads_read) in Business Settings. If it belongs to a different business, assignment cannot help — generate a token inside that business and set it there instead.`, metaMessage: msg };
   }
 
   if (code === 17 || code === 4 || code === 32 || code === 613 || (code >= 80000 && code <= 80014)) {
@@ -150,7 +156,7 @@ function classifyMetaError(err, status) {
 
   if (code === 100) {
     if (/unsupported get request|does not exist|cannot be loaded/i.test(msg)) {
-      return { http: 400, error: 'account_not_found', message: `Meta could not load this ad account. Check META_AD_ACCOUNT_ID is correct and prefixed with "act_", and that the System User has been assigned it.`, metaMessage: msg };
+      return { http: 400, error: 'account_not_found', message: `Meta could not load this ad account. Check ${ACCOUNT} is correct and prefixed with "act_", and that the token in ${TOKEN} belongs to a business that can see it.`, metaMessage: msg };
     }
     if (/version/i.test(msg)) {
       return { http: 400, error: 'api_version_unsupported', message: `Graph API ${API_VERSION} was rejected. Set META_API_VERSION in the Vercel environment to a currently supported version.`, metaMessage: msg };
@@ -170,7 +176,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * can plausibly succeed later: transport failures, 5xx, 429, and Meta's own
  * throttling codes. A bad token is never retried — it will never succeed.
  */
-async function fetchWithBackoff(url, { retries = 3 } = {}) {
+async function fetchWithBackoff(url, { retries = 3, env = DEFAULT_ENV } = {}) {
   let lastErr = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -205,7 +211,7 @@ async function fetchWithBackoff(url, { retries = 3 } = {}) {
       return { json, usage: resp.headers.get('x-business-use-case-usage') };
     }
 
-    const classified = classifyMetaError(json?.error, resp.status);
+    const classified = classifyMetaError(json?.error, resp.status, env);
     lastErr = classified;
 
     const retryable =
@@ -386,7 +392,9 @@ export default async function handler(req, res) {
           const u = new URL(`https://graph.facebook.com/${API_VERSION}/${acct.id}`);
           u.searchParams.set('fields', 'id,name,account_status,currency');
           u.searchParams.set('access_token', tok.value);
-          const { json } = await fetchWithBackoff(u.toString());
+          const { json } = await fetchWithBackoff(u.toString(), {
+            env: { tokenEnv: tok.envName, accountEnv: acct.envName },
+          });
           entry.reachable = true;
           entry.accountName = json.name || null;
           entry.currency = json.currency || null;
@@ -418,10 +426,13 @@ export default async function handler(req, res) {
   const account = resolveAccount(view);
   const tokenHit = resolveToken(view);
   const token = tokenHit.value;
+  // Carried into every Meta call so a failure names the variables for THIS
+  // dashboard rather than the other one's.
+  const envNames = { tokenEnv: tokenHit.envName, accountEnv: account.envName };
 
   if (!token || !account.id) {
     const missing = [];
-    if (!token) missing.push('META_ADS_TOKEN');
+    if (!token) missing.push(`${tokenHit.envName} (for the "${VIEWS[view].label}" dashboard)`);
     if (!account.id) missing.push(`${account.envName} (for the "${VIEWS[view].label}" dashboard)`);
     return res.status(500).json({
       error: 'server_misconfigured',
@@ -492,6 +503,7 @@ export default async function handler(req, res) {
           ...attribution,
           ...filterParam,
         }, token),
+        { env: envNames },
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
@@ -505,6 +517,7 @@ export default async function handler(req, res) {
           ...attribution,
           ...filterParam,
         }, token),
+        { env: envNames },
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
@@ -513,6 +526,7 @@ export default async function handler(req, res) {
           time_range,
           limit: '500',
         }, token),
+        { env: envNames },
       ),
     ]);
 

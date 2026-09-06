@@ -428,5 +428,60 @@ t('the summary says no extra token is needed when all are reachable', () =>
 t('no token value appears in the diagnostic', () =>
   assert.ok(!JSON.stringify(res.body).includes('FAKE_TOKEN')));
 
+
+/* ------------------------------------- error messages name the right var -- */
+console.log('\nErrors name the failing credential');
+
+// The two dashboards read two UNRELATED Meta businesses. An expired agency
+// token that tells someone to regenerate META_ADS_TOKEN points them at the
+// other business's credential entirely — so the variable in the message has to
+// follow the view that failed.
+process.env.META_ADS_TOKEN_SYBAGO = 'AGENCY_TOKEN_never_in_output_5555';
+
+globalThis.fetch = stubErr(400, { code: 190, error_subcode: 463, message: 'Session has expired' });
+
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+t('an expired agency token names the agency variable', () =>
+  assert.match(res.body.message, /META_ADS_TOKEN_SYBAGO/));
+t("it does not name the other business's token", () =>
+  assert.ok(!/META_ADS_TOKEN\b(?!_SYBAGO)/.test(res.body.message)));
+
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'dave' }, headers: { cookie: masterCookie } }, res);
+t("an expired token on Dave's view names the shared variable", () =>
+  assert.ok(/META_ADS_TOKEN/.test(res.body.message) && !/SYBAGO/.test(res.body.message)));
+
+// A cross-business permission failure must not send someone to Business
+// Settings for an assignment that cannot exist.
+globalThis.fetch = stubErr(403, { code: 200, message: 'Permissions error' });
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+t('a permission error explains the cross-business case too', () =>
+  assert.match(res.body.message, /different business/i));
+t('and still names the token variable that failed', () =>
+  assert.match(res.body.message, /META_ADS_TOKEN_SYBAGO/));
+
+// A bad account id should name that view's account variable.
+globalThis.fetch = stubErr(400, { code: 100, message: 'Unsupported get request; object does not exist' });
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+t("an unloadable account names that view's account variable", () =>
+  assert.match(res.body.message, /META_ADS_ACCOUNT_ID_SYBAGO/));
+
+// A missing token must name the variable for the dashboard being asked for.
+{
+  const savedShared = process.env.META_ADS_TOKEN;
+  delete process.env.META_ADS_TOKEN_SYBAGO;
+  delete process.env.META_ADS_TOKEN;
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('a missing token is reported against the right dashboard', () =>
+    assert.ok(r.code === 500 && /Montara Forge/.test(r.body.message)));
+  process.env.META_ADS_TOKEN = savedShared;
+}
+
+delete process.env.META_ADS_TOKEN_SYBAGO;
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

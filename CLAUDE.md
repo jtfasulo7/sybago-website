@@ -217,6 +217,11 @@ campaigns. Not linked from anywhere on the site.
 
 **Meta tokens — one or two**
 
+**In this deployment the two dashboards read two UNRELATED Meta businesses.** Dave's ads run
+in a business partner's Meta entity; Montara Forge runs under Fasulo Studio. There is no shared
+business, so asset assignment cannot bridge them and `META_ADS_TOKEN_SYBAGO` is genuinely
+required — it is not an optional convenience here.
+
 A Meta token is scoped to a **user**, not to an ad account. One token reads every ad
 account that user holds a role on, so two dashboards on two different ad accounts still
 normally need only `META_ADS_TOKEN`. A second token is required only when the accounts
@@ -234,6 +239,10 @@ Each view therefore names its token with a fallback (`tokenEnv` in the `VIEWS` r
 - `scrubSecrets()` iterates `allTokens()`. **If you add another token variable, add it to
   a view's `tokenEnv`**, or it becomes the one credential the safety net does not catch.
 - Responses carry `tokenSource` — the variable NAME only, never any part of the value.
+- Every Meta error message names the variables for the view that failed, via the `env` option
+  threaded through `fetchWithBackoff`. Do not hardcode `META_ADS_TOKEN` in an error string:
+  telling someone to regenerate it when the agency token expired points them at a different
+  company's credential.
 - `?debug=accounts` (master only) asks for each view's ad account using the token that view
   would actually use, and returns a plain-language summary. Use it before concluding a second
   token is needed. It must probe the account DIRECTLY — an earlier version asked
