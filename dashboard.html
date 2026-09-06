@@ -2,219 +2,207 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#eef2f4">
 <title>Ads Dashboard — Sybago</title>
 <link rel="icon" type="image/png" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- Chart.js — MUST be the .umd. build.
-     cdnjs ships four files for v4.5.1: chart.js and chart.min.js are ES
-     MODULES, and loading either as a classic script dies with "Cannot use
-     import statement outside a module". chart.umd.min.js is the classic build
-     and is the only one usable here, since this page has no bundler and no
-     type="module".
-     Pinned with SRI: this is third-party code running on a page that displays
-     ad spend behind a login, so if the CDN were compromised a hash mismatch
-     stops the script rather than letting it read the page. Hash verified
-     against the served bytes. -->
+     cdnjs ships four files for v4.5.1: chart.js and chart.min.js are ES MODULES,
+     and loading either as a classic script dies with "Cannot use import
+     statement outside a module". chart.umd.min.js is the classic build and the
+     only one usable here, since this page has no bundler and no type="module".
+     Pinned with SRI, hash verified against the served bytes: this is
+     third-party code on a page that displays ad spend behind a login. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
         integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
 :root {
-  --bg: #ffffff;
-  --bg-2: #f4f5f7;
-  --bg-3: #eaecef;
-  --t1: #0f1419;
-  --t2: rgba(15,20,25,0.72);
-  --t3: rgba(15,20,25,0.45);
-  --t4: rgba(15,20,25,0.08);
-  --line: rgba(15,20,25,0.08);
-  --teal: #2F6779;
-  --teal-b: #3a7d93;
-  --teal-d: #244e5b;
-  --teal-tint: rgba(47,103,121,0.10);
-  /* Brand fill colours, used for chart fills and borders. */
-  --warn: #e8b04a;
-  --good: #4dbf7a;
-  /* Text-safe variants. The brand warn/good are ~2:1 on white, which is fine
-     for a fill but fails WCAG for text. These darker pairs are used wherever
-     the colour carries words. */
-  --warn-text: #8A5A00;
-  --good-text: #2E7D4F;
-  --bad-text: #A33A26;
-  --ff: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  --eo: cubic-bezier(.16,1,.3,1);
+  /* Brand tokens — unchanged from the rest of the site. */
+  --teal:#2F6779; --teal-b:#3a7d93; --teal-d:#1d4b59;
+  --t1:#0f1419; --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo:cubic-bezier(.16,1,.3,1);
+
+  /* Surfaces. A cool near-white ground with layered translucent panels reads
+     more considered than flat #fff, and gives the glass edges something to
+     catch. */
+  --ground:#eef2f4; --ground-2:#e5ebee;
+  --surface:rgba(255,255,255,.72); --surface-solid:#ffffff;
+  --hairline:rgba(15,20,25,.08); --hairline-2:rgba(255,255,255,.85);
+
+  /* Elevation: a tight contact shadow plus a wide soft one. A single shadow is
+     what makes a card look like a flat outlined box. */
+  --lift-1:0 1px 2px rgba(15,20,25,.05), 0 6px 18px -6px rgba(15,20,25,.10);
+  --lift-2:0 1px 2px rgba(15,20,25,.06), 0 14px 34px -10px rgba(15,20,25,.16);
+
+  /* Text-safe semantics. Brand --good #4dbf7a / --warn #e8b04a sit near 2:1 on
+     white: fine as a chart fill, failing as text. */
+  --neg:#A33A26; --warn-text:#8A5A00;
+
+  --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:26px;
 }
-body { font-family:var(--ff); background:var(--bg); color:var(--t1); -webkit-font-smoothing:antialiased; line-height:1.6; }
 
-/* The [hidden] attribute only hides via the UA stylesheet's [hidden]{display:none},
-   which any author `display:` rule outranks — .notice sets display:flex, so a
-   hidden notice was still rendering as an empty box. This restores the
-   attribute's meaning for every element. */
-[hidden] { display: none !important; }
+html, body { max-width:100%; overflow-x:hidden; overscroll-behavior-x:none; }
+body {
+  font-family:var(--ff); color:var(--t1); line-height:1.55; -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(47,103,121,.13), transparent 62%),
+    radial-gradient(900px 520px at 96% 4%, rgba(58,125,147,.10), transparent 60%),
+    linear-gradient(180deg, var(--ground) 0%, var(--ground-2) 100%);
+  background-attachment:fixed; min-height:100vh;
+}
+main { overflow-x:clip; max-width:1400px; margin:0 auto; padding:1.75rem 1.5rem 6rem; }
 
-/* Visible focus everywhere. Never remove an outline without replacing it. */
-:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
-
-.skip { position:absolute; left:-9999px; top:0; background:var(--teal); color:#fff; padding:.7rem 1.1rem; z-index:100; border-radius:0 0 6px 0; }
+[hidden] { display:none !important; }
+:focus-visible { outline:2.5px solid var(--teal); outline-offset:3px; border-radius:6px; }
+.skip { position:absolute; left:-9999px; top:0; background:var(--teal); color:#fff; padding:.75rem 1.1rem; z-index:200; border-radius:0 0 var(--r-sm) 0; }
 .skip:focus { left:0; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 
-.nav { position:sticky; top:0; z-index:50; padding:.9rem 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; background:rgba(255,255,255,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--t4); }
+.glass {
+  background:var(--surface);
+  backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5);
+  border:1px solid var(--hairline);
+  box-shadow:var(--lift-1), inset 0 1px 0 var(--hairline-2);
+}
+
+.nav {
+  position:sticky; top:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 1.5rem;
+  background:rgba(238,242,244,.78);
+  backdrop-filter:blur(20px) saturate(1.6); -webkit-backdrop-filter:blur(20px) saturate(1.6);
+  border-bottom:1px solid var(--hairline);
+}
 .logo { display:flex; align-items:center; gap:.6rem; text-decoration:none; color:var(--t1); }
-.logo img { height:30px; width:auto; border-radius:8px; }
-.logo span { font-size:1.05rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.logo img { height:28px; border-radius:8px; }
+.logo span { font-size:1rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
 
-main { max-width:1360px; margin:0 auto; padding:2rem 1.5rem 5rem; }
-h1 { font-size:1.9rem; font-weight:800; letter-spacing:-.02em; }
-h2 { font-size:1.15rem; font-weight:700; margin-bottom:.9rem; letter-spacing:-.01em; }
-h3 { font-size:.95rem; font-weight:600; }
-.sub { color:var(--t3); font-size:.92rem; margin-top:.25rem; }
+h1 { font-size:clamp(1.5rem,3.4vw,2.15rem); font-weight:800; letter-spacing:-.03em; }
+h2 { font-size:1.05rem; font-weight:700; letter-spacing:-.015em; }
+.eyebrow { font-size:.7rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+.sub { color:var(--t3); font-size:.9rem; }
 
 button, input, select { font:inherit; color:inherit; }
-.btn-primary { background:var(--teal); color:#fff; border:1px solid var(--teal); border-radius:8px; padding:.6rem 1.1rem; font-weight:600; cursor:pointer; transition:background .18s var(--eo); }
-.btn-primary:hover { background:var(--teal-b); }
-.btn-primary[aria-disabled="true"], .btn-primary:disabled { opacity:.55; cursor:not-allowed; }
-.btn-secondary { background:transparent; color:var(--t1); border:1px solid var(--t4); border-radius:8px; padding:.5rem .9rem; font-weight:600; cursor:pointer; }
-.btn-secondary[aria-pressed="true"] { background:var(--teal-tint); border-color:var(--teal); color:var(--teal); }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; border-radius:var(--r-sm); font-weight:600; cursor:pointer; border:1px solid transparent; padding:.62rem 1.05rem; min-height:44px; transition:transform .2s var(--eo), box-shadow .2s var(--eo), background .2s var(--eo); }
+.btn:active { transform:translateY(1px); }
+.btn-primary { color:#fff; background:linear-gradient(180deg,var(--teal-b),var(--teal)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn-primary:hover { box-shadow:var(--lift-2), inset 0 1px 0 rgba(255,255,255,.28); transform:translateY(-1px); }
+.btn-primary[aria-disabled="true"] { opacity:.6; pointer-events:none; }
+.btn-ghost { background:var(--surface); border-color:var(--hairline); color:var(--t1); box-shadow:inset 0 1px 0 var(--hairline-2); }
+.btn-ghost:hover { background:#fff; box-shadow:var(--lift-1); }
 
-.field { display:flex; flex-direction:column; gap:.3rem; }
-.field label { font-size:.78rem; font-weight:600; color:var(--t2); text-transform:uppercase; letter-spacing:.06em; }
-input[type=date], input[type=text], input[type=password], select { border:1px solid var(--t4); border-radius:8px; padding:.55rem .7rem; background:#fff; min-height:44px; }
+/* Segmented range control — reads as one object, not five buttons. */
+.seg { display:inline-flex; padding:3px; gap:2px; border-radius:var(--r-md); background:rgba(15,20,25,.05); border:1px solid var(--hairline); }
+.seg button { border:0; background:transparent; cursor:pointer; border-radius:calc(var(--r-md) - 4px); padding:.5rem .85rem; font-size:.85rem; font-weight:600; color:var(--t2); min-height:38px; transition:background .2s var(--eo), color .2s var(--eo), box-shadow .2s var(--eo); }
+.seg button:hover { color:var(--t1); }
+.seg button[aria-pressed="true"] { background:var(--surface-solid); color:var(--teal-d); box-shadow:var(--lift-1); }
 
-/* ---- login ---- */
-.login-wrap { max-width:400px; margin:4rem auto; }
-.login-card { border:1px solid var(--t4); border-radius:14px; padding:2rem; background:var(--bg-2); }
+.field { display:flex; flex-direction:column; gap:.35rem; min-width:0; }
+.field label, .field .lbl { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--t3); }
 
-/* ---- controls ---- */
-.controls { display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; padding:1.1rem; border:1px solid var(--t4); border-radius:12px; background:var(--bg-2); margin:1.5rem 0; }
-.presets { display:flex; gap:.4rem; flex-wrap:wrap; }
+select, input[type=date], input[type=text], input[type=password] {
+  appearance:none; -webkit-appearance:none;
+  border:1px solid var(--hairline); border-radius:var(--r-sm);
+  padding:.6rem 2.2rem .6rem .8rem; min-height:44px; width:100%;
+  background:var(--surface-solid);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9), var(--lift-1);
+  transition:border-color .18s var(--eo), box-shadow .18s var(--eo);
+}
+input[type=date], input[type=text], input[type=password] { padding-right:.8rem; }
+select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%232F6779' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
+select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 
-/* ---- kpis ---- */
-.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1rem; margin-bottom:2rem; list-style:none; }
-.kpi { border:1px solid var(--t4); border-radius:12px; padding:1.1rem 1.2rem; background:var(--bg-2); }
-.kpi dt { font-size:.76rem; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.07em; }
-.kpi dd { font-size:1.75rem; font-weight:800; letter-spacing:-.02em; margin-top:.35rem; }
+.toolbar { display:flex; flex-wrap:wrap; gap:1rem 1.15rem; align-items:flex-end; padding:1.15rem 1.25rem; border-radius:var(--r-lg); margin:1.25rem 0 1.75rem; }
 
-/* ---- panels & charts ---- */
-.panel { border:1px solid var(--t4); border-radius:12px; padding:1.3rem; margin-bottom:1.7rem; }
-.chart-box { position:relative; height:340px; }
-details.alt { margin-top:1rem; border-top:1px solid var(--t4); padding-top:.8rem; }
-details.alt summary { cursor:pointer; font-weight:600; font-size:.9rem; color:var(--teal); padding:.35rem 0; }
-details.alt summary:hover { text-decoration:underline; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:.9rem; margin-bottom:1.75rem; }
+.kpi { position:relative; overflow:hidden; border-radius:var(--r-md); padding:1rem 1.05rem; transition:transform .25s var(--eo), box-shadow .25s var(--eo); }
+.kpi:hover { transform:translateY(-2px); box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2); }
+.kpi::after { content:''; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, transparent, rgba(47,103,121,.45), transparent); }
+.kpi-top { display:flex; align-items:center; gap:.5rem; }
+.kpi-ico { width:26px; height:26px; flex:0 0 26px; display:grid; place-items:center; border-radius:8px; background:rgba(47,103,121,.10); color:var(--teal); }
+.kpi-ico svg { width:15px; height:15px; }
+.kpi dt { font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
+.kpi dd { font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.4rem; font-variant-numeric:tabular-nums; }
+.kpi.is-muted dd { color:var(--t3); }
 
-/* ---- tables ---- */
-.table-scroll { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; font-size:.9rem; }
-caption { text-align:left; font-size:.85rem; color:var(--t3); padding-bottom:.6rem; }
-th, td { text-align:right; padding:.6rem .7rem; border-bottom:1px solid var(--t4); white-space:nowrap; }
-th:first-child, td:first-child { text-align:left; white-space:normal; min-width:190px; }
-thead th { font-size:.76rem; text-transform:uppercase; letter-spacing:.06em; color:var(--t2); border-bottom:2px solid var(--t4); background:#fff; position:sticky; top:0; }
-tbody tr:hover { background:var(--teal-tint); }
+.panel { border-radius:var(--r-lg); padding:1.25rem 1.35rem 1.35rem; margin-bottom:1.35rem; }
+.panel-head { display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:flex-start; justify-content:space-between; margin-bottom:1rem; }
+.panel-title { display:flex; align-items:center; gap:.6rem; }
+.panel-ico { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border-radius:10px; color:#fff; background:linear-gradient(180deg,var(--teal-b),var(--teal)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.25); }
+.panel-ico svg { width:17px; height:17px; }
+.panel-ctl { display:flex; flex-wrap:wrap; gap:.7rem; align-items:flex-end; }
+.panel-ctl .field { min-width:142px; }
+
+.chart-box { position:relative; height:clamp(260px,38vh,380px); }
+.chart-box canvas { touch-action:pan-y; }
+
+.readout { min-height:1.55rem; margin-top:.6rem; font-size:.85rem; font-weight:600; color:var(--teal-d); font-variant-numeric:tabular-nums; }
+.readout:empty::before { content:attr(data-hint); color:var(--t3); font-weight:400; }
+
+details.alt { margin-top:.9rem; border-top:1px solid var(--hairline); padding-top:.7rem; }
+details.alt summary { cursor:pointer; font-weight:600; font-size:.85rem; color:var(--teal); padding:.3rem 0; list-style:none; display:flex; align-items:center; gap:.4rem; }
+details.alt summary::-webkit-details-marker { display:none; }
+details.alt summary::before { content:'▸'; transition:transform .2s var(--eo); display:inline-block; }
+details.alt[open] summary::before { transform:rotate(90deg); }
+
+.table-scroll { overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; border-radius:var(--r-sm); }
+table { width:100%; border-collapse:collapse; font-size:.87rem; }
+caption { text-align:left; font-size:.82rem; color:var(--t3); padding-bottom:.55rem; }
+th, td { text-align:right; padding:.6rem .7rem; border-bottom:1px solid var(--hairline); white-space:nowrap; font-variant-numeric:tabular-nums; }
+th:first-child, td:first-child { text-align:left; white-space:normal; min-width:170px; font-variant-numeric:normal; }
+thead th { position:sticky; top:0; z-index:2; background:rgba(255,255,255,.94); backdrop-filter:blur(8px); font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t2); border-bottom:1.5px solid var(--hairline); }
+tbody tr { transition:background .15s var(--eo); }
+tbody tr:hover { background:rgba(47,103,121,.06); }
 th button { background:none; border:0; font:inherit; font-weight:700; cursor:pointer; padding:.15rem .2rem; color:inherit; display:inline-flex; align-items:center; gap:.3rem; }
-th button::after { content:'↕'; opacity:.4; font-size:.85em; }
+th button::after { content:'↕'; opacity:.35; font-size:.85em; }
 th[aria-sort="ascending"] button::after { content:'↑'; opacity:1; }
 th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
-/* ---- notices ---- */
-.notice { border-radius:10px; padding:.85rem 1rem; font-size:.9rem; display:flex; gap:.6rem; align-items:flex-start; margin-bottom:1rem; }
-.notice-info { background:rgba(47,103,121,.08); border:1px solid rgba(47,103,121,.3); color:#1d434f; }
-.notice-warn { background:rgba(138,90,0,.08); border:1px solid rgba(138,90,0,.35); color:var(--warn-text); }
-.notice-error { background:rgba(163,58,38,.07); border:1px solid rgba(163,58,38,.35); color:var(--bad-text); }
-.notice strong { font-weight:700; }
+.notice { border-radius:var(--r-md); padding:.85rem 1rem; font-size:.88rem; display:flex; gap:.65rem; align-items:flex-start; margin-bottom:1rem; border:1px solid; }
+.notice-info { background:rgba(47,103,121,.07); border-color:rgba(47,103,121,.26); color:var(--teal-d); }
+.notice-warn { background:rgba(138,90,0,.07); border-color:rgba(138,90,0,.28); color:var(--warn-text); }
+.notice-error { background:rgba(163,58,38,.06); border-color:rgba(163,58,38,.3); color:var(--neg); }
 
-/* Screen-reader-only, still focusable when needed. */
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.empty { text-align:center; padding:2.5rem 1rem; color:var(--t3); }
+.empty svg { width:34px; height:34px; opacity:.4; margin-bottom:.6rem; }
 
-.legend { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:.8rem; font-size:.85rem; }
-.legend span { display:inline-flex; align-items:center; gap:.45rem; }
-.swatch { width:26px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block; }
+@keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.rise { animation:rise .5s var(--eo) both; }
 
-/* ---- horizontal lock ----
-   Nothing may pan the viewport sideways. overflow-x:hidden alone is not enough
-   on iOS, so the width is also pinned and overscroll in the inline axis is
-   disabled. The .table-scroll containers keep their own internal horizontal
-   scrolling — the wide tables still work, they just cannot drag the page. */
-html, body {
-  max-width: 100%;
-  overflow-x: hidden;
-  overscroll-behavior-x: none;
+.login-wrap { max-width:400px; margin:12vh auto; }
+.login-card { border-radius:var(--r-xl); padding:2.1rem; }
+
+@media (max-width:880px) {
+  main { padding:1.1rem 1rem 4.5rem; }
+  .nav { padding:.7rem 1rem; }
+  .toolbar { flex-direction:column; align-items:stretch; gap:.9rem; padding:1rem; border-radius:var(--r-md); }
+  .toolbar .field { width:100%; }
+  .seg { display:grid; grid-template-columns:repeat(5,1fr); width:100%; }
+  .seg button { padding:.55rem .2rem; font-size:.78rem; min-height:44px; }
+  /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
+     glance on a phone; the charts are for when you sit down with it. */
+  .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .kpi { padding:.8rem .85rem; }
+  .kpi dd { font-size:1.28rem; }
+  .panel { padding:1rem; border-radius:var(--r-md); }
+  .panel-ctl { width:100%; }
+  .panel-ctl .field { flex:1 1 46%; min-width:0; }
+  th, td { padding:.5rem .55rem; font-size:.82rem; }
+  th:first-child, td:first-child { min-width:120px; }
+  #refresh { width:100%; }
 }
-main { overflow-x: clip; }
-.table-scroll { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-
-/* Charts capture horizontal drags for scrubbing while vertical still scrolls
-   the page. Without this the gesture would fight the page scroll. */
-.chart-box canvas { touch-action: pan-y; }
-
-/* Live readout under each chart, updated as a finger traces across it. */
-.readout {
-  min-height: 1.5rem;
-  margin-top: .5rem;
-  font-size: .9rem;
-  font-weight: 600;
-  color: var(--teal-d);
-  font-variant-numeric: tabular-nums;
+@media (max-width:380px) {
+  .kpis { grid-template-columns:1fr; }
+  .panel-ctl .field { flex:1 1 100%; }
 }
-.readout:empty::before { content: attr(data-hint); color: var(--t3); font-weight: 400; }
-
-/* ---- data ordering ----
-   #data-area is a flex column so the running order can change per breakpoint
-   without moving anything in the DOM (which would break the table alternatives
-   sitting inside each chart panel). */
-#data-area { display: flex; flex-direction: column; }
-#kpi-h, .kpis { order: 1; }
-#panel-trend { order: 2; }
-#panel-cmp   { order: 3; }
-#panel-res   { order: 4; }
-#panel-detail{ order: 5; }
-#footer-note { order: 6; }
-
-@media (max-width: 880px) {
-  /* Graphs first on small screens: the shape of the trend is what you want at
-     a glance on a phone, with the numeric breakdown below it. */
-  #panel-trend { order: 1; }
-  #panel-res   { order: 2; }
-  #panel-cmp   { order: 3; }
-  #kpi-h, .kpis { order: 4; }
-  #panel-detail{ order: 5; }
-}
-
-@media (max-width: 720px) {
-  main { padding: 1.25rem 1rem 4rem; }
-  h1 { font-size: 1.45rem; }
-  .nav { padding: .75rem 1rem; }
-
-  /* Controls stack full width — the wrapped flex row was cramped and the
-     targets were small. */
-  .controls { flex-direction: column; align-items: stretch; gap: .9rem; padding: 1rem; }
-  .controls .field { width: 100%; }
-  .controls select, .controls input[type=date] { width: 100%; min-height: 48px; }
-  .controls fieldset { width: 100%; }
-  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
-  .presets .btn-secondary { padding: .7rem .3rem; text-align: center; min-height: 48px; }
-  #refresh { width: 100%; min-height: 50px; }
-
-  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
-  .kpi { padding: .8rem .85rem; }
-  .kpi dd { font-size: 1.3rem; }
-  .kpi dt { font-size: .68rem; }
-
-  .panel { padding: 1rem; }
-  .chart-box { height: 260px; }
-  th, td { padding: .5rem .55rem; font-size: .85rem; }
-  th:first-child, td:first-child { min-width: 130px; }
-}
-
-@media (max-width: 380px) {
-  .kpis { grid-template-columns: 1fr; }
-  .presets { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+@media (prefers-reduced-motion:reduce) { *,*::after,*::before { animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
@@ -222,690 +210,651 @@ main { overflow-x: clip; }
 
 <nav class="nav">
   <a class="logo" href="/"><img src="/logo.png" alt=""><span>Sybago</span></a>
-  <button type="button" id="logout" class="btn-secondary" hidden>Sign out</button>
+  <button type="button" id="logout" class="btn btn-ghost" hidden>Sign out</button>
 </nav>
 
 <main id="main">
 
-  <!-- ============ LOGIN ============ -->
+  <!-- ===================== LOGIN ===================== -->
   <section id="login-view" class="login-wrap" hidden aria-labelledby="login-h">
-    <div class="login-card">
-      <h1 id="login-h">Ads dashboard</h1>
-      <p class="sub">This page shows live ad spend. Sign in to continue.</p>
-      <form id="login-form" style="margin-top:1.4rem; display:flex; flex-direction:column; gap:1rem;">
+    <div class="login-card glass rise">
+      <p class="eyebrow">Internal</p>
+      <h1 id="login-h" style="margin-top:.35rem">Ads dashboard</h1>
+      <p class="sub" style="margin-top:.5rem">This page shows live ad spend. Sign in to continue.</p>
+      <form id="login-form" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:1rem;">
         <div class="field">
           <label for="pw">Password</label>
-          <input type="password" id="pw" name="password" autocomplete="current-password" required
-                 aria-describedby="login-error">
+          <input type="password" id="pw" autocomplete="current-password" required aria-describedby="login-error">
         </div>
         <p id="login-error" class="notice notice-error" role="alert" hidden></p>
-        <button type="submit" class="btn-primary" id="login-btn">Sign in</button>
+        <button type="submit" class="btn btn-primary" id="login-btn">Sign in</button>
       </form>
     </div>
   </section>
 
-  <!-- ============ DASHBOARD ============ -->
+  <!-- ===================== DASHBOARD ===================== -->
   <section id="dash-view" hidden aria-labelledby="dash-h">
-    <header>
-      <h1 id="dash-h">Meta ads performance</h1>
-      <p class="sub" id="account-line">Peps by Dave — Skool sign-up campaigns</p>
+    <header class="rise">
+      <p class="eyebrow">Meta ads</p>
+      <h1 id="dash-h" style="margin-top:.3rem">Performance</h1>
+      <p class="sub" style="margin-top:.35rem" id="account-line">Peps by Dave — Skool sign-up campaigns</p>
     </header>
 
-    <!-- Controls -->
-    <form class="controls" id="controls" aria-label="Filter dashboard data">
-      <fieldset style="border:0; display:flex; flex-direction:column; gap:.4rem;">
-        <legend class="field"><span style="font-size:.78rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;">Quick range</span></legend>
-        <div class="presets" role="group" aria-label="Preset date ranges">
-          <button type="button" class="btn-secondary preset" data-days="7"  aria-pressed="false">7 days</button>
-          <button type="button" class="btn-secondary preset" data-days="14" aria-pressed="false">14 days</button>
-          <button type="button" class="btn-secondary preset" data-days="30" aria-pressed="true">30 days</button>
-          <button type="button" class="btn-secondary preset" data-days="90" aria-pressed="false">90 days</button>
+    <form class="toolbar glass rise" id="controls" aria-label="Global filters">
+      <div class="field" style="flex:0 0 auto;">
+        <span class="lbl" id="range-lbl">Date range</span>
+        <div class="seg" role="group" aria-labelledby="range-lbl" id="range-seg">
+          <button type="button" data-days="7"  aria-pressed="false">7d</button>
+          <button type="button" data-days="14" aria-pressed="false">14d</button>
+          <button type="button" data-days="30" aria-pressed="true">30d</button>
+          <button type="button" data-days="90" aria-pressed="false">90d</button>
+          <button type="button" data-days="custom" aria-pressed="false">Custom</button>
         </div>
-      </fieldset>
+      </div>
 
-      <div class="field">
-        <label for="since">Start date</label>
-        <input type="date" id="since" name="since">
-      </div>
-      <div class="field">
-        <label for="until">End date</label>
-        <input type="date" id="until" name="until">
-      </div>
-      <div class="field">
+      <div class="field" id="custom-from" hidden><label for="since">From</label><input type="date" id="since"></div>
+      <div class="field" id="custom-to" hidden><label for="until">To</label><input type="date" id="until"></div>
+
+      <div class="field" style="flex:1 1 190px;">
         <label for="campaign-pick">Campaign</label>
-        <select id="campaign-pick" name="campaignId">
-          <option value="">All campaigns</option>
-        </select>
+        <select id="campaign-pick"><option value="">All campaigns</option></select>
       </div>
-      <div class="field">
+      <div class="field" style="flex:1 1 190px;">
         <label for="adset-pick">Ad set</label>
-        <select id="adset-pick" name="adsetId" disabled aria-describedby="adset-hint">
-          <option value="">All ad sets</option>
-        </select>
+        <select id="adset-pick" disabled aria-describedby="adset-hint"><option value="">All ad sets</option></select>
         <span id="adset-hint" class="sr-only">Choose a campaign first to narrow by ad set.</span>
       </div>
-      <div class="field">
-        <label for="level">Breakdown level</label>
-        <select id="level" name="level">
-          <option value="campaign" selected>Campaign</option>
-          <option value="adset">Ad set</option>
-          <option value="ad">Ad</option>
-        </select>
-      </div>
-      <button type="submit" class="btn-primary" id="refresh">Refresh data</button>
+
+      <button type="submit" class="btn btn-primary" id="refresh">
+        <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 3v3.5H13"/></svg>
+        Refresh
+      </button>
     </form>
 
-    <!-- Live region: every data change is announced once, politely. -->
-    <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true">Ready.</p>
+    <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true" style="margin-bottom:.75rem">Ready.</p>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
 
-    <!-- Everything below depends on loaded data; hidden until it arrives so an
-         error state does not leave empty headings and blank chart boxes. -->
-    <div id="data-area" hidden>
-    <!-- KPIs -->
-    <h2 id="kpi-h">Totals for the selected range</h2>
-    <dl class="kpis" aria-labelledby="kpi-h" id="kpis"></dl>
+    <!-- KPIs first, on every breakpoint. -->
+    <h2 id="kpi-h" class="sr-only">Totals for the selected range</h2>
+    <dl class="kpis" id="kpis" aria-labelledby="kpi-h"></dl>
 
-    <!-- Trend -->
-    <section class="panel" id="panel-trend" aria-labelledby="trend-h">
-      <h2 id="trend-h">Daily trend</h2>
-      <p class="sub" id="trend-desc">Spend, impressions and link clicks per day across the selected range. Each series uses a different line style as well as a different colour.</p>
-      <div class="legend" id="trend-legend" aria-hidden="true"></div>
-      <div class="chart-box">
-        <canvas id="trend-chart" role="img" aria-labelledby="trend-h" aria-describedby="trend-desc trend-summary"></canvas>
+    <!-- ---------- 1. SCATTER ---------- -->
+    <section class="panel glass" id="panel-scatter" aria-labelledby="sc-h">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="5" cy="14" r="1.6"/><circle cx="10" cy="8" r="1.6"/><circle cx="15" cy="11" r="1.6"/><path d="M2 18h16" stroke-linecap="round"/></svg></span>
+          <div><h2 id="sc-h">Relationship</h2><p class="sub" id="sc-desc">Plot any two metrics against each other.</p></div>
+        </div>
+        <div class="panel-ctl">
+          <div class="field"><label for="sc-x">X axis</label><select id="sc-x"></select></div>
+          <div class="field"><label for="sc-y">Y axis</label><select id="sc-y"></select></div>
+          <div class="field"><label for="sc-dim">Each point is</label><select id="sc-dim"></select></div>
+          <div class="field"><label for="sc-range">Range</label><select id="sc-range"></select></div>
+        </div>
       </div>
-      <p class="readout" id="trend-readout" data-hint="Drag across the chart to read values for a given day."></p>
-      <p id="trend-summary" class="sr-only"></p>
-      <details class="alt">
-        <summary>View daily trend as a table</summary>
-        <div class="table-scroll"><table id="trend-table"><caption>Daily spend, impressions and link clicks. Same data as the chart above.</caption></table></div>
-      </details>
+      <div class="chart-box" id="sc-box"><canvas id="sc-chart" role="img" aria-labelledby="sc-h" aria-describedby="sc-desc sc-summary"></canvas></div>
+      <p class="readout" id="sc-readout" data-hint="Drag across the plot to read each point."></p>
+      <p id="sc-summary" class="sr-only"></p>
+      <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="sc-table"><caption>The same points as the plot above.</caption></table></div></details>
     </section>
 
-    <!-- Comparison -->
-    <section class="panel" id="panel-cmp" aria-labelledby="cmp-h">
-      <h2 id="cmp-h">Spend by <span id="cmp-level">campaign</span></h2>
-      <p class="sub" id="cmp-desc">Total spend compared across the selected breakdown level, highest first.</p>
-      <div class="chart-box">
-        <canvas id="cmp-chart" role="img" aria-labelledby="cmp-h" aria-describedby="cmp-desc cmp-summary"></canvas>
+    <!-- ---------- 2. BAR ---------- -->
+    <section class="panel glass" id="panel-bar" aria-labelledby="bar-h">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 16V9M10 16V4M16 16v-5"/></svg></span>
+          <div><h2 id="bar-h">Comparison</h2><p class="sub" id="bar-desc">One metric compared across a dimension.</p></div>
+        </div>
+        <div class="panel-ctl">
+          <div class="field"><label for="bar-m">Metric</label><select id="bar-m"></select></div>
+          <div class="field"><label for="bar-dim">Compare by</label><select id="bar-dim"></select></div>
+          <div class="field"><label for="bar-range">Range</label><select id="bar-range"></select></div>
+        </div>
       </div>
-      <p class="readout" id="cmp-readout" data-hint="Drag across the bars to read each value."></p>
-      <p id="cmp-summary" class="sr-only"></p>
-      <details class="alt">
-        <summary>View comparison as a table</summary>
-        <div class="table-scroll"><table id="cmp-table"><caption>Spend and cost efficiency per row. Same data as the chart above.</caption></table></div>
-      </details>
+      <div class="chart-box" id="bar-box"><canvas id="bar-chart" role="img" aria-labelledby="bar-h" aria-describedby="bar-desc bar-summary"></canvas></div>
+      <p class="readout" id="bar-readout" data-hint="Drag across the bars to read each value."></p>
+      <p id="bar-summary" class="sr-only"></p>
+      <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="bar-table"><caption>The same values as the chart above.</caption></table></div></details>
     </section>
 
-    <!-- Results -->
-    <section class="panel" id="panel-res" aria-labelledby="res-h">
-      <h2 id="res-h">Results</h2>
-      <p class="sub" id="res-desc">Reported results and cost per result over time.</p>
-      <div class="notice notice-info" id="lag-note">
-        <span aria-hidden="true">ⓘ</span>
-        <span><strong>Conversion figures can lag.</strong> Meta has a documented issue where purchase and conversion values under-report for some date ranges, and attribution continues to fill in for days after a click. Treat a sudden drop in recent days as possibly incomplete rather than a real decline.</span>
+    <!-- ---------- 3. TABLE ---------- -->
+    <section class="panel glass" id="panel-table" aria-labelledby="tb-h">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8.5h14M8 8.5V16"/></svg></span>
+          <div><h2 id="tb-h">Breakdown</h2><p class="sub">Every row, sortable and filterable.</p></div>
+        </div>
+        <div class="panel-ctl">
+          <div class="field"><label for="tb-dim">Level</label><select id="tb-dim"></select></div>
+          <div class="field"><label for="tb-range">Range</label><select id="tb-range"></select></div>
+          <div class="field"><label for="tb-filter">Filter</label><input type="text" id="tb-filter" placeholder="Name contains…" aria-describedby="tb-count"></div>
+        </div>
       </div>
-      <div class="chart-box">
-        <canvas id="res-chart" role="img" aria-labelledby="res-h" aria-describedby="res-desc res-summary"></canvas>
-      </div>
-      <p class="readout" id="res-readout" data-hint="Drag across the chart to read values for a given day."></p>
-      <p id="res-summary" class="sr-only"></p>
-      <details class="alt">
-        <summary>View results as a table</summary>
-        <div class="table-scroll"><table id="res-table"><caption>Daily results and cost per result. Same data as the chart above.</caption></table></div>
-      </details>
+      <p id="tb-count" class="sub" role="status" aria-live="polite" style="margin-bottom:.6rem"></p>
+      <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
 
-    <!-- Detail table -->
-    <section class="panel" id="panel-detail" aria-labelledby="detail-h">
-      <h2 id="detail-h">Breakdown detail</h2>
-      <div class="field" style="max-width:340px; margin-bottom:1rem;">
-        <label for="filter">Filter by name</label>
-        <input type="text" id="filter" placeholder="Type to filter rows" aria-describedby="filter-count">
-      </div>
-      <p id="filter-count" class="sub" role="status" aria-live="polite"></p>
-      <div class="table-scroll">
-        <table id="detail-table">
-          <caption>Every row at the selected breakdown level. Column headers are buttons — activate one to sort by that column.</caption>
-        </table>
-      </div>
-    </section>
-
-    <p class="sub" id="footer-note"></p>
-    </div>
+    <p class="sub" id="footer-note" style="margin-top:1.25rem"></p>
   </section>
 </main>
 
 <script>
 (function () {
   'use strict';
-
   var $ = function (id) { return document.getElementById(id); };
-  var state = { data: null, sortKey: 'spend', sortDir: 'desc', filter: '' };
 
-  /* ---------------- formatting ---------------- */
-  var fmtMoney = function (n) {
-    return (n === null || n === undefined) ? '—'
-      : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
-  };
-  var fmtNum = function (n) {
-    return (n === null || n === undefined) ? '—' : new Intl.NumberFormat('en-US').format(Math.round(n));
-  };
-  var fmtPct = function (n) { return (n === null || n === undefined) ? '—' : n.toFixed(2) + '%'; };
-  var fmtDate = function (s) {
-    var d = new Date(s + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-  var titleCase = function (s) {
-    return String(s || '').replace(/[._]/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  /* ============================ metric registry ============================
+     One definition per metric drives the KPI tiles, every dropdown, the axis
+     titles and the table columns — so adding a metric later is a single entry
+     rather than six edits. */
+  var money = function (n) { return n == null ? '—' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); };
+  var num   = function (n) { return n == null ? '—' : new Intl.NumberFormat('en-US').format(Math.round(n)); };
+  var pct   = function (n) { return n == null ? '—' : n.toFixed(2) + '%'; };
+  var dec   = function (n) { return n == null ? '—' : n.toFixed(2); };
+  var mult  = function (n) { return n == null ? '—' : n.toFixed(2) + '×'; };
+
+  var ICON = {
+    coin:'<path d="M10 3v14M13.5 6.2c-.7-.8-2-1.2-3.5-1.2-2.2 0-3.5.9-3.5 2.3S7.6 9.6 10 10s3.5.9 3.5 2.4S12 15 10 15c-1.6 0-2.9-.4-3.6-1.3"/>',
+    eye:'<path d="M2 10s3-5.2 8-5.2S18 10 18 10s-3 5.2-8 5.2S2 10 2 10Z"/><circle cx="10" cy="10" r="2.1"/>',
+    users:'<circle cx="8" cy="7.5" r="2.6"/><path d="M3 16c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2"/><path d="M14 6.2a2.4 2.4 0 0 1 0 4.4M15 15.6c0-1.8-.7-2.9-1.7-3.6"/>',
+    repeat:'<path d="M4 8V7a3 3 0 0 1 3-3h6M16 12v1a3 3 0 0 1-3 3H7"/><path d="M13 2.5 15.5 5 13 7.5M7 12.5 4.5 15 7 17.5"/>',
+    cursor:'<path d="M5 3.5 15.5 9 11 10.6 9.2 15.2Z"/>',
+    link:'<path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.4-2.4a3 3 0 0 0-4.2-4.2l-1 1"/><path d="M11.5 8.5a3 3 0 0 0-4.2 0l-2.4 2.4a3 3 0 0 0 4.2 4.2l1-1"/>',
+    percent:'<circle cx="6.5" cy="6.5" r="1.9"/><circle cx="13.5" cy="13.5" r="1.9"/><path d="M15 5 5 15"/>',
+    tag:'<path d="M3.5 9.2V4.5A1 1 0 0 1 4.5 3.5h4.7L16.5 11 11 16.5Z"/><circle cx="7" cy="7" r="1"/>',
+    check:'<path d="M4.5 10.4 8 13.9 15.5 6.4"/>',
+    page:'<path d="M5 3.5h6l4 4v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z"/><path d="M11 3.5v4h4"/>',
+    trend:'<path d="M3 14 8 9l3 3 5.5-6.5"/><path d="M13 5.5h4v4"/>'
   };
 
-  /* ---------------- accessible series palette ----------------
-     Colour is never the only signal: each series also has its own dash
-     pattern and point shape, and is named in the legend and the table. */
-  var SERIES = [
-    { key: 'spend',       label: 'Spend',       color: '#2F6779', dash: [],      point: 'circle'   },
-    { key: 'impressions', label: 'Impressions', color: '#A33A26', dash: [7, 4],  point: 'triangle' },
-    { key: 'linkClicks',  label: 'Link clicks', color: '#43507A', dash: [2, 3],  point: 'rect'     }
+  var METRICS = {
+    spend:                  { label:'Spend',               fmt:money, icon:'coin'    },
+    impressions:            { label:'Impressions',         fmt:num,   icon:'eye'     },
+    reach:                  { label:'Reach',               fmt:num,   icon:'users'   },
+    frequency:              { label:'Frequency',           fmt:dec,   icon:'repeat'  },
+    clicks:                 { label:'Clicks',              fmt:num,   icon:'cursor'  },
+    linkClicks:             { label:'Link clicks',         fmt:num,   icon:'link'    },
+    ctr:                    { label:'CTR',                 fmt:pct,   icon:'percent' },
+    cpc:                    { label:'CPC',                 fmt:money, icon:'tag'     },
+    cpm:                    { label:'CPM',                 fmt:money, icon:'tag'     },
+    registrations:          { label:'Registrations',       fmt:num,   icon:'check'   },
+    costPerRegistration:    { label:'Cost / registration', fmt:money, icon:'tag'     },
+    landingPageViews:       { label:'Landing page views',  fmt:num,   icon:'page'    },
+    costPerLandingPageView: { label:'Cost / LP view',      fmt:money, icon:'tag'     },
+    roas:                   { label:'ROAS',                fmt:mult,  icon:'trend'   }
+  };
+  var METRIC_KEYS = Object.keys(METRICS);
+  var KPI_KEYS = ['spend','impressions','linkClicks','ctr','cpc','cpm','registrations','costPerRegistration','landingPageViews','costPerLandingPageView'];
+  var TABLE_COLS = ['spend','impressions','reach','frequency','linkClicks','ctr','cpc','cpm','registrations','costPerRegistration','landingPageViews','costPerLandingPageView'];
+
+  var DIMENSIONS = [
+    { key:'campaign', label:'Campaign' },
+    { key:'adset',    label:'Ad set'   },
+    { key:'ad',       label:'Ad'       },
+    { key:'day',      label:'Day'      }
   ];
 
-  /* ---------------- view switching ---------------- */
-  function showLogin(msg) {
-    $('login-view').hidden = false;
-    $('dash-view').hidden = true;
-    $('logout').hidden = true;
-    if (msg) { $('login-error').textContent = msg; $('login-error').hidden = false; }
-    var pw = $('pw'); if (pw) pw.focus();
-  }
-  function showDash() {
-    $('login-view').hidden = true;
-    $('dash-view').hidden = false;
-    $('logout').hidden = false;
+  /* ============================== date ranges ==============================
+     Custom ranges are first-class, so an arbitrary window works unchanged once
+     there IS history — nothing here assumes a short account lifetime. */
+  var iso = function (d) { return d.toISOString().slice(0,10); };
+  var daysAgo = function (n) { return iso(new Date(Date.now() - n*86400000)); };
+
+  var globalRange = { mode:'preset', days:30 };
+
+  function resolveRange(r) {
+    if (!r || r.mode === 'global') return resolveRange(globalRange);
+    if (r.mode === 'custom' && r.since && r.until) return { since:r.since, until:r.until };
+    var d = r.days || 30;
+    return { since: daysAgo(d - 1), until: daysAgo(0) };
   }
 
-  /* ---------------- auth ---------------- */
-  async function checkSession() {
-    try {
-      var r = await fetch('/api/dashboard-login', { method: 'GET' });
-      var j = await r.json();
-      if (j.authenticated) { showDash(); load(); } else { showLogin(); }
-    } catch (e) { showLogin('Could not reach the server.'); }
-  }
+  var RANGE_OPTS = [
+    { v:'global', t:'Match global' },
+    { v:'7',   t:'Last 7 days'    },
+    { v:'14',  t:'Last 14 days'   },
+    { v:'30',  t:'Last 30 days'   },
+    { v:'90',  t:'Last 90 days'   },
+    { v:'180', t:'Last 6 months'  },
+    { v:'365', t:'Last 12 months' },
+    { v:'custom', t:'Global custom dates' }
+  ];
 
-  $('login-form').addEventListener('submit', async function (ev) {
-    ev.preventDefault();
-    var btn = $('login-btn');
-    btn.disabled = true; btn.textContent = 'Signing in…';
-    $('login-error').hidden = true;
-    try {
-      var r = await fetch('/api/dashboard-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: $('pw').value })
+  /* ============================== data layer ==============================
+     Panels fetch independently, so identical queries are shared rather than
+     refetched. Cleared on every explicit refresh. */
+  var cache = new Map();
+  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||''].join('|'); }
+
+  function fetchInsights(p) {
+    var key = queryKey(p);
+    if (cache.has(key)) return cache.get(key);
+    var qs = new URLSearchParams({ level:p.level, since:p.since, until:p.until });
+    if (p.campaignId) qs.set('campaignId', p.campaignId);
+    if (p.adsetId) qs.set('adsetId', p.adsetId);
+    var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
+      if (r.status === 401) { showLogin('Your session expired. Sign in again.'); throw new Error('unauthenticated'); }
+      return r.json().then(function (j) {
+        if (!r.ok) { var e = new Error(j.message || 'Request failed'); e.payload = j; throw e; }
+        return j;
       });
-      var j = await r.json();
-      if (r.ok && j.authenticated) { $('pw').value = ''; showDash(); load(); }
-      else { $('login-error').textContent = j.message || 'Sign-in failed.'; $('login-error').hidden = false; $('pw').focus(); }
-    } catch (e) {
-      $('login-error').textContent = 'Could not reach the server.'; $('login-error').hidden = false;
-    } finally { btn.disabled = false; btn.textContent = 'Sign in'; }
-  });
-
-  $('logout').addEventListener('click', async function () {
-    await fetch('/api/dashboard-login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'logout' })
     });
-    showLogin();
-  });
-
-  /* ---------------- date range ---------------- */
-  function iso(d) { return d.toISOString().slice(0, 10); }
-  function setRangeDays(days) {
-    var until = new Date();
-    var since = new Date(Date.now() - (days - 1) * 86400000);
-    $('until').value = iso(until);
-    $('since').value = iso(since);
-  }
-  setRangeDays(30);
-
-  Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (b) {
-    b.addEventListener('click', function () {
-      Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (o) {
-        o.setAttribute('aria-pressed', String(o === b));
-      });
-      setRangeDays(Number(b.dataset.days));
-      load();
-    });
-  });
-
-  $('controls').addEventListener('submit', function (ev) { ev.preventDefault(); load(); });
-  $('level').addEventListener('change', function () { load(); });
-
-  $('campaign-pick').addEventListener('change', function () {
-    // Changing campaign invalidates any ad set chosen under the old one.
-    fillAdsets((state.data && state.data.campaigns) || [], $('campaign-pick').value, '');
-    load();
-  });
-
-  $('adset-pick').addEventListener('change', function () { load(); });
-
-  /* ---------------- data load ---------------- */
-  async function load() {
-    var btn = $('refresh');
-    btn.setAttribute('aria-disabled', 'true');
-    $('status').textContent = 'Loading data from Meta…';
-    $('error-box').hidden = true;
-
-    var qs = new URLSearchParams({
-      level: $('level').value,
-      since: $('since').value,
-      until: $('until').value
-    });
-    if ($('campaign-pick').value) qs.set('campaignId', $('campaign-pick').value);
-    if ($('adset-pick').value) qs.set('adsetId', $('adset-pick').value);
-
-    // Fetching and rendering are caught separately. Wrapping both in one
-    // try/catch meant a rendering fault surfaced as "Network error", which
-    // pointed at entirely the wrong thing.
-    var payload;
-    try {
-      var r = await fetch('/api/meta-insights?' + qs.toString());
-      if (r.status === 401) { showLogin('Your session expired. Sign in again.'); return; }
-      payload = await r.json();
-      if (!r.ok) {
-        $('error-box').innerHTML = '<span><strong>' + titleCase(payload.error || 'Error') + '.</strong> ' +
-          escapeHtml(payload.message || '') + (payload.detail ? ' <em>Meta said: ' + escapeHtml(payload.detail) + '</em>' : '') + '</span>';
-        $('error-box').hidden = false;
-        $('data-area').hidden = true;
-        $('status').textContent = 'Could not load data.';
-        return;
-      }
-    } catch (e) {
-      $('error-box').textContent = 'Could not reach the dashboard API: ' + e.message;
-      $('error-box').hidden = false;
-      $('data-area').hidden = true;
-      $('status').textContent = 'Could not load data.';
-      return;
-    } finally {
-      btn.removeAttribute('aria-disabled');
-    }
-
-    try {
-      state.data = payload;
-      render(payload);
-    } catch (e) {
-      $('error-box').textContent = 'The data loaded but could not be drawn: ' + e.message;
-      $('error-box').hidden = false;
-      $('status').textContent = 'Data loaded, but the page could not render it.';
-    }
+    cache.set(key, promise);
+    return promise;
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
+  function scopeParams(){ return { campaignId:$('campaign-pick').value||'', adsetId:$('adset-pick').value||'' }; }
 
-  /* ---------------- render ---------------- */
+  /* ================================ state ================================= */
+  var state = {
+    scatter:{ x:'spend', y:'registrations', dim:'campaign', range:{mode:'global'} },
+    bar:    { m:'spend', dim:'campaign', range:{mode:'global'} },
+    table:  { dim:'campaign', range:{mode:'global'}, sortKey:'spend', sortDir:'desc', filter:'' },
+    campaigns:[]
+  };
   var charts = {};
 
-  /* Chart.js is loaded with defer, so it is NOT guaranteed to exist while this
-     script is parsing — that mismatch is what produced "Chart is not defined".
-     Init now waits for DOMContentLoaded (which runs after deferred scripts), and
-     every chart goes through this helper so that if the CDN is blocked outright
-     the tables still render. That fallback is the whole point of having table
-     alternatives in the first place. */
-  function chartsReady() { return typeof window.Chart !== "undefined"; }
-
-  /* Finger-trace readout.
-     Chart.js fires hover on touchmove, but only if the canvas is allowed to
-     receive the gesture — hence touch-action:pan-y in the CSS, which claims
-     horizontal drags for scrubbing while leaving vertical drags to scroll the
-     page. The readout is plain text under the chart rather than a floating
-     tooltip: on a phone a tooltip sits under your own finger. */
-  function scrubHandler(readoutId, fmts) {
-    return function (evt, active, chart) {
-      var el = $(readoutId);
-      if (!el) return;
-      if (!active || !active.length) { el.textContent = ""; return; }
-      var i = active[0].index;
-      var label = chart.data.labels[i];
-      var parts = chart.data.datasets.map(function (ds, di) {
-        var v = ds.data[i];
-        var f = fmts[di] || fmtNum;
-        return ds.label + " " + f(v);
-      });
-      el.textContent = label + " — " + parts.join("  ·  ");
-    };
+  /* ============================== utilities =============================== */
+  function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function fmtDate(s){ return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+  function opt(v,t){ var o=document.createElement('option'); o.value=v; o.textContent=t; return o; }
+  function fillMetricSelect(el,sel){ el.innerHTML=''; METRIC_KEYS.forEach(function(k){ el.appendChild(opt(k,METRICS[k].label)); }); el.value=sel; }
+  function fillDimSelect(el,sel){ el.innerHTML=''; DIMENSIONS.forEach(function(d){ el.appendChild(opt(d.key,d.label)); }); el.value=sel; }
+  function fillRangeSelect(el){ el.innerHTML=''; RANGE_OPTS.forEach(function(o){ el.appendChild(opt(o.v,o.t)); }); el.value='global'; }
+  function readRange(el){
+    var v=el.value;
+    if(v==='global') return {mode:'global'};
+    if(v==='custom') return {mode:'custom',since:$('since').value,until:$('until').value};
+    return {mode:'preset',days:Number(v)};
   }
 
-  function makeChart(key, el, config) {
-    if (!chartsReady()) return;
-    if (charts[key]) charts[key].destroy();
-    charts[key] = new window.Chart(el, config);
+  function chartsReady(){ return typeof window.Chart !== 'undefined'; }
+  function makeChart(key, el, cfg){
+    if(!chartsReady()) return;
+    if(charts[key]){ charts[key].destroy(); charts[key]=null; }
+    charts[key]=new window.Chart(el,cfg);
   }
 
-  function render(d) {
-    $('data-area').hidden = false;
-    var when = new Date(d.fetchedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    $('status').textContent =
-      'Loaded ' + d.rows.length + ' ' + d.level + ' rows and ' + d.daily.length +
-      ' days of data. Total spend ' + fmtMoney(d.totals.spend) + '. Last updated ' + when + '.';
-    $('footer-note').textContent =
-      'Account ' + d.account + ' · Graph API ' + d.apiVersion + ' · ' + d.range.since + ' to ' + d.range.until;
-    $('cmp-level').textContent = d.level === 'adset' ? 'ad set' : d.level;
-
-    if (d.results && d.results.note) {
-      $('results-notice').innerHTML = '<span aria-hidden="true">⚠</span><span>' + escapeHtml(d.results.note) + '</span>';
-      $('results-notice').hidden = false;
-    } else { $('results-notice').hidden = true; }
-
-    if (!chartsReady()) {
-      $("error-box").textContent = "The charting library could not be loaded, so the graphs are unavailable. All of the data is still shown in the tables below.";
-      $("error-box").hidden = false;
-    }
-
-    renderPickers(d);
-    renderKpis(d);
-    renderTrend(d);
-    renderComparison(d);
-    renderResults(d);
-    renderDetail(d);
-  }
-
-  /* Options come from the server unscoped, so the dropdowns still list every
-     campaign even while the view is filtered to one of them. Selections are
-     preserved across refreshes rather than resetting. */
-  function renderPickers(d) {
-    var camps = d.campaigns || [];
-    var cSel = $("campaign-pick");
-    var aSel = $("adset-pick");
-    var wantC = (d.scope && d.scope.campaignId) || "";
-    var wantA = (d.scope && d.scope.adsetId) || "";
-
-    cSel.innerHTML = "";
-    cSel.appendChild(new Option("All campaigns", ""));
-    camps.forEach(function (c) { cSel.appendChild(new Option(c.name, c.id)); });
-    cSel.value = wantC;
-
-    fillAdsets(camps, cSel.value, wantA);
-  }
-
-  function fillAdsets(camps, campaignId, want) {
-    var aSel = $("adset-pick");
-    aSel.innerHTML = "";
-    aSel.appendChild(new Option("All ad sets", ""));
-    var c = camps.filter(function (x) { return x.id === campaignId; })[0];
-    if (c) { c.adsets.forEach(function (a) { aSel.appendChild(new Option(a.name, a.id)); }); }
-    // An ad set only means something within a campaign, so the control stays
-    // disabled until one is chosen.
-    aSel.disabled = !c;
-    aSel.value = want || "";
-  }
-
-  function renderKpis(d) {
-    var t = d.totals;
-    var items = [
-      ['Spend', fmtMoney(t.spend)],
-      ['Impressions', fmtNum(t.impressions)],
-      ['Link clicks', fmtNum(t.linkClicks)],
-      ['CTR', fmtPct(t.ctr)],
-      ['CPC', fmtMoney(t.cpc)],
-      ['CPM', fmtMoney(t.cpm)],
-      // Two distinct outcome metrics, never combined.
-      ['Registrations', d.results && d.results.available ? fmtNum(t.registrations) : '—'],
-      ['Cost per registration', fmtMoney(t.costPerRegistration)],
-      ['Landing page views', d.results && d.results.landingPageViewsAvailable ? fmtNum(t.landingPageViews) : '—'],
-      ['Cost per landing page view', fmtMoney(t.costPerLandingPageView)]
-    ];
-    if (t.roas) items.push(['ROAS', t.roas.toFixed(2) + '×']);
-
-    $('kpis').innerHTML = items.map(function (kv) {
-      return '<div class="kpi"><dt>' + escapeHtml(kv[0]) + '</dt><dd>' + escapeHtml(kv[1]) + '</dd></div>';
-    }).join('');
-  }
-
-  function baseOpts(extra) {
-    var o = {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: { backgroundColor: '#111', padding: 10, titleFont: { weight: '700' } }
+  /* Shared Chart.js styling, in one place, so all three read as a family. */
+  function baseOpts(extra){
+    return Object.assign({
+      responsive:true, maintainAspectRatio:false,
+      animation:{ duration:600, easing:'easeOutQuart' },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10, titleFont:{weight:'700',size:12}, bodyFont:{size:12}, boxPadding:4 }
       },
-      scales: {
-        x: { grid: { color: 'rgba(17,17,17,0.06)' }, ticks: { color: 'rgba(17,17,17,0.72)' } },
-        y: { grid: { color: 'rgba(17,17,17,0.06)' }, ticks: { color: 'rgba(17,17,17,0.72)' }, beginAtZero: true }
+      scales:{
+        x:{ grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)',font:{size:11}} },
+        y:{ grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)',font:{size:11}}, beginAtZero:true }
       }
-    };
-    return Object.assign(o, extra || {});
+    }, extra||{});
   }
 
-  function renderTrend(d) {
-    var labels = d.daily.map(function (r) { return fmtDate(r.dateStart); });
+  function barGradient(c, horizontal){
+    var a=c.chart.chartArea; if(!a) return 'rgba(47,103,121,.85)';
+    var g = horizontal ? c.chart.ctx.createLinearGradient(a.left,0,a.right,0)
+                       : c.chart.ctx.createLinearGradient(0,a.bottom,0,a.top);
+    g.addColorStop(0,'rgba(47,103,121,.55)'); g.addColorStop(1,'rgba(58,125,147,.95)');
+    return g;
+  }
 
-    $('trend-legend').innerHTML = SERIES.map(function (s) {
-      var style = s.dash.length ? (s.dash[0] > 4 ? 'dashed' : 'dotted') : 'solid';
-      return '<span><i class="swatch" style="border-top-color:' + s.color + '; border-top-style:' + style + ';"></i>' + s.label + '</span>';
-    }).join('');
+  function emptyState(msg){
+    return '<div class="empty"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 9h14"/></svg><p>'+esc(msg)+'</p></div>';
+  }
 
-    makeChart('trend', $('trend-chart'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: SERIES.map(function (s, i) {
-          return {
-            label: s.label,
-            data: d.daily.map(function (r) { return r[s.key]; }),
-            borderColor: s.color,
-            backgroundColor: s.color,
-            borderDash: s.dash,
-            pointStyle: s.point,
-            pointRadius: 3,
-            borderWidth: 2,
-            tension: 0.25,
-            yAxisID: i === 0 ? 'y' : 'y1'
-          };
-        })
-      },
-      options: baseOpts({
-        onHover: scrubHandler('trend-readout', [fmtMoney, fmtNum, fmtNum]),
-        scales: {
-          x: { grid: { color: 'rgba(17,17,17,0.06)' } },
-          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Spend (USD)' } },
-          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Impressions / clicks' } }
-        }
+  /* Charts live inside a box that may be replaced by an empty state, so the
+     canvas is restored before drawing rather than assumed to exist. */
+  function ensureCanvas(boxId, canvasId, labelledby, describedby){
+    var box=$(boxId);
+    if(!box.querySelector('#'+canvasId)){
+      box.innerHTML='<canvas id="'+canvasId+'" role="img" aria-labelledby="'+labelledby+'" aria-describedby="'+describedby+'"></canvas>';
+    }
+    return $(canvasId);
+  }
+
+  /* ================================ auth ================================== */
+  function showLogin(msg){
+    $('login-view').hidden=false; $('dash-view').hidden=true; $('logout').hidden=true;
+    if(msg){ $('login-error').textContent=msg; $('login-error').hidden=false; }
+    var p=$('pw'); if(p) p.focus();
+  }
+  function showDash(){ $('login-view').hidden=true; $('dash-view').hidden=false; $('logout').hidden=false; }
+
+  function checkSession(){
+    fetch('/api/dashboard-login').then(function(r){return r.json();})
+      .then(function(j){ if(j.authenticated){ showDash(); boot(); } else showLogin(); })
+      .catch(function(){ showLogin('Could not reach the server.'); });
+  }
+
+  $('login-form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var b=$('login-btn'); b.setAttribute('aria-disabled','true'); b.textContent='Signing in…'; $('login-error').hidden=true;
+    fetch('/api/dashboard-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value})})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+      .then(function(o){
+        if(o.ok&&o.j.authenticated){ $('pw').value=''; showDash(); boot(); }
+        else { $('login-error').textContent=o.j.message||'Sign-in failed.'; $('login-error').hidden=false; $('pw').focus(); }
       })
-    });
-
-    var totalSpend = d.totals.spend;
-    $('trend-summary').textContent =
-      'Line chart of ' + d.daily.length + ' days. Total spend ' + fmtMoney(totalSpend) +
-      ', ' + fmtNum(d.totals.impressions) + ' impressions and ' + fmtNum(d.totals.linkClicks) +
-      ' link clicks. The equivalent data is available in the table below.';
-
-    buildTable($('trend-table'), ['Date', 'Spend', 'Impressions', 'Link clicks'],
-      d.daily.map(function (r) {
-        return [fmtDate(r.dateStart), fmtMoney(r.spend), fmtNum(r.impressions), fmtNum(r.linkClicks)];
-      }));
-  }
-
-  function renderComparison(d) {
-    var rows = d.rows.slice().sort(function (a, b) { return b.spend - a.spend; }).slice(0, 12);
-    makeChart('cmp', $('cmp-chart'), {
-      type: 'bar',
-      data: {
-        labels: rows.map(function (r) { return r.name; }),
-        datasets: [{ label: 'Spend', data: rows.map(function (r) { return r.spend; }), backgroundColor: '#2F6779', borderColor: '#244e5b', borderWidth: 1 }]
-      },
-      options: baseOpts({ indexAxis: 'y', onHover: scrubHandler('cmp-readout', [fmtMoney]) })
-    });
-
-    $('cmp-summary').textContent = rows.length
-      ? 'Bar chart comparing spend across ' + rows.length + ' rows. Highest is ' + rows[0].name +
-        ' at ' + fmtMoney(rows[0].spend) + '. Full figures are in the table below.'
-      : 'No rows returned for this range.';
-
-    buildTable($('cmp-table'), ['Name', 'Spend', 'Impressions', 'CTR', 'CPC'],
-      rows.map(function (r) { return [r.name, fmtMoney(r.spend), fmtNum(r.impressions), fmtPct(r.ctr), fmtMoney(r.cpc)]; }));
-  }
-
-  function renderResults(d) {
-    var labels = d.daily.map(function (r) { return fmtDate(r.dateStart); });
-    var hasReg = d.results && d.results.available;
-    var seriesLabel = 'Registrations';
-
-    makeChart('res', $('res-chart'), {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          { type: 'bar', label: 'Registrations', data: d.daily.map(function (r) { return r.registrations; }), backgroundColor: '#2E7D4F', yAxisID: 'y' },
-          { type: 'bar', label: 'Landing page views', data: d.daily.map(function (r) { return r.landingPageViews; }), backgroundColor: '#8A5A00', yAxisID: 'y' },
-          { type: 'line', label: 'Cost per registration', data: d.daily.map(function (r) { return r.costPerRegistration; }), borderColor: '#2F6779', borderDash: [6, 4], pointStyle: 'triangle', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
-        ]
-      },
-      options: baseOpts({
-        onHover: scrubHandler('res-readout', [fmtNum, fmtNum, fmtMoney]),
-        scales: {
-          x: { grid: { color: 'rgba(17,17,17,0.06)' } },
-          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Registrations / landing page views' } },
-          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Cost per registration (USD)' } }
-        }
-      })
-    });
-
-    $('res-summary').textContent = hasReg
-      ? 'Bar and line chart. ' + fmtNum(d.totals.registrations) + ' registrations at ' + fmtMoney(d.totals.costPerRegistration) + ' each, against ' + fmtNum(d.totals.landingPageViews) + ' landing page views, across the range. Data also in the table below.'
-      : 'No complete-registration events were reported for this range. ' + fmtNum(d.totals.landingPageViews) + ' landing page views are shown. Data also in the table below.';
-
-    buildTable($('res-table'), ['Date', 'Registrations', 'Cost per registration', 'Landing page views'],
-      d.daily.map(function (r) { return [fmtDate(r.dateStart), fmtNum(r.registrations), fmtMoney(r.costPerRegistration), fmtNum(r.landingPageViews)]; }));
-  }
-
-  /* Static table builder for the chart alternatives. */
-  function buildTable(tableEl, headers, rows) {
-    var caption = tableEl.querySelector('caption');
-    tableEl.innerHTML = '';
-    if (caption) tableEl.appendChild(caption);
-    var thead = document.createElement('thead');
-    var trh = document.createElement('tr');
-    headers.forEach(function (h) {
-      var th = document.createElement('th');
-      th.scope = 'col';
-      th.textContent = h;
-      trh.appendChild(th);
-    });
-    thead.appendChild(trh);
-    tableEl.appendChild(thead);
-    var tbody = document.createElement('tbody');
-    rows.forEach(function (r) {
-      var tr = document.createElement('tr');
-      r.forEach(function (cell, i) {
-        var el = document.createElement(i === 0 ? 'th' : 'td');
-        if (i === 0) el.scope = 'row';
-        el.textContent = cell;
-        tr.appendChild(el);
-      });
-      tbody.appendChild(tr);
-    });
-    tableEl.appendChild(tbody);
-  }
-
-  /* ---------------- sortable, filterable detail table ---------------- */
-  var COLS = [
-    { key: 'name',          label: 'Name',          fmt: function (v) { return v; } },
-    { key: 'spend',         label: 'Spend',         fmt: fmtMoney },
-    { key: 'impressions',   label: 'Impressions',   fmt: fmtNum },
-    { key: 'reach',         label: 'Reach',         fmt: fmtNum },
-    { key: 'frequency',     label: 'Frequency',     fmt: function (v) { return v ? v.toFixed(2) : '—'; } },
-    { key: 'linkClicks',    label: 'Link clicks',   fmt: fmtNum },
-    { key: 'ctr',           label: 'CTR',           fmt: fmtPct },
-    { key: 'cpc',           label: 'CPC',           fmt: fmtMoney },
-    { key: 'cpm',           label: 'CPM',           fmt: fmtMoney },
-    { key: 'registrations',        label: 'Registrations',   fmt: fmtNum },
-    { key: 'costPerRegistration',  label: 'Cost / reg.',     fmt: fmtMoney },
-    { key: 'landingPageViews',     label: 'LP views',        fmt: fmtNum },
-    { key: 'costPerLandingPageView', label: 'Cost / LPV',    fmt: fmtMoney }
-  ];
-
-  function renderDetail(d) {
-    var table = $('detail-table');
-    var caption = table.querySelector('caption');
-    table.innerHTML = '';
-    if (caption) table.appendChild(caption);
-
-    var rows = d.rows.filter(function (r) {
-      return !state.filter || String(r.name).toLowerCase().indexOf(state.filter) !== -1;
-    }).sort(function (a, b) {
-      var av = a[state.sortKey], bv = b[state.sortKey];
-      if (typeof av === 'string') { av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
-      return state.sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-    });
-
-    $('filter-count').textContent = rows.length + ' of ' + d.rows.length + ' rows shown.';
-
-    var thead = document.createElement('thead');
-    var trh = document.createElement('tr');
-    COLS.forEach(function (c) {
-      var th = document.createElement('th');
-      th.scope = 'col';
-      th.setAttribute('aria-sort', state.sortKey === c.key ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = c.label;
-      // Announce what activating the header will do, not just its label.
-      btn.setAttribute('aria-label', 'Sort by ' + c.label +
-        (state.sortKey === c.key ? ', currently sorted ' + (state.sortDir === 'asc' ? 'ascending' : 'descending') : ''));
-      btn.addEventListener('click', function () {
-        if (state.sortKey === c.key) { state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc'; }
-        else { state.sortKey = c.key; state.sortDir = c.key === 'name' ? 'asc' : 'desc'; }
-        renderDetail(state.data);
-        // Keep focus on the equivalent header after the rebuild.
-        var idx = COLS.indexOf(c);
-        var next = $('detail-table').querySelectorAll('thead th button')[idx];
-        if (next) next.focus();
-      });
-      th.appendChild(btn);
-      trh.appendChild(th);
-    });
-    thead.appendChild(trh);
-    table.appendChild(thead);
-
-    var tbody = document.createElement('tbody');
-    rows.forEach(function (r) {
-      var tr = document.createElement('tr');
-      COLS.forEach(function (c, i) {
-        var el = document.createElement(i === 0 ? 'th' : 'td');
-        if (i === 0) el.scope = 'row';
-        el.textContent = c.fmt(r[c.key]);
-        tr.appendChild(el);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-  }
-
-  var filterTimer;
-  $('filter').addEventListener('input', function (e) {
-    clearTimeout(filterTimer);
-    var v = e.target.value.toLowerCase();
-    filterTimer = setTimeout(function () {
-      state.filter = v;
-      if (state.data) renderDetail(state.data);
-    }, 180);
+      .catch(function(){ $('login-error').textContent='Could not reach the server.'; $('login-error').hidden=false; })
+      .then(function(){ b.removeAttribute('aria-disabled'); b.textContent='Sign in'; });
   });
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", checkSession);
-  } else {
-    checkSession();
+  $('logout').addEventListener('click', function(){
+    fetch('/api/dashboard-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})})
+      .then(function(){ showLogin(); });
+  });
+
+  /* ============================== global range ============================= */
+  function setCustomVisible(on){
+    $('custom-from').hidden=!on; $('custom-to').hidden=!on;
+    if(on && !$('since').value){ $('since').value=daysAgo(29); $('until').value=daysAgo(0); }
   }
+  Array.prototype.forEach.call($('range-seg').querySelectorAll('button'), function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call($('range-seg').querySelectorAll('button'), function(o){ o.setAttribute('aria-pressed', String(o===b)); });
+      if(b.dataset.days==='custom'){ setCustomVisible(true); $('since').focus(); }
+      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); cache.clear(); refreshAll(); }
+    });
+  });
+  ['since','until'].forEach(function(id){
+    $(id).addEventListener('change', function(){
+      var a=$('since').value, z=$('until').value;
+      if(!a||!z) return;
+      if(a>z){ $('error-box').textContent='Start date must be on or before end date.'; $('error-box').hidden=false; return; }
+      $('error-box').hidden=true;
+      globalRange={mode:'custom',since:a,until:z};
+      cache.clear(); refreshAll();
+    });
+  });
+
+  $('controls').addEventListener('submit', function(e){ e.preventDefault(); cache.clear(); refreshAll(); });
+  $('campaign-pick').addEventListener('change', function(){ fillAdsets(state.campaigns,this.value,''); cache.clear(); refreshAll(); });
+  $('adset-pick').addEventListener('change', function(){ cache.clear(); refreshAll(); });
+
+  function fillAdsets(camps, campaignId, want){
+    var a=$('adset-pick'); a.innerHTML=''; a.appendChild(opt('','All ad sets'));
+    var c=camps.filter(function(x){ return x.id===campaignId; })[0];
+    if(c) c.adsets.forEach(function(s){ a.appendChild(opt(s.id,s.name)); });
+    a.disabled=!c; a.value=want||'';
+  }
+
+  /* ================================ panels ================================ */
+  function loadPanel(panelRange, dim){
+    var r=resolveRange(panelRange), sp=scopeParams();
+    // "Day" is a time breakdown, not an entity level — the daily series comes
+    // back on every response, so any level will do for it.
+    var level = dim==='day' ? 'campaign' : dim;
+    return fetchInsights({ level:level, since:r.since, until:r.until, campaignId:sp.campaignId, adsetId:sp.adsetId });
+  }
+
+  function rowsFor(d, dim){
+    if(dim==='day') return (d.daily||[]).map(function(x){ return Object.assign({},x,{name:fmtDate(x.dateStart)}); });
+    return d.rows||[];
+  }
+
+  function renderKpis(d){
+    var t=d.totals||{};
+    var keys=KPI_KEYS.slice();
+    if(t.roas) keys.push('roas');
+    $('kpis').innerHTML = keys.map(function(k){
+      var m=METRICS[k], v=t[k], muted=(v==null||v===0);
+      return '<div class="kpi glass'+(muted?' is-muted':'')+'">'+
+        '<div class="kpi-top"><span class="kpi-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+ICON[m.icon]+'</svg></span>'+
+        '<dt>'+esc(m.label)+'</dt></div><dd>'+esc(m.fmt(v))+'</dd></div>';
+    }).join('');
+  }
+
+  /* ----------------------------------------------------------- scatter ---- */
+  function renderScatter(){
+    var s=state.scatter, mx=METRICS[s.x], my=METRICS[s.y];
+    $('sc-desc').textContent = my.label+' against '+mx.label+', one point per '+(s.dim==='day'?'day':s.dim)+'.';
+    return loadPanel(s.range, s.dim).then(function(d){
+      var pts=rowsFor(d,s.dim)
+        .map(function(r){ return { x:r[s.x], y:r[s.y], name:r.name }; })
+        .filter(function(p){ return p.x!=null && p.y!=null; });
+
+      if(!pts.length){
+        if(charts.sc){ charts.sc.destroy(); charts.sc=null; }
+        $('sc-box').innerHTML=emptyState('No data in this range yet.');
+        $('sc-summary').textContent='No data in this range.';
+        buildTable($('sc-table'),['Name',mx.label,my.label],[]);
+        return;
+      }
+      var cv=ensureCanvas('sc-box','sc-chart','sc-h','sc-desc sc-summary');
+
+      makeChart('sc', cv, {
+        type:'scatter',
+        data:{ datasets:[{
+          label:my.label, data:pts, pointRadius:7, pointHoverRadius:11,
+          backgroundColor:'rgba(47,103,121,.62)', borderColor:'#1d4b59', borderWidth:1.5
+        }]},
+        options: baseOpts({
+          onHover:function(e,active,chart){
+            var el=$('sc-readout'); if(!el) return;
+            if(!active||!active.length){ el.textContent=''; return; }
+            var p=chart.data.datasets[0].data[active[0].index];
+            el.textContent=p.name+' — '+mx.label+' '+mx.fmt(p.x)+'  ·  '+my.label+' '+my.fmt(p.y);
+          },
+          plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10,
+            callbacks:{ label:function(c){ return c.raw.name+': '+mx.fmt(c.raw.x)+' / '+my.fmt(c.raw.y); } } } },
+          scales:{
+            x:{ title:{display:true,text:mx.label,color:'rgba(15,20,25,.55)'}, grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)'} },
+            y:{ title:{display:true,text:my.label,color:'rgba(15,20,25,.55)'}, grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)'}, beginAtZero:true }
+          }
+        })
+      });
+
+      $('sc-summary').textContent='Scatter plot of '+pts.length+' points, '+my.label+' against '+mx.label+'. Figures are in the table below.';
+      buildTable($('sc-table'),['Name',mx.label,my.label], pts.map(function(p){ return [p.name,mx.fmt(p.x),my.fmt(p.y)]; }));
+    }).catch(function(e){ panelError(e,'sc-summary'); });
+  }
+
+  /* --------------------------------------------------------------- bar ---- */
+  function renderBar(){
+    var s=state.bar, m=METRICS[s.m];
+    $('bar-desc').textContent = m.label+' by '+(s.dim==='day'?'day':s.dim)+'.';
+    return loadPanel(s.range, s.dim).then(function(d){
+      var rows=rowsFor(d,s.dim).filter(function(r){ return r[s.m]!=null; });
+      var horizontal = s.dim!=='day';
+      if(horizontal) rows=rows.slice().sort(function(a,b){ return (b[s.m]||0)-(a[s.m]||0); }).slice(0,12);
+
+      if(!rows.length){
+        if(charts.bar){ charts.bar.destroy(); charts.bar=null; }
+        $('bar-box').innerHTML=emptyState('No data in this range yet.');
+        $('bar-summary').textContent='No data in this range.';
+        buildTable($('bar-table'),['Name',m.label],[]);
+        return;
+      }
+      var cv=ensureCanvas('bar-box','bar-chart','bar-h','bar-desc bar-summary');
+
+      makeChart('bar', cv, {
+        type:'bar',
+        data:{ labels:rows.map(function(r){return r.name;}), datasets:[{
+          label:m.label, data:rows.map(function(r){return r[s.m];}),
+          borderRadius:7, borderSkipped:false, maxBarThickness:38,
+          backgroundColor:function(c){ return barGradient(c,horizontal); }
+        }]},
+        options: baseOpts({
+          indexAxis: horizontal?'y':'x',
+          onHover:function(e,active,chart){
+            var el=$('bar-readout'); if(!el) return;
+            if(!active||!active.length){ el.textContent=''; return; }
+            var i=active[0].index;
+            el.textContent=chart.data.labels[i]+' — '+m.label+' '+m.fmt(chart.data.datasets[0].data[i]);
+          }
+        })
+      });
+
+      $('bar-summary').textContent='Bar chart of '+m.label+' across '+rows.length+' '+(s.dim==='day'?'days':s.dim+'s')+'. Highest is '+rows[0].name+' at '+m.fmt(rows[0][s.m])+'. Figures are in the table below.';
+      buildTable($('bar-table'),['Name',m.label], rows.map(function(r){ return [r.name,m.fmt(r[s.m])]; }));
+    }).catch(function(e){ panelError(e,'bar-summary'); });
+  }
+
+  /* ------------------------------------------------------------- table ---- */
+  function renderTable(){
+    var s=state.table;
+    return loadPanel(s.range, s.dim).then(function(d){
+      var all=rowsFor(d,s.dim);
+      var rows=all.filter(function(r){ return !s.filter || String(r.name).toLowerCase().indexOf(s.filter)!==-1; })
+        .sort(function(a,b){
+          var av=a[s.sortKey], bv=b[s.sortKey];
+          if(s.sortKey==='name'){ av=String(av).toLowerCase(); bv=String(bv).toLowerCase(); }
+          if(av==null) return 1; if(bv==null) return -1;
+          return s.sortDir==='asc' ? (av>bv?1:-1) : (av<bv?1:-1);
+        });
+
+      $('tb-count').textContent = rows.length+' of '+all.length+' rows shown.';
+
+      var table=$('tb-table'), cap=table.querySelector('caption');
+      table.innerHTML=''; if(cap) table.appendChild(cap);
+
+      if(!all.length){
+        var tb0=document.createElement('tbody'), tr0=document.createElement('tr'), td0=document.createElement('td');
+        td0.colSpan=2; td0.innerHTML=emptyState('No data in this range yet.');
+        tr0.appendChild(td0); tb0.appendChild(tr0); table.appendChild(tb0);
+        return;
+      }
+
+      var cols=[{key:'name',label:'Name',fmt:function(v){return v;}}].concat(TABLE_COLS.map(function(k){
+        return { key:k, label:METRICS[k].label, fmt:METRICS[k].fmt };
+      }));
+
+      var thead=document.createElement('thead'), tr=document.createElement('tr');
+      cols.forEach(function(c){
+        var th=document.createElement('th'); th.scope='col';
+        th.setAttribute('aria-sort', s.sortKey===c.key ? (s.sortDir==='asc'?'ascending':'descending') : 'none');
+        var b=document.createElement('button'); b.type='button'; b.textContent=c.label;
+        b.setAttribute('aria-label','Sort by '+c.label+(s.sortKey===c.key?', currently sorted '+(s.sortDir==='asc'?'ascending':'descending'):''));
+        b.addEventListener('click', function(){
+          if(s.sortKey===c.key) s.sortDir = s.sortDir==='asc'?'desc':'asc';
+          else { s.sortKey=c.key; s.sortDir = c.key==='name'?'asc':'desc'; }
+          renderTable().then(function(){
+            var i=cols.indexOf(c);
+            var next=$('tb-table').querySelectorAll('thead th button')[i];
+            if(next) next.focus();   // keep focus on the header after rebuild
+          });
+        });
+        th.appendChild(b); tr.appendChild(th);
+      });
+      thead.appendChild(tr); table.appendChild(thead);
+
+      var tb=document.createElement('tbody');
+      rows.forEach(function(r){
+        var trr=document.createElement('tr');
+        cols.forEach(function(c,i){
+          var cell=document.createElement(i===0?'th':'td');
+          if(i===0) cell.scope='row';
+          cell.textContent=c.fmt(r[c.key]);
+          trr.appendChild(cell);
+        });
+        tb.appendChild(trr);
+      });
+      table.appendChild(tb);
+    }).catch(function(e){ panelError(e); });
+  }
+
+  function buildTable(el, headers, rows){
+    var cap=el.querySelector('caption'); el.innerHTML=''; if(cap) el.appendChild(cap);
+    var thead=document.createElement('thead'), tr=document.createElement('tr');
+    headers.forEach(function(h){ var th=document.createElement('th'); th.scope='col'; th.textContent=h; tr.appendChild(th); });
+    thead.appendChild(tr); el.appendChild(thead);
+    var tb=document.createElement('tbody');
+    if(!rows.length){
+      var e=document.createElement('tr'), td=document.createElement('td');
+      td.colSpan=headers.length; td.textContent='No data in this range.';
+      e.appendChild(td); tb.appendChild(e);
+    }
+    rows.forEach(function(r){
+      var trr=document.createElement('tr');
+      r.forEach(function(c,i){ var cell=document.createElement(i===0?'th':'td'); if(i===0) cell.scope='row'; cell.textContent=c; trr.appendChild(cell); });
+      tb.appendChild(trr);
+    });
+    el.appendChild(tb);
+  }
+
+  function panelError(e, summaryId){
+    if(e && e.message==='unauthenticated') return;
+    $('error-box').innerHTML='<span>'+esc((e&&e.message)||'Request failed')+(e&&e.payload&&e.payload.detail?' <em>Meta said: '+esc(e.payload.detail)+'</em>':'')+'</span>';
+    $('error-box').hidden=false;
+    if(summaryId) $(summaryId).textContent='Data could not be loaded.';
+  }
+
+  /* ============================== orchestration =========================== */
+  function refreshAll(){
+    var btn=$('refresh'); btn.setAttribute('aria-disabled','true');
+    $('status').textContent='Loading…'; $('error-box').hidden=true;
+
+    var r=resolveRange(globalRange), sp=scopeParams();
+    return fetchInsights({ level:'campaign', since:r.since, until:r.until, campaignId:sp.campaignId, adsetId:sp.adsetId })
+      .then(function(d){
+        state.campaigns=d.campaigns||[];
+        var cSel=$('campaign-pick'), keep=cSel.value;
+        cSel.innerHTML=''; cSel.appendChild(opt('','All campaigns'));
+        state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id,c.name)); });
+        cSel.value=(d.scope&&d.scope.campaignId)||keep||'';
+        fillAdsets(state.campaigns, cSel.value, (d.scope&&d.scope.adsetId)||'');
+
+        renderKpis(d);
+
+        if(d.results&&d.results.note){
+          $('results-notice').innerHTML='<span aria-hidden="true">⚠</span><span>'+esc(d.results.note)+'</span>';
+          $('results-notice').hidden=false;
+        } else $('results-notice').hidden=true;
+
+        if(!chartsReady()){
+          $('error-box').textContent='The charting library could not be loaded, so the graphs are unavailable. Every figure is still in the tables.';
+          $('error-box').hidden=false;
+        }
+
+        return Promise.all([renderScatter(), renderBar(), renderTable()]).then(function(){
+          var when=new Date(d.fetchedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+          $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
+          $('footer-note').textContent='Account '+d.account+' · Graph API '+d.apiVersion;
+        });
+      })
+      .catch(function(e){ panelError(e); $('status').textContent='Could not load data.'; })
+      .then(function(){ btn.removeAttribute('aria-disabled'); });
+  }
+
+  /* ================================= boot ================================= */
+  function boot(){
+    fillMetricSelect($('sc-x'), state.scatter.x);
+    fillMetricSelect($('sc-y'), state.scatter.y);
+    fillDimSelect($('sc-dim'), state.scatter.dim);
+    fillRangeSelect($('sc-range'));
+
+    fillMetricSelect($('bar-m'), state.bar.m);
+    fillDimSelect($('bar-dim'), state.bar.dim);
+    fillRangeSelect($('bar-range'));
+
+    fillDimSelect($('tb-dim'), state.table.dim);
+    fillRangeSelect($('tb-range'));
+
+    $('sc-x').addEventListener('change', function(){ state.scatter.x=this.value; renderScatter(); });
+    $('sc-y').addEventListener('change', function(){ state.scatter.y=this.value; renderScatter(); });
+    $('sc-dim').addEventListener('change', function(){ state.scatter.dim=this.value; renderScatter(); });
+    $('sc-range').addEventListener('change', function(){ state.scatter.range=readRange(this); renderScatter(); });
+
+    $('bar-m').addEventListener('change', function(){ state.bar.m=this.value; renderBar(); });
+    $('bar-dim').addEventListener('change', function(){ state.bar.dim=this.value; renderBar(); });
+    $('bar-range').addEventListener('change', function(){ state.bar.range=readRange(this); renderBar(); });
+
+    $('tb-dim').addEventListener('change', function(){ state.table.dim=this.value; renderTable(); });
+    $('tb-range').addEventListener('change', function(){ state.table.range=readRange(this); renderTable(); });
+
+    var ft;
+    $('tb-filter').addEventListener('input', function(e){
+      clearTimeout(ft); var v=e.target.value.toLowerCase();
+      ft=setTimeout(function(){ state.table.filter=v; renderTable(); }, 180);
+    });
+
+    refreshAll();
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', checkSession);
+  else checkSession();
 })();
 </script>
 </body>
