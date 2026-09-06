@@ -322,12 +322,19 @@ export default async function handler(req, res) {
   }
   const filterParam = filtering.length ? { filtering } : {};
 
-  // NOTE ON ATTRIBUTION: action_attribution_windows is deliberately NOT sent.
-  // The 7-day and 28-day view-through windows were removed from the API in
-  // January 2026, and passing a retired window is an error. Omitting the
-  // parameter uses the ad account's own default, which is both valid and what
-  // Ads Manager shows. If explicit windows are ever wanted, use click-based
-  // windows (1d_click / 7d_click) plus 1d_view only.
+  // NOTE ON ATTRIBUTION.
+  //
+  // action_attribution_windows is deliberately NOT sent. The 7-day and 28-day
+  // view-through windows were removed from the API in January 2026, and passing
+  // a retired window is an error.
+  //
+  // use_unified_attribution_setting=true IS sent. Without it the Insights API
+  // falls back to a legacy default window instead of the attribution setting
+  // the ad set is actually configured with, so the API returns a lower
+  // conversion count than the same date range in Ads Manager — the exact
+  // symptom of "the dashboard says 6 and Ads Manager says 10". With it, both
+  // read the ad set's own setting and agree.
+  const attribution = { use_unified_attribution_setting: 'true' };
 
   try {
     // A third request fetches the campaign/ad set list for the picker. It is
@@ -340,6 +347,7 @@ export default async function handler(req, res) {
           fields: [...LEVEL_FIELDS[level], ...BASE_FIELDS].join(','),
           time_range,
           limit: '500',
+          ...attribution,
           ...filterParam,
         }),
       ),
@@ -352,6 +360,7 @@ export default async function handler(req, res) {
           time_range,
           time_increment: '1', // one row per day, for the trend charts
           limit: '500',
+          ...attribution,
           ...filterParam,
         }),
       ),
@@ -364,6 +373,26 @@ export default async function handler(req, res) {
         }),
       ),
     ]);
+
+    // ?debug=actions — every action type present, with its total, so a
+    // missing conversion can be traced to the right cause without guessing.
+    if (req.query.debug === 'actions') {
+      const tally = new Map();
+      for (const r of [...(breakdown.json.data || []), ...(series.json.data || [])]) {
+        for (const a of r.actions || []) {
+          const k = a.action_type;
+          if (!tally.has(k)) tally.set(k, { actionType: k, breakdown: 0, daily: 0 });
+          tally.get(k)[r.date_start === r.date_stop ? 'daily' : 'breakdown'] += num(a.value);
+        }
+      }
+      return res.status(200).json({
+        range: time_range,
+        knownRegistrationTypes: REGISTRATION_TYPES,
+        knownLandingPageViewTypes: LANDING_PAGE_VIEW_TYPES,
+        unifiedAttribution: true,
+        actionTypes: [...tally.values()].sort((a, b) => b.daily - a.daily || b.breakdown - a.breakdown),
+      });
+    }
 
     const rows = (breakdown.json.data || []).map((r) => shapeRow(r, level));
     const daily = (series.json.data || [])
