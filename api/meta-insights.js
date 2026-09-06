@@ -27,26 +27,50 @@ const LEVELS = new Set(['account', 'campaign', 'adset', 'ad']);
 // account the token can see, and the standard-password session is meant to see
 // only Dave's. The mapping from name to account lives here, on the server, and
 // masterOnly is checked against the role in the signed cookie.
+// A Meta token is scoped to a USER, not to an ad account: one token reads every
+// account that user holds a role on. So two ad accounts usually need only one
+// token. They need two only when the accounts live under Business Managers that
+// do not share a user — hence tokenEnv, which prefers a view-specific token and
+// falls back to the shared one when there is no separate token to use.
 const VIEWS = {
   dave: {
     label: 'Peps by Dave',
     env: ['META_AD_ACCOUNT_ID', 'META_ADS_ACCOUNT_ID'],
+    tokenEnv: ['META_ADS_TOKEN_DAVE', 'META_ADS_TOKEN'],
     masterOnly: false,
   },
   sybago: {
     label: 'Sybago — Russell',
     env: ['META_ADS_ACCOUNT_ID_SYBAGO', 'META_AD_ACCOUNT_ID_SYBAGO'],
+    tokenEnv: ['META_ADS_TOKEN_SYBAGO', 'META_ADS_TOKEN'],
     masterOnly: true,
   },
 };
 const DEFAULT_VIEW = 'dave';
 
-function resolveAccount(view) {
-  for (const name of VIEWS[view].env) {
+function firstEnv(names) {
+  for (const name of names) {
     const v = (process.env[name] || '').trim();
-    if (v) return { id: v.startsWith('act_') ? v : `act_${v}`, envName: name };
+    if (v) return { value: v, envName: name };
   }
-  return { id: null, envName: VIEWS[view].env[0] };
+  return { value: null, envName: names[0] };
+}
+
+function resolveAccount(view) {
+  const hit = firstEnv(VIEWS[view].env);
+  if (!hit.value) return { id: null, envName: hit.envName };
+  return { id: hit.value.startsWith('act_') ? hit.value : `act_${hit.value}`, envName: hit.envName };
+}
+
+function resolveToken(view) {
+  return firstEnv(VIEWS[view].tokenEnv);
+}
+
+/** Every token this deployment knows about, for scrubbing. */
+function allTokens() {
+  const names = new Set();
+  for (const v of Object.values(VIEWS)) for (const n of v.tokenEnv) names.add(n);
+  return [...names].map((n) => (process.env[n] || '').trim()).filter((t) => t.length > 8);
 }
 
 const BASE_FIELDS = [
@@ -192,13 +216,16 @@ async function fetchWithBackoff(url, { retries = 3 } = {}) {
   throw Object.assign(new Error(lastErr?.message || 'Meta request failed'), lastErr);
 }
 
-function buildUrl(accountId, params) {
+// The token is passed in rather than read from the environment here, so that
+// which account is being queried and which credential is being used are decided
+// in the same place instead of drifting apart.
+function buildUrl(accountId, params, token) {
   const u = new URL(`https://graph.facebook.com/${API_VERSION}/${accountId}/insights`);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) u.searchParams.set(k, typeof v === 'string' ? v : JSON.stringify(v));
   }
   // Appended last and never logged.
-  u.searchParams.set('access_token', process.env.META_ADS_TOKEN);
+  u.searchParams.set('access_token', token);
   return u.toString();
 }
 
@@ -286,8 +313,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function scrubSecrets(text) {
   if (typeof text !== 'string') return text;
   let out = text.replace(/access_token=[^&\s]*/gi, 'access_token=REDACTED');
-  const tok = process.env.META_ADS_TOKEN;
-  if (tok && tok.length > 8) out = out.split(tok).join('REDACTED');
+  // Every token, not just the shared one — a per-view token added later must
+  // not become the one credential this net fails to catch.
+  for (const tok of allTokens()) out = out.split(tok).join('REDACTED');
   return out;
 }
 
@@ -315,11 +343,64 @@ export default async function handler(req, res) {
     });
   }
 
-  const token = process.env.META_ADS_TOKEN;
+  // ?debug=accounts — which ad accounts each configured token can actually
+  // read. This answers "do I need a second token?": a Meta token is scoped to a
+  // USER, not an account, so one token serves both dashboards whenever that
+  // user holds a role on both. Master only, since it enumerates everything the
+  // credential can reach. Returns ids and names; never any part of a token.
+  if (req.query.debug === 'accounts') {
+    if (session.role !== ROLE_MASTER) {
+      return res.status(403).json({
+        error: 'forbidden_view',
+        message: 'This diagnostic requires the master password.',
+      });
+    }
+
+    const names = [...new Set(Object.values(VIEWS).flatMap((v) => v.tokenEnv))];
+    const tokens = [];
+    for (const name of names) {
+      const value = (process.env[name] || '').trim();
+      if (!value) { tokens.push({ envName: name, configured: false }); continue; }
+      try {
+        const u = new URL(`https://graph.facebook.com/${API_VERSION}/me/adaccounts`);
+        u.searchParams.set('fields', 'id,name,account_status');
+        u.searchParams.set('limit', '200');
+        u.searchParams.set('access_token', value);
+        const { json } = await fetchWithBackoff(u.toString());
+        tokens.push({
+          envName: name,
+          configured: true,
+          canRead: (json.data || []).map((a) => ({ id: a.id, name: a.name, status: a.account_status })),
+        });
+      } catch (e) {
+        tokens.push({ envName: name, configured: true, error: scrubSecrets(e.message || 'Request failed') });
+      }
+    }
+
+    // What each view is pointed at, and whether the token it would use can
+    // actually see that account — so "token can read it" and "dashboard asks
+    // for it" are checkable against each other in one response.
+    const views = {};
+    for (const key of Object.keys(VIEWS)) {
+      const wantId = resolveAccount(key).id;
+      const src = resolveToken(key).envName;
+      const entry = tokens.find((r) => r.envName === src);
+      views[key] = {
+        label: VIEWS[key].label,
+        accountId: wantId,
+        tokenSource: src,
+        reachable: !wantId || !entry || !entry.canRead ? null : entry.canRead.some((a) => a.id === wantId),
+      };
+    }
+    return res.status(200).json({ tokens, views });
+  }
+
   // META_AD_ACCOUNT_ID and META_ADS_ACCOUNT_ID are trivially easy to confuse
   // (the token variable is plural, so the plural form is the natural typo), so
   // each view accepts either spelling.
   const account = resolveAccount(view);
+  const tokenHit = resolveToken(view);
+  const token = tokenHit.value;
 
   if (!token || !account.id) {
     const missing = [];
@@ -393,7 +474,7 @@ export default async function handler(req, res) {
           limit: '500',
           ...attribution,
           ...filterParam,
-        }),
+        }, token),
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
@@ -406,7 +487,7 @@ export default async function handler(req, res) {
           limit: '500',
           ...attribution,
           ...filterParam,
-        }),
+        }, token),
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
@@ -414,7 +495,7 @@ export default async function handler(req, res) {
           fields: 'campaign_id,campaign_name,adset_id,adset_name',
           time_range,
           limit: '500',
-        }),
+        }, token),
       ),
     ]);
 
@@ -513,6 +594,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       view,
       viewLabel: VIEWS[view].label,
+      // The variable NAME only — so it is possible to tell which credential
+      // answered without any part of the credential leaving the server.
+      tokenSource: tokenHit.envName,
       account: accountId,
       apiVersion: API_VERSION,
       level,

@@ -346,5 +346,83 @@ t('an unknown view falls back to the default account', () =>
 t('no password appears in any login response', () =>
   assert.ok(!JSON.stringify(lr.body).includes('the-master-password')));
 
+
+/* ------------------------------------------------------- token routing ---- */
+console.log('\nPer-view tokens');
+
+const tokenOf = (u) => new URL(String(u)).searchParams.get('access_token');
+
+// One token, two accounts: the ordinary case. A Meta token is scoped to a user,
+// so it reads every account that user has a role on.
+lastUrls = [];
+globalThis.fetch = async (u) => {
+  lastUrls.push(String(u));
+  return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+};
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+t('with one token configured, the agency view uses it', () =>
+  assert.ok(lastUrls.length > 0 && lastUrls.every((u) => tokenOf(u) === process.env.META_ADS_TOKEN)));
+t('the response names the credential it used', () =>
+  assert.equal(res.body.tokenSource, 'META_ADS_TOKEN'));
+
+// Two Business Managers with no shared user: a per-view token takes over.
+{
+  process.env.META_ADS_TOKEN_SYBAGO = 'SECOND_TOKEN_also_never_in_output_987654321';
+  lastUrls = [];
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('a view-specific token overrides the shared one', () =>
+    assert.ok(lastUrls.length > 0 && lastUrls.every((u) => tokenOf(u) === process.env.META_ADS_TOKEN_SYBAGO)));
+  t('the response reports the view-specific credential', () =>
+    assert.equal(r.body.tokenSource, 'META_ADS_TOKEN_SYBAGO'));
+
+  // Dave must NOT pick up the agency token.
+  lastUrls = [];
+  const r2 = mockRes();
+  await insights({ method: 'GET', query: { view: 'dave' }, headers: { cookie: masterCookie } }, r2);
+  t("the agency token never leaks into Dave's requests", () =>
+    assert.ok(lastUrls.every((u) => tokenOf(u) === process.env.META_ADS_TOKEN)));
+
+  // THE LEAK THIS GUARDS: scrubSecrets once knew about a single token, so a
+  // second one added later would have been the one credential it missed.
+  globalThis.fetch = stubErr(400, {
+    code: 1,
+    message: 'Boom https://graph.facebook.com/x?access_token=' + process.env.META_ADS_TOKEN_SYBAGO,
+  });
+  const r3 = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r3);
+  t('an error never echoes the view-specific token', () =>
+    assert.ok(!JSON.stringify(r3.body).includes('SECOND_TOKEN')));
+  t('an error never echoes the shared token either', () =>
+    assert.ok(!JSON.stringify(r3.body).includes('FAKE_TOKEN')));
+
+  delete process.env.META_ADS_TOKEN_SYBAGO;
+}
+
+// The accounts diagnostic is master-only and must not emit a token.
+globalThis.fetch = async (u) => {
+  lastUrls.push(String(u));
+  return {
+    ok: true, headers: { get: () => null },
+    json: async () => ({ data: [{ id: 'act_123456', name: 'Dave', account_status: 1 }] }),
+  };
+};
+res = mockRes();
+await insights({ method: 'GET', query: { debug: 'accounts' }, headers: { cookie: daveCookie } }, res);
+t('the accounts diagnostic is refused to the narrow role', () => assert.equal(res.code, 403));
+
+lastUrls = [];
+res = mockRes();
+await insights({ method: 'GET', query: { debug: 'accounts' }, headers: { cookie: masterCookie } }, res);
+t('master may list what each token can read', () =>
+  assert.ok(res.code === 200 && Array.isArray(res.body.tokens)));
+t('the diagnostic reports reachability per view', () =>
+  assert.equal(res.body.views.dave.reachable, true));
+t('an account the token cannot see is reported unreachable', () =>
+  assert.equal(res.body.views.sybago.reachable, false));
+t('no token value appears in the diagnostic', () =>
+  assert.ok(!JSON.stringify(res.body).includes('FAKE_TOKEN')));
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
