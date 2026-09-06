@@ -119,6 +119,31 @@ input[type=date], input[type=text], input[type=password] { padding-right:.8rem; 
 select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%232F6779' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
 select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 
+.statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
+.statusbar #status { margin:0; }
+.attrib-note { font-size:.8rem; line-height:1.5; max-width:78ch; margin-bottom:.9rem; color:var(--t3); }
+
+/* Live pill. The dot is the state: filled and pulsing while auto-refresh is
+   on, hollow when it is off, so the state is not carried by colour alone. */
+.live {
+  display:inline-flex; align-items:center; gap:.45rem; cursor:pointer;
+  border:1px solid var(--hairline); border-radius:999px; background:var(--surface);
+  padding:.24rem .7rem .24rem .6rem; font-size:.76rem; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--t3);
+  box-shadow:inset 0 1px 0 var(--hairline-2);
+  transition:color .2s var(--eo), border-color .2s var(--eo), background .2s var(--eo);
+}
+.live[aria-pressed="true"] { color:var(--teal-d); border-color:rgba(47,103,121,.3); background:rgba(47,103,121,.07); }
+.live:hover { background:#fff; }
+.live-dot { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 0 rgba(47,103,121,.5); }
+.live[aria-pressed="true"] .live-dot { background:var(--teal); animation:pulse 2.4s var(--eo) infinite; }
+.live[aria-pressed="false"] .live-dot { background:transparent; border:1.5px solid var(--t3); }
+@keyframes pulse {
+  0% { box-shadow:0 0 0 0 rgba(47,103,121,.45); }
+  70% { box-shadow:0 0 0 7px rgba(47,103,121,0); }
+  100% { box-shadow:0 0 0 0 rgba(47,103,121,0); }
+}
+
 .toolbar { display:flex; flex-wrap:wrap; gap:1rem 1.15rem; align-items:flex-end; padding:1.15rem 1.25rem; border-radius:var(--r-lg); margin:1.25rem 0 1.75rem; }
 
 /* Exactly five per row. auto-fit was letting the count drift with viewport
@@ -236,6 +261,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .statusbar { gap:.4rem .6rem; }
+  .attrib-note { font-size:.78rem; }
   .series-bar { gap:.4rem .5rem; }
   #ts-series { width:100%; }
   .series-row { width:100%; }
@@ -327,7 +354,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       </button>
     </form>
 
-    <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true" style="margin-bottom:.75rem">Ready.</p>
+    <div class="statusbar">
+      <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true">Ready.</p>
+      <button type="button" id="live-toggle" class="live" aria-pressed="true">
+        <span class="live-dot" aria-hidden="true"></span><span id="live-label">Live</span>
+      </button>
+    </div>
+    <p class="sub attrib-note">Meta keeps attributing conversions for up to about three days, so today's and yesterday's sign-up counts rise after the fact. Meta also only counts a sign-up it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, joins on Skool without appearing here.</p>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
 
@@ -521,8 +554,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     series: ['spend', 'registrations'],
     bar:    { m:'spend', dim:'campaign', range:{mode:'global'} },
     table:  { dim:'campaign', range:{mode:'global'}, sortKey:'spend', sortDir:'desc', filter:'' },
-    campaigns:[]
+    campaigns:[],
+    auto:true
   };
+
+  /* Meta's own pipeline is the floor on freshness here — spend and impressions
+     land within minutes, conversions keep filling in for up to about three
+     days. Polling faster than this would burn rate limit to redraw identical
+     numbers, so three minutes is the interval and a manual Refresh is always
+     available for the impatient case. */
+  var AUTO_MS = 3 * 60 * 1000;
+  var autoTimer = null;
+  var isLoading = false;
   var charts = {};
 
   /* ============================== utilities =============================== */
@@ -1004,6 +1047,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ============================== orchestration =========================== */
   function refreshAll(){
+    // A poll that lands while a previous request is still in flight would
+    // double the load for no new data.
+    if(isLoading) return Promise.resolve();
+    isLoading = true;
     var btn=$('refresh'); btn.setAttribute('aria-disabled','true');
     $('status').textContent='Loading…'; $('error-box').hidden=true;
 
@@ -1035,12 +1082,47 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         });
       })
       .catch(function(e){ panelError(e); $('status').textContent='Could not load data.'; })
-      .then(function(){ btn.removeAttribute('aria-disabled'); });
+      .then(function(){ isLoading=false; btn.removeAttribute('aria-disabled'); scheduleAuto(); });
+  }
+
+  /* ------------------------------------------------------- auto-refresh ---- */
+  /* Restarted from the end of every load rather than run on a fixed interval,
+     so the gap is measured from when data last arrived. */
+  function scheduleAuto(){
+    if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
+    if(!state.auto) return;
+    autoTimer = setTimeout(function(){
+      // A background tab polling on a timer is wasted requests; it catches up
+      // the moment it is looked at again.
+      if(document.visibilityState === 'visible') refreshAll();
+      else scheduleAuto();
+    }, AUTO_MS);
+  }
+
+  /* paintOnly is for boot, where the trailing refreshAll() already loads —
+     firing another here would double the first request of every session. */
+  function setAuto(on, paintOnly){
+    state.auto = on;
+    var b=$('live-toggle');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    $('live-label').textContent = on ? 'Live' : 'Paused';
+    b.title = on ? 'Refreshing every 3 minutes. Click to pause.' : 'Auto-refresh paused. Click to resume.';
+    if(paintOnly) return;
+    if(on) refreshAll(); else if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   }
 
   /* ================================= boot ================================= */
   function boot(){
     renderSeriesRows();
+
+    $('live-toggle').addEventListener('click', function(){ setAuto(!state.auto); });
+    setAuto(true, true);
+
+    /* Coming back to the tab should show current numbers, not whatever was on
+       screen when it was last looked at. */
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible' && state.auto) refreshAll();
+    });
 
     fillMetricSelect($('bar-m'), state.bar.m);
     fillDimSelect($('bar-dim'), state.bar.dim);
