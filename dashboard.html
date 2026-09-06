@@ -121,7 +121,9 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 
 .toolbar { display:flex; flex-wrap:wrap; gap:1rem 1.15rem; align-items:flex-end; padding:1.15rem 1.25rem; border-radius:var(--r-lg); margin:1.25rem 0 1.75rem; }
 
-.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:.9rem; margin-bottom:1.75rem; }
+/* Exactly five per row. auto-fit was letting the count drift with viewport
+   width, which left the second row ragged. */
+.kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.9rem; margin-bottom:1.75rem; }
 .kpi { position:relative; overflow:hidden; border-radius:var(--r-md); padding:1rem 1.05rem; transition:transform .25s var(--eo), box-shadow .25s var(--eo); }
 .kpi:hover { transform:translateY(-2px); box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2); }
 .kpi::after { content:''; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, transparent, rgba(47,103,121,.45), transparent); }
@@ -139,6 +141,24 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .panel-ico svg { width:17px; height:17px; }
 .panel-ctl { display:flex; flex-wrap:wrap; gap:.7rem; align-items:flex-end; }
 .panel-ctl .field { min-width:142px; }
+
+/* Multi-series Y builder */
+#ts-series { display:flex; flex-direction:column; gap:.45rem; }
+.series-row { display:flex; align-items:center; gap:.5rem; }
+.series-row .swatch { width:4px; height:30px; border-radius:3px; flex:0 0 4px; }
+.series-row select { flex:1 1 auto; min-height:42px; }
+.series-del {
+  flex:0 0 38px; width:38px; height:38px; display:grid; place-items:center;
+  border:1px solid var(--hairline); border-radius:var(--r-sm); background:var(--surface-solid);
+  cursor:pointer; color:var(--t3); box-shadow:var(--lift-1);
+  transition:color .18s var(--eo), border-color .18s var(--eo), background .18s var(--eo);
+}
+.series-del:hover { color:var(--neg); border-color:rgba(163,58,38,.4); background:rgba(163,58,38,.05); }
+.series-del[disabled] { opacity:.35; cursor:not-allowed; }
+.add-series { min-height:40px; padding:.45rem .85rem; font-size:.85rem; align-self:flex-start; }
+.ts-legend { display:flex; flex-wrap:wrap; gap:.4rem .95rem; margin-bottom:.6rem; font-size:.8rem; color:var(--t2); }
+.ts-legend span { display:inline-flex; align-items:center; gap:.4rem; }
+.ts-legend i { width:20px; height:0; border-top-width:3px; display:inline-block; border-radius:2px; }
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
@@ -182,13 +202,28 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 @media (max-width:880px) {
   main { padding:1.1rem 1rem 4.5rem; }
   .nav { padding:.7rem 1rem; }
-  .toolbar { flex-direction:column; align-items:stretch; gap:.9rem; padding:1rem; border-radius:var(--r-md); }
-  .toolbar .field { width:100%; }
-  .seg { display:grid; grid-template-columns:repeat(5,1fr); width:100%; }
-  .seg button { padding:.55rem .2rem; font-size:.78rem; min-height:44px; }
+  /* The single stacked column put five full-width blocks between the top of
+     the page and the numbers, which is most of a phone screen spent on
+     controls. Two columns pairs the fields that are read together — campaign
+     with ad set, from with to — and halves the height. */
+  .toolbar {
+    display:grid; grid-template-columns:1fr 1fr; gap:.55rem .6rem;
+    align-items:end; padding:.85rem; border-radius:var(--r-md); margin:.9rem 0 1.1rem;
+  }
+  .toolbar .field { width:auto; gap:.22rem; }
+  .toolbar .field .lbl, .toolbar .field label { font-size:.62rem; letter-spacing:.08em; }
+  /* Range spans the row; the paired date and scope fields sit side by side;
+     Refresh spans again so it keeps a comfortable tap target. Hidden fields
+     are display:none, so the custom date row collapses out of the grid. */
+  #range-field, #refresh { grid-column:1 / -1; }
+  .toolbar select, .toolbar input[type=date] { min-height:42px; padding-top:.45rem; padding-bottom:.45rem; }
+  .seg { display:grid; grid-template-columns:repeat(5,1fr); width:100%; padding:2px; }
+  .seg button { padding:.5rem .2rem; font-size:.78rem; min-height:40px; }
+  #refresh { min-height:46px; margin-top:.15rem; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  #ts-series { width:100%; }
   .kpi { padding:.8rem .85rem; }
   .kpi dd { font-size:1.28rem; }
   .panel { padding:1rem; border-radius:var(--r-md); }
@@ -199,8 +234,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   #refresh { width:100%; }
 }
 @media (max-width:380px) {
+  /* Tiles go single-column, but the toolbar stays paired — these controls are
+     short enough to survive the narrower column, and stacking them here would
+     undo the height saving exactly where the screen is smallest. */
   .kpis { grid-template-columns:1fr; }
   .panel-ctl .field { flex:1 1 100%; }
+  .toolbar { gap:.45rem .5rem; }
 }
 @media (prefers-reduced-motion:reduce) { *,*::after,*::before { animation:none !important; transition:none !important; } }
 </style>
@@ -241,7 +280,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </header>
 
     <form class="toolbar glass rise" id="controls" aria-label="Global filters">
-      <div class="field" style="flex:0 0 auto;">
+      <div class="field" id="range-field" style="flex:0 0 auto;">
         <span class="lbl" id="range-lbl">Date range</span>
         <div class="seg" role="group" aria-labelledby="range-lbl" id="range-seg">
           <button type="button" data-days="7"  aria-pressed="false">7d</button>
@@ -255,11 +294,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="field" id="custom-from" hidden><label for="since">From</label><input type="date" id="since"></div>
       <div class="field" id="custom-to" hidden><label for="until">To</label><input type="date" id="until"></div>
 
-      <div class="field" style="flex:1 1 190px;">
+      <div class="field" id="campaign-field" style="flex:1 1 190px;">
         <label for="campaign-pick">Campaign</label>
         <select id="campaign-pick"><option value="">All campaigns</option></select>
       </div>
-      <div class="field" style="flex:1 1 190px;">
+      <div class="field" id="adset-field" style="flex:1 1 190px;">
         <label for="adset-pick">Ad set</label>
         <select id="adset-pick" disabled aria-describedby="adset-hint"><option value="">All ad sets</option></select>
         <span id="adset-hint" class="sr-only">Choose a campaign first to narrow by ad set.</span>
@@ -279,24 +318,29 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     <h2 id="kpi-h" class="sr-only">Totals for the selected range</h2>
     <dl class="kpis" id="kpis" aria-labelledby="kpi-h"></dl>
 
-    <!-- ---------- 1. SCATTER ---------- -->
-    <section class="panel glass" id="panel-scatter" aria-labelledby="sc-h">
+    <!-- ---------- 1. OVER TIME ---------- -->
+    <section class="panel glass" id="panel-time" aria-labelledby="ts-h">
       <div class="panel-head">
         <div class="panel-title">
-          <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="5" cy="14" r="1.6"/><circle cx="10" cy="8" r="1.6"/><circle cx="15" cy="11" r="1.6"/><path d="M2 18h16" stroke-linecap="round"/></svg></span>
-          <div><h2 id="sc-h">Relationship</h2><p class="sub" id="sc-desc">Plot any two metrics against each other.</p></div>
+          <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.5 7 9.5l3.2 3 4.8-6"/><circle cx="7" cy="9.5" r="1.3"/><circle cx="10.2" cy="12.5" r="1.3"/></svg></span>
+          <div><h2 id="ts-h">Over time</h2><p class="sub" id="ts-desc">Metrics across the selected date range.</p></div>
         </div>
-        <div class="panel-ctl">
-          <div class="field"><label for="sc-x">X axis</label><select id="sc-x"></select></div>
-          <div class="field"><label for="sc-y">Y axis</label><select id="sc-y"></select></div>
-          <div class="field"><label for="sc-dim">Each point is</label><select id="sc-dim"></select></div>
-          <div class="field"><label for="sc-range">Range</label><select id="sc-range"></select></div>
+        <div class="panel-ctl" style="align-items:flex-start">
+          <div class="field" style="min-width:min(100%,320px)">
+            <span class="lbl" id="ts-series-lbl">Y axis</span>
+            <div id="ts-series" role="group" aria-labelledby="ts-series-lbl"></div>
+            <button type="button" class="btn btn-ghost add-series" id="ts-add">
+              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
+              Add metric
+            </button>
+          </div>
         </div>
       </div>
-      <div class="chart-box" id="sc-box"><canvas id="sc-chart" role="img" aria-labelledby="sc-h" aria-describedby="sc-desc sc-summary"></canvas></div>
-      <p class="readout" id="sc-readout" data-hint="Drag across the plot to read each point."></p>
-      <p id="sc-summary" class="sr-only"></p>
-      <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="sc-table"><caption>The same points as the plot above.</caption></table></div></details>
+      <div class="ts-legend" id="ts-legend"></div>
+      <div class="chart-box" id="ts-box"><canvas id="ts-chart" role="img" aria-labelledby="ts-h" aria-describedby="ts-desc ts-summary"></canvas></div>
+      <p class="readout" id="ts-readout" data-hint="Drag across the chart to read every metric at a point in time."></p>
+      <p id="ts-summary" class="sr-only"></p>
+      <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="ts-table"><caption>The same values as the chart above, one row per day.</caption></table></div></details>
     </section>
 
     <!-- ---------- 2. BAR ---------- -->
@@ -335,7 +379,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
 
-    <p class="sub" id="footer-note" style="margin-top:1.25rem"></p>
   </section>
 </main>
 
@@ -385,7 +428,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     roas:                   { label:'ROAS',                fmt:mult,  icon:'trend'   }
   };
   var METRIC_KEYS = Object.keys(METRICS);
-  var KPI_KEYS = ['spend','impressions','linkClicks','ctr','cpc','cpm','registrations','costPerRegistration','landingPageViews','costPerLandingPageView'];
+  /* Exactly ten, laid out five per row. Row 1 is reach-and-efficiency, row 2
+     is outcomes paired with what each outcome cost. ROAS is deliberately not
+     here — appending it conditionally would leave the second row ragged. It
+     is still available in the chart pickers and the table. */
+  var KPI_KEYS = [
+    'spend', 'cpm', 'impressions', 'linkClicks', 'ctr',
+    'costPerRegistration', 'registrations', 'cpc', 'landingPageViews', 'costPerLandingPageView'
+  ];
   var TABLE_COLS = ['spend','impressions','reach','frequency','linkClicks','ctr','cpc','cpm','registrations','costPerRegistration','landingPageViews','costPerLandingPageView'];
 
   var DIMENSIONS = [
@@ -448,7 +498,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ================================ state ================================= */
   var state = {
-    scatter:{ x:'spend', y:'registrations', dim:'campaign', range:{mode:'global'} },
+    // The over-time panel plots N metrics against the globally selected range.
+    series: ['spend', 'registrations'],
     bar:    { m:'spend', dim:'campaign', range:{mode:'global'} },
     table:  { dim:'campaign', range:{mode:'global'}, sortKey:'spend', sortDir:'desc', filter:'' },
     campaigns:[]
@@ -596,8 +647,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderKpis(d){
     var t=d.totals||{};
-    var keys=KPI_KEYS.slice();
-    if(t.roas) keys.push('roas');
+    var keys=KPI_KEYS;
     $('kpis').innerHTML = keys.map(function(k){
       var m=METRICS[k], v=t[k], muted=(v==null||v===0);
       return '<div class="kpi glass'+(muted?' is-muted':'')+'">'+
@@ -606,49 +656,169 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }).join('');
   }
 
-  /* ----------------------------------------------------------- scatter ---- */
-  function renderScatter(){
-    var s=state.scatter, mx=METRICS[s.x], my=METRICS[s.y];
-    $('sc-desc').textContent = my.label+' against '+mx.label+', one point per '+(s.dim==='day'?'day':s.dim)+'.';
-    return loadPanel(s.range, s.dim).then(function(d){
-      var pts=rowsFor(d,s.dim)
-        .map(function(r){ return { x:r[s.x], y:r[s.y], name:r.name }; })
-        .filter(function(p){ return p.x!=null && p.y!=null; });
+  /* --------------------------------------------------- over time (series) ---- */
+  /* The X axis is always the selected date range — that is the point of this
+     panel, so it is not configurable. Y is a list of metrics the user builds
+     up, overlaid to show how they move against each other.
 
-      if(!pts.length){
-        if(charts.sc){ charts.sc.destroy(); charts.sc=null; }
-        $('sc-box').innerHTML=emptyState('No data in this range yet.');
-        $('sc-summary').textContent='No data in this range.';
-        buildTable($('sc-table'),['Name',mx.label,my.label],[]);
+     Metrics here differ by orders of magnitude (spend in dollars against
+     impressions in tens of thousands), so one shared axis would flatten
+     everything but the largest series into a line along the bottom. Each
+     series therefore gets its own scale. Only the first two are drawn as
+     labelled axes — past that the axis furniture costs more than it tells
+     you, and the readout under the chart carries the exact figures anyway. */
+  var SERIES_STYLE = [
+    { line:'#2F6779', fill:'rgba(47,103,121,.12)', dash:[],         point:'circle'   },
+    { line:'#A33A26', fill:'rgba(163,58,38,.12)',  dash:[7,4],      point:'rect'     },
+    { line:'#43507A', fill:'rgba(67,80,122,.12)',  dash:[2,3],      point:'triangle' },
+    { line:'#1F7A4C', fill:'rgba(31,122,76,.12)',  dash:[10,4,2,4], point:'rectRot'  },
+    { line:'#8A5A00', fill:'rgba(138,90,0,.12)',   dash:[1,3],      point:'star'     },
+    { line:'#6B4E9E', fill:'rgba(107,78,158,.12)', dash:[6,3,1,3],  point:'cross'    }
+  ];
+  var MAX_SERIES = SERIES_STYLE.length;
+  function styleFor(i){ return SERIES_STYLE[i % SERIES_STYLE.length]; }
+
+  /* Rebuilds the Y-axis series rows. Each row is a metric picker plus a remove
+     button; remove is disabled on the last remaining row, because a chart with
+     no series is not a state worth being able to reach. */
+  function renderSeriesRows(){
+    var wrap = $('ts-series');
+    wrap.innerHTML = '';
+    state.series.forEach(function(key, i){
+      var st = styleFor(i);
+      var row = document.createElement('div');
+      row.className = 'series-row';
+
+      var sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = st.line;
+      sw.setAttribute('aria-hidden', 'true');
+
+      var sel = document.createElement('select');
+      sel.setAttribute('aria-label', 'Metric ' + (i + 1) + ' on the Y axis');
+      fillMetricSelect(sel, key);
+      sel.addEventListener('change', function(){ state.series[i] = this.value; renderSeriesRows(); renderTimeSeries(); });
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'series-del';
+      del.setAttribute('aria-label', 'Remove ' + METRICS[key].label + ' from the chart');
+      del.innerHTML = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
+      if(state.series.length < 2) del.disabled = true;
+      del.addEventListener('click', function(){
+        state.series.splice(i, 1);
+        renderSeriesRows();
+        /* Focus would otherwise land on <body> once this button is destroyed. */
+        var left = wrap.querySelectorAll('.series-del');
+        (left[Math.min(i, left.length - 1)] || $('ts-add')).focus();
+        renderTimeSeries();
+      });
+
+      row.appendChild(sw); row.appendChild(sel); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+
+    var add = $('ts-add');
+    var full = state.series.length >= MAX_SERIES;
+    add.disabled = full;
+    add.title = full ? 'Up to ' + MAX_SERIES + ' metrics can be overlaid at once.' : '';
+  }
+
+  /* First metric not already plotted, so "Add metric" never opens on a duplicate. */
+  function nextUnusedMetric(){
+    for(var i = 0; i < METRIC_KEYS.length; i++){
+      if(state.series.indexOf(METRIC_KEYS[i]) === -1) return METRIC_KEYS[i];
+    }
+    return METRIC_KEYS[0];
+  }
+
+  function renderTimeSeries(){
+    var ms = state.series.map(function(k){ return METRICS[k]; });
+    $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') + ' over the selected date range.';
+
+    return loadPanel({ mode:'global' }, 'day').then(function(d){
+      var days = (d.daily || []).slice().sort(function(a, b){ return a.dateStart < b.dateStart ? -1 : 1; });
+
+      if(!days.length){
+        if(charts.ts){ charts.ts.destroy(); charts.ts = null; }
+        $('ts-box').innerHTML = emptyState('No data in this range yet.');
+        $('ts-legend').innerHTML = '';
+        $('ts-summary').textContent = 'No data in this range.';
+        $('ts-readout').textContent = '';
+        buildTable($('ts-table'), ['Date'].concat(ms.map(function(m){ return m.label; })), []);
         return;
       }
-      var cv=ensureCanvas('sc-box','sc-chart','sc-h','sc-desc sc-summary');
 
-      makeChart('sc', cv, {
-        type:'scatter',
-        data:{ datasets:[{
-          label:my.label, data:pts, pointRadius:7, pointHoverRadius:11,
-          backgroundColor:'rgba(47,103,121,.62)', borderColor:'#1d4b59', borderWidth:1.5
-        }]},
+      var labels = days.map(function(x){ return fmtDate(x.dateStart); });
+      var scales = {
+        x:{ grid:{ color:'rgba(15,20,25,.055)' }, border:{ display:false },
+            ticks:{ color:'rgba(15,20,25,.55)', font:{ size:11 }, maxRotation:0, autoSkipPadding:14 } }
+      };
+
+      var datasets = state.series.map(function(key, i){
+        var st = styleFor(i), m = METRICS[key], axis = 'y' + i;
+        scales[axis] = {
+          type:'linear', display:i < 2, position:i === 1 ? 'right' : 'left', beginAtZero:true,
+          title: i < 2 ? { display:true, text:m.label, color:st.line, font:{ size:11, weight:'600' } } : { display:false },
+          grid:{ display:i === 0, color:'rgba(15,20,25,.055)' },
+          border:{ display:false },
+          ticks:{ color:i < 2 ? st.line : 'rgba(15,20,25,.55)', font:{ size:11 } }
+        };
+        return {
+          label:m.label, yAxisID:axis,
+          data:days.map(function(x){ return x[key] == null ? null : x[key]; }),
+          borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
+          borderDash:st.dash, pointStyle:st.point,
+          pointRadius:days.length > 45 ? 0 : 3.5, pointHoverRadius:7,
+          pointBackgroundColor:'#fff', pointBorderColor:st.line, pointBorderWidth:2,
+          fill:state.series.length === 1, tension:0.32, spanGaps:true
+        };
+      });
+
+      var cv = ensureCanvas('ts-box', 'ts-chart', 'ts-h', 'ts-desc ts-summary');
+      makeChart('ts', cv, {
+        type:'line',
+        data:{ labels:labels, datasets:datasets },
         options: baseOpts({
-          onHover:function(e,active,chart){
-            var el=$('sc-readout'); if(!el) return;
-            if(!active||!active.length){ el.textContent=''; return; }
-            var p=chart.data.datasets[0].data[active[0].index];
-            el.textContent=p.name+' — '+mx.label+' '+mx.fmt(p.x)+'  ·  '+my.label+' '+my.fmt(p.y);
+          /* index + intersect:false is what lets a drag anywhere in a column
+             read every series at that date, on touch as well as mouse. */
+          interaction:{ mode:'index', intersect:false, axis:'x' },
+          onHover:function(e, active, chart){
+            var el = $('ts-readout'); if(!el) return;
+            if(!active || !active.length){ el.textContent = ''; return; }
+            var idx = active[0].index;
+            el.textContent = labels[idx] + ' — ' + state.series.map(function(k, i){
+              var v = chart.data.datasets[i].data[idx];
+              return METRICS[k].label + ' ' + (v == null ? '—' : METRICS[k].fmt(v));
+            }).join('  ·  ');
           },
-          plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10,
-            callbacks:{ label:function(c){ return c.raw.name+': '+mx.fmt(c.raw.x)+' / '+my.fmt(c.raw.y); } } } },
-          scales:{
-            x:{ title:{display:true,text:mx.label,color:'rgba(15,20,25,.55)'}, grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)'} },
-            y:{ title:{display:true,text:my.label,color:'rgba(15,20,25,.55)'}, grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)'}, beginAtZero:true }
-          }
+          plugins:{
+            legend:{ display:false },
+            tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10,
+              callbacks:{ label:function(c){ return c.dataset.label + ': ' + METRICS[state.series[c.datasetIndex]].fmt(c.raw); } } }
+          },
+          scales:scales
         })
       });
 
-      $('sc-summary').textContent='Scatter plot of '+pts.length+' points, '+my.label+' against '+mx.label+'. Figures are in the table below.';
-      buildTable($('sc-table'),['Name',mx.label,my.label], pts.map(function(p){ return [p.name,mx.fmt(p.x),my.fmt(p.y)]; }));
-    }).catch(function(e){ panelError(e,'sc-summary'); });
+      /* Colour alone must not carry which line is which. */
+      $('ts-legend').innerHTML = state.series.map(function(k, i){
+        var st = styleFor(i);
+        return '<span><i style="border-top-style:' + (st.dash.length ? 'dashed' : 'solid') +
+               ';border-top-color:' + st.line + '"></i>' + esc(METRICS[k].label) + '</span>';
+      }).join('');
+
+      $('ts-summary').textContent =
+        ms.map(function(m){ return m.label; }).join(' and ') + ' across ' + days.length +
+        ' day' + (days.length === 1 ? '' : 's') + ', from ' + labels[0] + ' to ' + labels[labels.length - 1] +
+        '. Each metric is drawn on its own scale. Exact figures are in the table below.';
+
+      buildTable($('ts-table'),
+        ['Date'].concat(ms.map(function(m){ return m.label; })),
+        days.map(function(x){
+          return [fmtDate(x.dateStart)].concat(state.series.map(function(k){ return METRICS[k].fmt(x[k]); }));
+        }));
+    }).catch(function(e){ panelError(e, 'ts-summary'); });
   }
 
   /* --------------------------------------------------------------- bar ---- */
@@ -808,10 +978,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           $('error-box').hidden=false;
         }
 
-        return Promise.all([renderScatter(), renderBar(), renderTable()]).then(function(){
+        return Promise.all([renderTimeSeries(), renderBar(), renderTable()]).then(function(){
           var when=new Date(d.fetchedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
           $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
-          $('footer-note').textContent='Account '+d.account+' · Graph API '+d.apiVersion;
         });
       })
       .catch(function(e){ panelError(e); $('status').textContent='Could not load data.'; })
@@ -820,10 +989,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ================================= boot ================================= */
   function boot(){
-    fillMetricSelect($('sc-x'), state.scatter.x);
-    fillMetricSelect($('sc-y'), state.scatter.y);
-    fillDimSelect($('sc-dim'), state.scatter.dim);
-    fillRangeSelect($('sc-range'));
+    renderSeriesRows();
 
     fillMetricSelect($('bar-m'), state.bar.m);
     fillDimSelect($('bar-dim'), state.bar.dim);
@@ -832,10 +998,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     fillDimSelect($('tb-dim'), state.table.dim);
     fillRangeSelect($('tb-range'));
 
-    $('sc-x').addEventListener('change', function(){ state.scatter.x=this.value; renderScatter(); });
-    $('sc-y').addEventListener('change', function(){ state.scatter.y=this.value; renderScatter(); });
-    $('sc-dim').addEventListener('change', function(){ state.scatter.dim=this.value; renderScatter(); });
-    $('sc-range').addEventListener('change', function(){ state.scatter.range=readRange(this); renderScatter(); });
+    $('ts-add').addEventListener('click', function(){
+      if(state.series.length >= MAX_SERIES) return;
+      state.series.push(nextUnusedMetric());
+      renderSeriesRows();
+      $('ts-series').querySelectorAll('select')[state.series.length - 1].focus();
+      renderTimeSeries();
+    });
 
     $('bar-m').addEventListener('change', function(){ state.bar.m=this.value; renderBar(); });
     $('bar-dim').addEventListener('change', function(){ state.bar.dim=this.value; renderBar(); });
