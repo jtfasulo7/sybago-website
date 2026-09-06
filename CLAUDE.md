@@ -82,7 +82,7 @@ stays open to any trade.
 | `/leave-a-review` | `leave-a-review.html` | **Do not modify** |
 | `/privacy-policy` | `privacy-policy.html` | **Do not modify** |
 | `/terms` | `terms.html` | **Do not modify** |
-| `/dashboard` | `dashboard.html` | **Internal ads dashboard.** Password-gated, `noindex`. Deliberately breaks several site conventions — see below |
+| `/dashboard` | `dashboard.html` | **Internal ads dashboard.** Password-gated, `noindex`. Deliberately breaks several site conventions — see below. Also hosts the Social post tab |
 
 **FAQ lives inside `index.html` at `#faq`.** There is no separate FAQ page.
 
@@ -356,6 +356,73 @@ second row ragged. Extra metrics belong in the chart pickers and the table.
   rather than silently showing clicks where sign-ups are implied.
 
 ---
+
+## SOCIAL POSTING (/dashboard → Peps by Dave → Social post)
+
+Upload a finished video, generate a caption per platform, post to all four at once.
+Instagram, Facebook, YouTube Shorts, TikTok. **X is out of scope by decision** — posting
+video there needs a paid API tier. Do not add it back without that being agreed.
+
+| File | Role |
+|---|---|
+| `lib/social/platforms.js` | Registry: limits, hashtag ranges, required env vars, constraints. |
+| `lib/social/adapters.js` | One publish function per platform. |
+| `api/social-upload.js` | Issues the Blob client token. Web-standard handler, not (req,res). |
+| `api/social-captions.js` | Anthropic call. The ONLY place ANTHROPIC_API_KEY is read. |
+| `api/social-publish.js` | GET = status, POST = publish. |
+| `test/social.test.mjs` | `node test/social.test.mjs` — no creds, no network. |
+
+**This is why package.json now exists.** The static site still has no build step. The
+dependency is `@vercel/blob`, needed because a finished video is far past the 4.5 MB
+serverless request body limit, so the browser uploads straight to Blob. `"type": "module"`
+is load-bearing: without it every existing ESM function silently becomes CommonJS.
+
+**The browser half has no bundler.** `@vercel/blob/client` is imported from a pinned
+esm.sh URL, lazily, the first time an upload starts. Keep the version pinned.
+
+**Rules that are load-bearing, not preferences**
+
+- Captions are written per platform, never one caption reshaped. That is the feature.
+- Limits are re-checked server-side AND in the UI. The model is not trusted to have
+  counted, and the count must include hashtags — they come out of the same budget on all
+  four, so counting the caption alone reads as passing until the platform rejects it.
+- Publishing is concurrent and independent. A video already live on Facebook cannot be
+  un-posted because TikTok refused it, so **partial success is a real outcome** and each
+  platform reports its own result. Never collapse that into one status line.
+- An unconfigured platform fails the whole request BEFORE anything posts. Not starting is
+  far easier to recover from than half-posting.
+- `videoUrl` is restricted to our own Blob host. Accepting an arbitrary URL would turn
+  the endpoint into a way to make the server fetch anything.
+
+**Credentials — posting is a SEPARATE Meta app from ads**
+
+App Review is per app and per permission, so an app awaiting review for
+`pages_manage_posts` cannot disturb the ads dashboard, and a revoked posting token does
+not take insights down. The env vars are deliberately independent of the ads ones.
+
+| Platform | Variables |
+|---|---|
+| Instagram | `IG_USER_ID`, `IG_ACCESS_TOKEN` |
+| Facebook | `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN` |
+| YouTube | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` |
+| TikTok | `TIKTOK_ACCESS_TOKEN` |
+| Captions | `ANTHROPIC_API_KEY` |
+
+Use `?debug=meta-assets` on `api/meta-insights` (master only) to discover Page and
+Instagram ids and check which scopes a token actually holds.
+
+**Known platform gates — surfaced in the UI, not worked around**
+
+- **TikTok** only creates drafts until the app passes audit, and PULL_FROM_URL needs the
+  hosting domain verified — a Blob URL is refused until `blob.vercel-storage.com` is
+  verified or the file is served from a verified domain.
+- **YouTube** forces uploads to private until Google verifies the project, and an upload
+  costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
+- **Instagram** caps publishing at 25 per account per rolling day.
+- **YouTube is the only platform we PUSH bytes to.** The other three fetch the URL
+  themselves, which costs one small call regardless of file size. The YouTube adapter
+  streams blob → function → Google without buffering, but a large file can still exceed
+  the function time limit. That is the known weak point.
 
 ## WORKING RULES
 
