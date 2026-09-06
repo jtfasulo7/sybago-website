@@ -6,12 +6,16 @@
 // or hundreds of megabytes, so the browser talks to Blob directly and this
 // route only says "yes, that person may upload".
 //
-// This handler is Web-standard (Request in, Response out) rather than the
-// (req, res) shape the other functions use, because handleUpload expects a
-// Request. Vercel's Node runtime supports both.
+// (req, res) — NOT a Web-standard (Request) -> Response handler.
+//
+// It was written that way first, copied from the docs' framework-agnostic
+// example, and every call to it hung until the platform timed out: Vercel's
+// Node runtime invokes this file as (req, res), so returning a Response object
+// meant nothing ever ended the response. The other functions here are all
+// (req, res); this one has to match them.
 
 import { handleUpload } from '@vercel/blob/client';
-import { readSession } from '../lib/auth.js';
+import { readSession, noStore } from '../lib/auth.js';
 
 const MAX_BYTES = 512 * 1024 * 1024; // 512 MB — well past any sane Reel.
 
@@ -22,56 +26,41 @@ const ALLOWED = [
   'video/webm',
 ];
 
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'content-type': 'application/json',
-      // Same rule as every other authenticated response here.
-      'cache-control': 'private, no-store, max-age=0',
-      'x-content-type-options': 'nosniff',
-      'referrer-policy': 'no-referrer',
-    },
-  });
-}
+export default async function handler(req, res) {
+  noStore(res);
 
-export default async function handler(request) {
-  if (request.method !== 'POST') {
-    return json({ error: 'method_not_allowed' }, 405);
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'method_not_allowed' });
   }
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return json(
-      {
-        error: 'server_misconfigured',
-        message:
-          'BLOB_READ_WRITE_TOKEN is not set. Create a Blob store in Vercel → Storage and ' +
-          'connect it to this project, then redeploy.',
-      },
-      500,
-    );
+    return res.status(500).json({
+      error: 'server_misconfigured',
+      message:
+        'BLOB_READ_WRITE_TOKEN is not set. Create a Blob store in Vercel → Storage, connect it ' +
+        'to this project, and redeploy — environment changes only apply to new deployments.',
+    });
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: 'bad_request', message: 'Expected a JSON body.' }, 400);
+  const body = typeof req.body === 'string' ? safeJson(req.body) : req.body;
+  if (!body || typeof body !== 'object') {
+    return res.status(400).json({ error: 'bad_request', message: 'Expected a JSON body.' });
   }
 
   try {
     const result = await handleUpload({
       body,
-      request,
+      // Passed straight through. handleUpload reads the callback signature as
+      // `request.headers[name]` when the object has no `credentials` property,
+      // which is exactly what a Node req is.
+      request: req,
       onBeforeGenerateToken: async () => {
         // THE gate. Without this the upload route is open to the internet and
         // anyone could fill the Blob store. handleUpload calls this before it
         // will mint a token, and a throw here means no token is issued.
-        //
-        // The cookie is read off the raw header because this handler receives a
-        // Request rather than the Node-style req the other functions get.
         const session = readSession(
-          { headers: { cookie: request.headers.get('cookie') || '' } },
+          { headers: { cookie: req.headers.cookie || '' } },
           process.env.DASHBOARD_SESSION_SECRET,
         );
         if (!session) throw new Error('Sign in to upload a video.');
@@ -88,21 +77,26 @@ export default async function handler(request) {
           tokenPayload: JSON.stringify({ role: session.role, at: Date.now() }),
         };
       },
-      onUploadCompleted: async () => {
-        // Nothing to record — there is no database here, and the browser
-        // already holds the returned URL. Present because handleUpload
-        // requires it.
-      },
+      // onUploadCompleted is deliberately omitted. There is no database here
+      // and the browser already holds the returned URL, so the only thing it
+      // would buy is a webhook round trip — and supplying it makes the SDK
+      // derive a callback URL, which is one more thing to get wrong for no gain.
     });
 
-    return json(result);
+    return res.status(200).json(result);
   } catch (e) {
-    // handleUpload throws for both a refused token and a malformed callback.
     const message = e instanceof Error ? e.message : 'Upload could not be authorised.';
     const unauthenticated = /sign in/i.test(message);
-    return json(
-      { error: unauthenticated ? 'unauthenticated' : 'upload_failed', message },
-      unauthenticated ? 401 : 400,
-    );
+    return res
+      .status(unauthenticated ? 401 : 400)
+      .json({ error: unauthenticated ? 'unauthenticated' : 'upload_failed', message });
+  }
+}
+
+function safeJson(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
   }
 }
