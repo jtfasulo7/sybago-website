@@ -193,6 +193,18 @@ input[type=date], input[type=text], input[type=password] { padding-right:.8rem; 
 select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
 select:hover, input:hover { border-color:rgba(var(--accent-rgb),.35); }
 
+/* The dropdown POPUP is rendered by the browser, not by this page, so it does
+   not inherit the panel styling. On the dark theme that left near-white text on
+   the platform's white list — invisible. Each option is painted explicitly, and
+   color-scheme tells the browser which set of native colours to start from. */
+select, option, optgroup { color-scheme:inherit; }
+select option, select optgroup {
+  background-color:var(--surface-solid);
+  color:var(--t1);
+}
+select option:checked { background-color:rgba(var(--accent-rgb),.22); }
+select:disabled { opacity:.55; }
+
 /* Sub-tabs sit inside a view, so they read as a level down from the view
    tabs: no track, an underline instead of a raised pill. */
 .subtabs { display:flex; gap:.2rem; margin:1.1rem 0 .25rem; border-bottom:1px solid var(--hairline); }
@@ -295,6 +307,29 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 .ad-chip button:hover { background:rgba(var(--accent-rgb),.18); }
 #ad-add { width:auto; max-width:280px; min-height:38px; padding:.3rem 1.9rem .3rem .6rem; font-size:.85rem; }
 .add-ad { min-height:38px; padding:.35rem .75rem; font-size:.84rem; }
+
+.stickybar {
+  position:fixed; top:.6rem; left:50%; transform:translateX(-50%) translateY(-8px);
+  z-index:90; display:flex; align-items:center; gap:.5rem;
+  padding:.45rem .55rem; border-radius:999px;
+  max-width:min(96vw,1180px); box-shadow:var(--lift-2);
+  opacity:0; transition:opacity .18s var(--eo), transform .18s var(--eo);
+}
+.stickybar.is-in { opacity:1; transform:translateX(-50%) translateY(0); }
+.stickybar .sb-label {
+  flex:0 0 auto; padding-left:.5rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--t3); white-space:nowrap;
+}
+.stickybar .seg { border:0; background:var(--seg-track); }
+.stickybar .seg button { padding:.4rem .7rem; font-size:.8rem; min-height:34px; }
+.stickybar select {
+  width:auto; max-width:190px; min-height:34px;
+  padding:.25rem 1.7rem .25rem .6rem; font-size:.82rem; box-shadow:none;
+}
+.sb-top { min-height:34px; width:34px; padding:0; flex:0 0 34px; border-radius:50%; }
+
+/* A fixed bar on a phone costs more screen than the scroll it saves. */
+@media (max-width:880px) { .stickybar { display:none !important; } }
 
 .statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
 .statusbar #status { margin:0; }
@@ -637,6 +672,26 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         Refresh
       </button>
     </form>
+
+    <!-- Follows the page once the real toolbar scrolls away. Desktop only:
+         on a phone the toolbar is a short scroll from anywhere, and a fixed bar
+         would eat screen the charts need. -->
+    <div class="stickybar glass" id="stickybar" hidden>
+      <span class="sb-label" id="sb-view"></span>
+      <div class="seg" role="group" aria-label="Date range, sticky bar" id="sb-seg">
+        <button type="button" data-days="0">Today</button>
+        <button type="button" data-days="7">7d</button>
+        <button type="button" data-days="14">14d</button>
+        <button type="button" data-days="30">30d</button>
+        <button type="button" data-days="90">90d</button>
+      </div>
+      <select id="sb-campaign" aria-label="Campaign, sticky bar"></select>
+      <select id="sb-adset" aria-label="Ad set, sticky bar"></select>
+      <button type="button" class="btn btn-ghost sb-top" id="sb-top" title="Back to the top">
+        <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 16V5M5 10l5-5 5 5"/></svg>
+        <span class="sr-only">Back to the top</span>
+      </button>
+    </div>
 
     <div class="statusbar">
       <p id="status" class="sub" role="status" aria-live="polite" aria-atomic="true">Ready.</p>
@@ -986,12 +1041,28 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   };
 
   var KPI_TARGETS = {
+    // Set for a SALES campaign optimising on the CompleteRegistration event,
+    // not for the broad traffic campaign these started as.
+    //
+    // Conversion optimisation changes the shape of everything. Meta stops
+    // buying the cheapest reachable impression and starts buying people its
+    // model thinks will register, so CPM rises steeply — a high CPM is the
+    // cost of intent here, not waste. The earlier $2.00 CPM target was set
+    // against broad traffic delivery and would have flagged a working
+    // conversion campaign as failing: the sales campaign runs near $43 CPM and
+    // produces every registration the account gets, while the broad campaign
+    // sits at $9 CPM and produces none.
+    //
+    // CTR and cost per registration move with it: a better-matched audience
+    // clicks far more, and the whole point of the objective is a lower cost per
+    // sign-up. Cost per registration is now the metric that matters most here;
+    // CPM is context for it, not a goal in its own right.
     dave: {
-      ctr: 1.20,                      // vs 0.74% now; 2.74% e-learning is out of reach under broad-only targeting
-      cpc: 0.30,                      // vs $0.16 now — headroom before broad reach stops being cheap
-      cpm: 2.00,                      // vs $1.22 now; a jump here means the audience narrowed or auction heated
-      costPerRegistration: 22.00,     // between current $15.98 and the $26.80 e-learning median CPA
-      costPerLandingPageView: 0.60,   // vs $0.35 now
+      ctr: 3.00,                      // conversion-optimised delivery beats the 2.74% e-learning average
+      cpc: 0.50,                      // higher-intent clicks cost more than broad ones
+      cpm: 40.00,                     // intent is bought by the impression; ~$43 observed on the sales campaign
+      costPerRegistration: 25.00,     // the real target. E-learning median CPA $26.80, education CPL ~$21
+      costPerLandingPageView: 1.00,   // higher-intent traffic costs more per view
       frequency: 3.00,
       roas: 1.00
     },
@@ -1219,6 +1290,64 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }, extra||{});
   }
 
+  /* Draws the KPI as a line across the plot, labelled.
+     A Chart.js plugin rather than the annotation add-on, which would be another
+     CDN dependency for one line. It runs after the bars so the line sits on top
+     of them, and it flips with the chart: a horizontal bar chart needs a
+     vertical line at the target, and vice versa. */
+  var kpiLinePlugin = {
+    id: 'kpiLine',
+    afterDatasetsDraw: function(chart, args, opts){
+      if(opts == null || opts.value == null || !isFinite(opts.value)) return;
+      var area = chart.chartArea; if(!area) return;
+      var horizontal = chart.options.indexAxis === 'y';
+      var scale = horizontal ? chart.scales.x : chart.scales.y;
+      if(!scale) return;
+
+      var p = scale.getPixelForValue(opts.value);
+      // A target outside the plotted range would draw on the axis furniture.
+      if(!isFinite(p)) return;
+      if(horizontal ? (p < area.left || p > area.right) : (p < area.top || p > area.bottom)) return;
+
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = opts.color || '#666';
+      if(horizontal){ ctx.moveTo(p, area.top); ctx.lineTo(p, area.bottom); }
+      else { ctx.moveTo(area.left, p); ctx.lineTo(area.right, p); }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      var text = opts.label || 'Target';
+      ctx.font = '700 11px Inter, system-ui, sans-serif';
+      var w = ctx.measureText(text).width + 12;
+
+      // Kept inside the plot so it is never clipped at the edge.
+      var bx, by;
+      if(horizontal){
+        bx = Math.min(Math.max(p - w / 2, area.left + 2), area.right - w - 2);
+        by = area.top + 2;
+      } else {
+        bx = area.right - w - 4;
+        by = Math.min(Math.max(p - 20, area.top + 2), area.bottom - 20);
+      }
+
+      ctx.fillStyle = opts.color || '#666';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx, by, w, 17, 4);
+      else ctx.rect(bx, by, w, 17);
+      ctx.fill();
+
+      ctx.fillStyle = opts.textColor || '#fff';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(text, bx + 6, by + 9);
+      ctx.restore();
+    }
+  };
+
   function barGradient(c, horizontal){
     var p=palette();
     var a=c.chart.chartArea; if(!a) return p.barFlat;
@@ -1297,7 +1426,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     b.addEventListener('click', function(){
       Array.prototype.forEach.call($('range-seg').querySelectorAll('button'), function(o){ o.setAttribute('aria-pressed', String(o===b)); });
       if(b.dataset.days==='custom'){ setCustomVisible(true); $('since').focus(); }
-      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); refreshAll(); }
+      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); syncStickyBar(); refreshAll(); }
     });
   });
   ['since','until'].forEach(function(id){
@@ -1712,8 +1841,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       }
       var cv=ensureCanvas('bar-box','bar-chart','bar-h','bar-desc bar-summary');
 
+      var bt = kpiTarget(s.m);
+      var css = getComputedStyle(document.documentElement);
+
       makeChart('bar', cv, {
         type:'bar',
+        plugins:[kpiLinePlugin],
         data:{ labels:rows.map(function(r){return r.name;}), datasets:[{
           label:m.label, data:rows.map(function(r){return r[s.m];}),
           borderRadius:7, borderSkipped:false, maxBarThickness:38,
@@ -1730,6 +1863,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         }]},
         options: baseOpts({
           indexAxis: horizontal?'y':'x',
+          kpiLine: bt == null ? {} : {
+            value: bt,
+            label: 'Target ' + m.fmt(bt),
+            color: (css.getPropertyValue('--t2') || '').trim() || '#666',
+            textColor: (css.getPropertyValue('--surface-solid') || '').trim() || '#fff'
+          },
           onHover:function(e,active,chart){
             var el=$('bar-readout'); if(!el) return;
             if(!active||!active.length){ el.textContent=''; return; }
@@ -1932,6 +2071,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         selectedAds = sc.ads;
         renderAdPicker();
 
+        syncStickyBar();
         renderKpis(d);
 
         if(d.results&&d.results.note){
@@ -2046,6 +2186,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     selectedAds = currentScope().ads;
 
     applyView();
+    syncStickyBar();
     // The chips draw each series' colour and dash, which are per-view, so they
     // are stale the moment the palette changes.
     renderSeriesRows();
@@ -2054,6 +2195,77 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var body = $('dash-body');
     body.classList.add('swapping');
     refreshAll().then(function(){ body.classList.remove('swapping'); });
+  }
+
+  /* --------------------------------------------------------- sticky bar ---- */
+  /* Mirrors the real toolbar rather than owning its own state: every control
+     here writes through to the control above, so there is exactly one source of
+     truth and the two can never disagree. */
+  function syncStickyBar(){
+    var bar = $('stickybar'); if(!bar) return;
+
+    $('sb-view').textContent = (VIEW_META[state.view] || {}).label || '';
+
+    Array.prototype.forEach.call($('sb-seg').querySelectorAll('button'), function(b){
+      var on = globalRange.mode === 'preset' && String(globalRange.days) === b.dataset.days;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+
+    // Copy the option lists across so the sticky selects offer exactly what the
+    // real ones do, including whatever the current account returned.
+    ['campaign','adset'].forEach(function(which){
+      var src = $(which === 'campaign' ? 'campaign-pick' : 'adset-pick');
+      var dst = $('sb-' + which);
+      if(!src || !dst) return;
+      dst.innerHTML = src.innerHTML;
+      dst.value = src.value;
+      dst.disabled = src.disabled;
+    });
+  }
+
+  function bootStickyBar(){
+    var bar = $('stickybar'), toolbar = $('controls');
+    if(!bar || !toolbar) return;
+
+    Array.prototype.forEach.call($('sb-seg').querySelectorAll('button'), function(b){
+      b.addEventListener('click', function(){
+        var real = $('range-seg').querySelector('button[data-days="' + b.dataset.days + '"]');
+        if(real) real.click();          // one code path for the range change
+      });
+    });
+
+    $('sb-campaign').addEventListener('change', function(){
+      var real = $('campaign-pick');
+      real.value = this.value;
+      real.dispatchEvent(new Event('change'));
+    });
+    $('sb-adset').addEventListener('change', function(){
+      var real = $('adset-pick');
+      real.value = this.value;
+      real.dispatchEvent(new Event('change'));
+    });
+    $('sb-top').addEventListener('click', function(){
+      window.scrollTo({ top:0, behavior:'smooth' });
+      var first = $('range-seg').querySelector('button[aria-pressed="true"]');
+      if(first) first.focus();
+    });
+
+    /* Shown only once the real toolbar has left the viewport. An observer
+       rather than a scroll handler, so nothing runs on every frame. */
+    var io = new IntersectionObserver(function(entries){
+      var visible = entries[0].isIntersecting;
+      if(visible){
+        bar.classList.remove('is-in');
+        // Kept in the DOM until the fade finishes, or it would snap away.
+        setTimeout(function(){ if(!bar.classList.contains('is-in')) bar.hidden = true; }, 200);
+      } else {
+        syncStickyBar();
+        bar.hidden = false;
+        requestAnimationFrame(function(){ bar.classList.add('is-in'); });
+      }
+    }, { rootMargin:'-8px 0px 0px 0px', threshold:0 });
+
+    io.observe(toolbar);
   }
 
   /* ------------------------------------------------------- auto-refresh ---- */
@@ -2506,6 +2718,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     applyView();
 
     bootSocial();
+    bootStickyBar();
 
     $('live-toggle').addEventListener('click', function(){ setAuto(!state.auto); });
     setAuto(true, true);

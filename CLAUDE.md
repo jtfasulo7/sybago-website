@@ -351,13 +351,22 @@ under different rules, so a shared target would be wrong for both.
 
 | Metric | Peps by Dave | Montara Forge |
 |---|---|---|
-| CTR | 1.20% | 1.80% |
-| CPC | $0.30 | $1.80 |
-| CPM | $2.00 | $18.00 |
-| Cost / registration | $22.00 | $40.00 |
-| Cost / LP view | $0.60 | $1.20 |
+| CTR | 3.00% | 1.80% |
+| CPC | $0.50 | $1.80 |
+| CPM | $40.00 | $18.00 |
+| Cost / registration | $25.00 | $40.00 |
+| Cost / LP view | $1.00 | $1.20 |
 
-*Peps by Dave* — e-learning is the strongest vertical on Meta (2.74% CTR, $26.80 median CPA,
+*Peps by Dave* — **set for a SALES campaign optimising on CompleteRegistration**, not the broad
+traffic campaign these started as. Conversion optimisation changes everything: Meta stops buying
+the cheapest reachable impression and starts buying people it thinks will register, so CPM rises
+steeply and a high CPM is the price of intent rather than waste. The sales campaign runs near $43
+CPM and produces every registration the account gets; the broad campaign sits at $9 CPM and
+produces none. An earlier $2.00 CPM target, set against broad delivery, flagged a working
+conversion campaign as failing. **Cost per registration is now the metric that matters; CPM is
+context for it, not a goal.**
+
+e-learning is the strongest vertical on Meta (2.74% CTR, $26.80 median CPA,
 the only category whose CPM fell year over year). **But peptides sit in Meta's Health and
 Wellness Special Ad Category**, which removes interest, behaviour and sub-15-mile geo
 targeting. That forced-broad audience is why the account runs a ~$1.22 CPM against roughly
