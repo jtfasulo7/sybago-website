@@ -1022,15 +1022,31 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     };
   }
 
-  /* Ads selected for comparison, by id. Empty means "the whole ad set",
-     which is the default and the common case. */
+  /* Scope is remembered PER ACCOUNT.
+     Reading it off the selects meant a tab switch lost it, because the selects
+     are rebuilt from whichever account just answered. Keeping it here means
+     each account's campaign, ad set and ad choices survive switching away and
+     back, while still never being sent to the other account — the ids live
+     under separate keys and are validated against what that account returns.
+
+     It also has to be readable BEFORE the selects are repopulated, since the
+     first request after a switch is sent while they are still empty. */
+  var scopeByView = {};
+
+  function currentScope(){
+    if(!scopeByView[state.view]) scopeByView[state.view] = { campaignId:'', adsetId:'', ads:[] };
+    return scopeByView[state.view];
+  }
+
+  // Kept as a live alias so the existing ad-picker code reads the right list.
   var selectedAds = [];
 
   function scopeParams(){
+    var sc = currentScope();
     return {
-      campaignId: $('campaign-pick').value || '',
-      adsetId: $('adset-pick').value || '',
-      adIds: selectedAds.map(function(a){ return a.id; }).join(','),
+      campaignId: sc.campaignId || '',
+      adsetId: sc.adsetId || '',
+      adIds: (sc.ads || []).map(function(a){ return a.id; }).join(','),
     };
   }
 
@@ -1038,7 +1054,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      campaign or ad set narrows this list too, so the picker never offers an ad
      that the current scope excludes. */
   function adsInScope(){
-    var cid = $('campaign-pick').value, aid = $('adset-pick').value;
+    var sc = currentScope();
+    var cid = sc.campaignId, aid = sc.adsetId;
     var out = [];
     (state.campaigns || []).forEach(function(c){
       if(cid && c.id !== cid) return;
@@ -1056,6 +1073,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var chips = $('ad-chips'), sel = $('ad-add'), btn = $('ad-add-btn');
     if(!chips) return;
 
+    selectedAds = currentScope().ads;
     chips.innerHTML = '';
     selectedAds.forEach(function(ad, i){
       var chip = document.createElement('span');
@@ -1068,7 +1086,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       x.setAttribute('aria-label', 'Remove ' + ad.name);
       x.innerHTML = '<svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
       x.addEventListener('click', function(){
-        selectedAds.splice(i, 1);
+        currentScope().ads.splice(i, 1);
+        selectedAds = currentScope().ads;
         renderAdPicker();
         refreshAll();
       });
@@ -1102,7 +1121,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(!id) return;
     var ad = adsInScope().filter(function(a){ return a.id === id; })[0];
     if(!ad) return;
-    selectedAds.push(ad);
+    currentScope().ads.push(ad);
+    selectedAds = currentScope().ads;
     renderAdPicker();
     refreshAll();
   }
@@ -1276,13 +1296,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   $('controls').addEventListener('submit', function(e){ e.preventDefault(); refreshAll(); });
   $('campaign-pick').addEventListener('change', function(){
-    fillAdsets(state.campaigns, this.value, '');
-    selectedAds = [];             // ads belong to the campaign that just changed
+    var sc = currentScope();
+    sc.campaignId = this.value;
+    sc.adsetId = '';
+    sc.ads = [];                  // ads belong to the campaign that just changed
+    fillAdsets(state.campaigns, sc.campaignId, '');
     renderAdPicker();
     refreshAll();
   });
   $('adset-pick').addEventListener('change', function(){
-    selectedAds = [];
+    var sc = currentScope();
+    sc.adsetId = this.value;
+    sc.ads = [];
     renderAdPicker();
     refreshAll();
   });
@@ -1835,17 +1860,33 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return fetchInsights({ level:'campaign', since:r.since, until:r.until, campaignId:sp.campaignId, adsetId:sp.adsetId })
       .then(function(d){
         state.campaigns=d.campaigns||[];
-        var cSel=$('campaign-pick'), keep=cSel.value;
+        var sc = currentScope();
+
+        // A remembered id is only honoured if this account actually has it.
+        // That is what makes per-account memory safe: a stale or deleted
+        // campaign silently falls back to "all" rather than filtering to
+        // nothing.
+        if(sc.campaignId && !state.campaigns.some(function(c){ return c.id===sc.campaignId; })){
+          sc.campaignId = ''; sc.adsetId = ''; sc.ads = [];
+        }
+
+        var cSel=$('campaign-pick');
         cSel.innerHTML=''; cSel.appendChild(opt('','All campaigns'));
         state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id,c.name)); });
-        cSel.value=(d.scope&&d.scope.campaignId)||keep||'';
-        fillAdsets(state.campaigns, cSel.value, (d.scope&&d.scope.adsetId)||'');
+        cSel.value = sc.campaignId || '';
 
-        // An ad that the current campaign or ad set no longer contains must not
-        // stay selected, or the figures would silently exclude everything.
+        var camp = state.campaigns.filter(function(c){ return c.id===sc.campaignId; })[0];
+        if(sc.adsetId && !(camp && camp.adsets.some(function(a){ return a.id===sc.adsetId; }))){
+          sc.adsetId = ''; sc.ads = [];
+        }
+        fillAdsets(state.campaigns, sc.campaignId, sc.adsetId);
+
+        // An ad the current campaign or ad set no longer contains must not stay
+        // selected, or the figures would silently exclude everything.
         var inScope = {};
         adsInScope().forEach(function(a){ inScope[a.id] = true; });
-        selectedAds = selectedAds.filter(function(a){ return inScope[a.id]; });
+        sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
+        selectedAds = sc.ads;
         renderAdPicker();
 
         renderKpis(d);
@@ -1946,18 +1987,20 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(next === state.view || !VIEW_META[next]) return;
     state.view = next;
 
-    // Campaign and ad set ids belong to the account that was on screen a
-    // moment ago. Carrying them across would either scope to nothing or, worse,
-    // silently filter the new account by an id that means something else there.
+    // The selects are emptied because they still list the previous account's
+    // campaigns, which do not exist here. The SELECTION is not lost though:
+    // each account keeps its own scope in scopeByView, so coming back restores
+    // the campaign, ad set and ads that were chosen, while an id from one
+    // account is never sent to the other.
     $('campaign-pick').value = '';
     // Repopulated rather than emptied: a select with no options at all reads as
     // a broken control, not as "nothing selected".
     var as = $('adset-pick');
     as.innerHTML = '';
-    selectedAds = [];           // an ad id means nothing in the other account
     as.appendChild(opt('', 'All ad sets'));
     as.disabled = true;
     state.campaigns = [];
+    selectedAds = currentScope().ads;
 
     applyView();
     // The chips draw each series' colour and dash, which are per-view, so they
