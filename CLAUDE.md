@@ -246,6 +246,22 @@ caption, and do not remove focus outlines.
 layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the
 second row ragged. Extra metrics belong in the chart pickers and the table.
 
+**Freshness**
+
+- The page auto-refreshes every 3 minutes, timed from when data last arrived, skipped while
+  the tab is hidden, and caught up on . The "Live" pill pauses it.
+-  MUST clear the client-side response cache first. That cache has no expiry
+  and exists only to stop the three panels re-requesting the same range within one render
+  pass; without the clear, auto-refresh re-serves the session's first response forever.
+-  is sent on both data requests. Without it the API
+  answers on a legacy default window instead of the ad set's configured setting, and returns
+  fewer conversions than the same range in Ads Manager.
+-  (session-gated) returns every action type Meta returned with its totals,
+  tallied per source. Use it before theorising about a missing conversion. Verified 2026-09-06:
+  every registration alias — , ,
+   — agreed at the same figure, so an
+  apparent shortfall against Skool's own count is attribution, not extraction.
+
 **Known upstream caveats surfaced in the UI**
 
 - Meta conversion values under-report for some date ranges and attribution keeps filling
