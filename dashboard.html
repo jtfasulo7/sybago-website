@@ -1231,6 +1231,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return out;
   }
 
+  /* Ad names repeat constantly (duplicated ads, "- Copy" variants), so a name
+     on its own is not always an identifier. Where a name is shared, the last
+     four of the id are appended — enough to tell two apart without turning the
+     label into an id. */
+  function adLabel(ad, among){
+    var list = among || selectedAds;
+    var shared = list.filter(function(a){ return a.name === ad.name; }).length > 1;
+    return shared ? ad.name + ' · …' + String(ad.id).slice(-4) : ad.name;
+  }
+
   function renderAdPicker(){
     var chips = $('ad-chips'), sel = $('ad-add'), btn = $('ad-add-btn');
     if(!chips) return;
@@ -1241,7 +1251,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       var chip = document.createElement('span');
       chip.className = 'ad-chip';
       var label = document.createElement('span');
-      label.textContent = ad.name;
+      label.textContent = adLabel(ad);
       label.title = ad.name + ' (id ' + ad.id + ')';
       var x = document.createElement('button');
       x.type = 'button';
@@ -1882,8 +1892,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       var name = document.createElement('span');
       name.className = 'lg-name';
-      name.textContent = ad.name;
-      name.title = ad.name;
+      name.textContent = adLabel(ad);
+      name.title = ad.name + ' (id ' + ad.id + ')';
 
       var val = document.createElement('span');
       val.className = 'lg-val';
@@ -1892,7 +1902,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       item.appendChild(mark); item.appendChild(name); item.appendChild(val);
       // Read as one unit rather than three fragments.
-      item.setAttribute('aria-label', ad.name + ': ' + m.label + ' ' + (total == null ? 'no data' : m.fmt(total)));
+      item.setAttribute('aria-label', adLabel(ad) + ': ' + m.label + ' ' + (total == null ? 'no data' : m.fmt(total)));
       el.appendChild(item);
     });
   }
@@ -2001,7 +2011,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           var st = styleFor(i);
           var rowsForAd = byAd[ad.id] || {};
           return {
-            label: ad.name, yAxisID:'y0',
+            label: adLabel(ad), yAxisID:'y0',
             data: days.map(function(x){
               var r = rowsForAd[isHourly ? x.hour : x.dateStart];
               if(r && r[metricKey] != null) return r[metricKey];
@@ -2032,7 +2042,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
               var idx = active[0].index;
               el.textContent = labels[idx] + ' — ' + selectedAds.map(function(a, i){
                 var v = chart.data.datasets[i].data[idx];
-                return a.name + ' ' + (v == null ? '—' : mo.fmt(v));
+                return adLabel(a) + ' ' + (v == null ? '—' : mo.fmt(v));
               }).join('  ·  ');
             },
             plugins:{
@@ -2047,12 +2057,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         renderAdLegend(byAd, metricKey);
 
         $('ts-summary').textContent =
-          mo.label + ' for ' + listSentence(selectedAds.map(function(a){ return a.name; })) +
+          mo.label + ' for ' + listSentence(selectedAds.map(function(a){ return adLabel(a); })) +
           ' across ' + days.length + (isHourly ? ' hour' : ' day') + (days.length === 1 ? '' : 's') +
           '. All lines share one scale, so they can be compared directly. Exact figures are in the table below.';
 
         buildTable($('ts-table'),
-          [isHourly ? 'Hour' : 'Date'].concat(selectedAds.map(function(a){ return a.name; })),
+          [isHourly ? 'Hour' : 'Date'].concat(selectedAds.map(function(a){ return adLabel(a); })),
           days.map(function(x){
             return [isHourly ? fmtHour(x.hour) : fmtDate(x.dateStart)].concat(
               selectedAds.map(function(a){
