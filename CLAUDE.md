@@ -225,6 +225,27 @@ shape as well as colour, the status line is an `aria-live` region, and sortable 
 `<button>`s inside `<th>` with `aria-sort`. Do not replace a table alternative with a
 caption, and do not remove focus outlines.
 
+**The "Over time" panel**
+
+- X is always the globally selected date range and is not configurable — that was the
+  explicit request. The range is the spine: Meta only returns rows for days that had
+  delivery, so the response is mapped onto every date in the window rather than the
+  axis being built from the response.
+- A missing value is zero for a counter and a gap for a rate (`RATE_METRICS`). Meta omits
+  an action type entirely from a day that scored none of it, so registrations must read 0,
+  while CPC on a day with no clicks is undefined, not free.
+- Y is a list of up to six metrics. Each gets its OWN scale, because spend in dollars and
+  impressions in tens of thousands cannot share an axis without one becoming a flat line.
+  Only the first two scales are drawn as labelled axes; past that the readout and the table
+  carry the figures. If you make them share an axis you will get a chart that looks fine
+  and says nothing.
+- Each series chip draws that series' exact `stroke-dasharray`, so the chips ARE the
+  legend. There is deliberately no separate legend strip.
+
+**KPI tiles are a fixed 5x2 grid.** `KPI_KEYS` has exactly ten entries and the order is the
+layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the
+second row ragged. Extra metrics belong in the chart pickers and the table.
+
 **Known upstream caveats surfaced in the UI**
 
 - Meta conversion values under-report for some date ranges and attribution keeps filling
