@@ -7,6 +7,15 @@
 <meta name="theme-color" content="#eef2f4">
 <title>Ads Dashboard — Sybago</title>
 <link rel="icon" type="image/png" href="/logo.png">
+<!-- Home-screen icon. Without an apple-touch-icon, iOS uses a SCREENSHOT of the
+     page as the icon, which is why a saved dashboard showed a thumbnail of its
+     own charts. 180x180 is the iPhone size; iOS downscales it for other
+     devices. Deliberately opaque: iOS composites transparency onto black. -->
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- document.title changes with the selected dashboard, so without this the
+     home-screen label would be whichever tab happened to be open when it was
+     saved. -->
+<meta name="apple-mobile-web-app-title" content="Sybago Ads">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
