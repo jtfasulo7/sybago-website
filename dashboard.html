@@ -1090,7 +1090,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       chip.className = 'ad-chip';
       var label = document.createElement('span');
       label.textContent = ad.name;
-      label.title = ad.name;
+      label.title = ad.name + ' (id ' + ad.id + ')';
       var x = document.createElement('button');
       x.type = 'button';
       x.setAttribute('aria-label', 'Remove ' + ad.name);
@@ -1116,7 +1116,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       btn.disabled = true;
     } else {
       sel.appendChild(opt('', 'Choose an ad…'));
-      available.forEach(function(a){ sel.appendChild(opt(a.id, a.name)); });
+      // Ad names repeat often — duplicates in the list look like a bug and
+      // give no way to tell which one is being added.
+      var seen = {};
+      available.forEach(function(a){ seen[a.name] = (seen[a.name] || 0) + 1; });
+      available.forEach(function(a){
+        var label = seen[a.name] > 1 ? a.name + ' · …' + a.id.slice(-4) : a.name;
+        sel.appendChild(opt(a.id, label));
+      });
       sel.disabled = false;
       btn.disabled = false;
     }
@@ -1491,14 +1498,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return out;
   }
 
-  /* Hours of today, up to the hour now in progress. Running the axis out to
-     23:00 would draw fourteen hours of flat zero that have not happened yet and
-     read as a collapse in performance. */
-  function eachHourSoFar(){
-    var now = new Date();
+  /* Hours to plot on a single-day view.
+     Today stops at the hour in progress, because running the axis out to 23:00
+     would draw a dozen hours of flat zero that have not happened yet and read
+     as a collapse. A day in the PAST is complete, so it gets all 24 — cutting
+     it at the current clock hour would hide most of it, which is exactly what
+     it did before this. */
+  function eachHoursForDay(isTodaySelected){
+    var last = isTodaySelected ? new Date().getHours() : 23;
     var out = [];
-    for(var h = 0; h <= now.getHours(); h++) out.push(h);
+    for(var h = 0; h <= last; h++) out.push(h);
     return out;
+  }
+
+  /* The Today button, or a custom range that happens to be today. */
+  function selectedDayIsToday(r){
+    if(isToday(r)) return true;
+    var x = resolveRange(r || {mode:'global'});
+    return x.since === x.until && x.since === daysAgo(0);
   }
 
   function fmtHour(h){
@@ -1517,7 +1534,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function renderTimeSeries(){
     var ms = state.series.map(function(k){ return METRICS[k]; });
     $('ts-desc').textContent = ms.map(function(m){ return m.label; }).join(', ') +
-      (isSingleDay({mode:'global'}) ? ' by hour, up to the current hour.' : ' over the selected date range.');
+      (isSingleDay({mode:'global'})
+        ? (selectedDayIsToday() ? ' by hour, up to the current hour.' : ' by hour across the day.')
+        : ' over the selected date range.');
 
     var range = resolveRange({ mode:'global' });
 
@@ -1534,7 +1553,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(isHourly){
         var byHour = {};
         (d.daily || []).forEach(function(x){ if(x.hour != null) byHour[x.hour] = x; });
-        days = eachHourSoFar().map(function(h){
+        days = eachHoursForDay(selectedDayIsToday()).map(function(h){
           return byHour[h] || { hour:h, __empty:true };
         });
         labels = days.map(function(x){ return fmtHour(x.hour); });
@@ -1646,8 +1665,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var v = kpiVerdict(key, (d.totals || {})[key]);
 
     if(!v){
-      strip.hidden = true;
-      strip.innerHTML = '';
+      // Volume metrics have no fixed target — they scale with budget and date
+      // range. Saying so is better than disappearing, which reads as a bug.
+      strip.hidden = false;
+      strip.innerHTML =
+        '<span class="k-label">' + esc(METRICS[key].label) + '</span>' +
+        '<span class="k-actual">' + esc(METRICS[key].fmt((d.totals || {})[key])) + '</span>' +
+        '<span class="k-note">No target for this one: it scales with budget and date range, ' +
+        'so there is no fixed number to beat. Pick a rate or cost metric to see a target.</span>';
       return;
     }
 
