@@ -234,8 +234,12 @@ Each view therefore names its token with a fallback (`tokenEnv` in the `VIEWS` r
 - `scrubSecrets()` iterates `allTokens()`. **If you add another token variable, add it to
   a view's `tokenEnv`**, or it becomes the one credential the safety net does not catch.
 - Responses carry `tokenSource` — the variable NAME only, never any part of the value.
-- `?debug=accounts` (master only) lists what each configured token can read and whether
-  each view's account id is among them. Use it before concluding a second token is needed.
+- `?debug=accounts` (master only) asks for each view's ad account using the token that view
+  would actually use, and returns a plain-language summary. Use it before concluding a second
+  token is needed. It must probe the account DIRECTLY — an earlier version asked
+  `/me/adaccounts` and called anything missing unreachable, which is wrong for a System User
+  token: a System User is assigned assets rather than owning them, so that list comes back
+  empty and every account looks broken, including ones actively serving data.
 
 **The role is fixed at sign-in.** It is baked into the signed cookie, which lasts 12 hours.
 Setting `DASHBOARD_MASTER_PASSWORD` does not upgrade a session that is already open —
