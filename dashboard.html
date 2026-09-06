@@ -2036,6 +2036,31 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
             color: (css.getPropertyValue('--t2') || '').trim() || '#666',
             textColor: (css.getPropertyValue('--surface-solid') || '').trim() || '#fff'
           },
+          /* The axis is stretched to include the target when every bar falls
+             short of it, so the line is always on screen.
+
+             Without this the target simply falls off the end of the scale and
+             the line silently disappears — and it disappears exactly when the
+             news is good. Cost metrics are the common case: a $0.50 CPC target
+             against bars running at $0.12 means the axis stops around $0.35 and
+             the target sits beyond it. That is the chart refusing to show you
+             how much headroom you have.
+
+             suggestedMax rather than max, so a bar that exceeds the target
+             still extends the axis past it rather than being clipped. */
+          scales: (function(){
+            var valueAxis = {
+              grid:{ color:palette().grid }, border:{ display:false },
+              ticks:{ color:palette().tick, font:{ size:11 } },
+              beginAtZero:true
+            };
+            if(bt != null) valueAxis.suggestedMax = bt * 1.08;
+            var catAxis = {
+              grid:{ color:palette().grid }, border:{ display:false },
+              ticks:{ color:palette().tick, font:{ size:11 } }
+            };
+            return horizontal ? { x:valueAxis, y:catAxis } : { x:catAxis, y:valueAxis };
+          })(),
           onHover:function(e,active,chart){
             var el=$('bar-readout'); if(!el) return;
             if(!active||!active.length){ el.textContent=''; return; }
