@@ -415,12 +415,16 @@ t('the accounts diagnostic is refused to the narrow role', () => assert.equal(re
 lastUrls = [];
 res = mockRes();
 await insights({ method: 'GET', query: { debug: 'accounts' }, headers: { cookie: masterCookie } }, res);
-t('master may list what each token can read', () =>
-  assert.ok(res.code === 200 && Array.isArray(res.body.tokens)));
-t('the diagnostic reports reachability per view', () =>
+t('master may run the reachability diagnostic', () =>
+  assert.ok(res.code === 200 && res.body.views && res.body.summary));
+// Probing the account directly is the only check that works for a System User
+// token, which is assigned assets rather than owning them.
+t('a readable account is reported reachable', () =>
   assert.equal(res.body.views.dave.reachable, true));
-t('an account the token cannot see is reported unreachable', () =>
-  assert.equal(res.body.views.sybago.reachable, false));
+t('the diagnostic names the token each view would use', () =>
+  assert.equal(res.body.views.dave.tokenSource, 'META_ADS_TOKEN'));
+t('the summary says no extra token is needed when all are reachable', () =>
+  assert.match(res.body.summary, /No extra token needed/));
 t('no token value appears in the diagnostic', () =>
   assert.ok(!JSON.stringify(res.body).includes('FAKE_TOKEN')));
 

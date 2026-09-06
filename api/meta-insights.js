@@ -343,11 +343,19 @@ export default async function handler(req, res) {
     });
   }
 
-  // ?debug=accounts — which ad accounts each configured token can actually
-  // read. This answers "do I need a second token?": a Meta token is scoped to a
-  // USER, not an account, so one token serves both dashboards whenever that
-  // user holds a role on both. Master only, since it enumerates everything the
-  // credential can reach. Returns ids and names; never any part of a token.
+  // ?debug=accounts — can the token each view would use actually read that
+  // view's ad account?
+  //
+  // An earlier version asked /me/adaccounts and reported anything absent from
+  // that list as unreachable. That is wrong for a System User token, which is
+  // the kind this deployment uses: a System User is ASSIGNED assets rather than
+  // owning them, so /me/adaccounts comes back empty and every account looks
+  // unreachable — including one that is demonstrably serving data. The only
+  // reliable check is to ask for the account itself with the token that would
+  // be used for it, which is what this does.
+  //
+  // Master only, and it returns account ids and names — never any part of a
+  // token.
   if (req.query.debug === 'accounts') {
     if (session.role !== ROLE_MASTER) {
       return res.status(403).json({
@@ -356,43 +364,52 @@ export default async function handler(req, res) {
       });
     }
 
-    const names = [...new Set(Object.values(VIEWS).flatMap((v) => v.tokenEnv))];
-    const tokens = [];
-    for (const name of names) {
-      const value = (process.env[name] || '').trim();
-      if (!value) { tokens.push({ envName: name, configured: false }); continue; }
-      try {
-        const u = new URL(`https://graph.facebook.com/${API_VERSION}/me/adaccounts`);
-        u.searchParams.set('fields', 'id,name,account_status');
-        u.searchParams.set('limit', '200');
-        u.searchParams.set('access_token', value);
-        const { json } = await fetchWithBackoff(u.toString());
-        tokens.push({
-          envName: name,
-          configured: true,
-          canRead: (json.data || []).map((a) => ({ id: a.id, name: a.name, status: a.account_status })),
-        });
-      } catch (e) {
-        tokens.push({ envName: name, configured: true, error: scrubSecrets(e.message || 'Request failed') });
-      }
-    }
-
-    // What each view is pointed at, and whether the token it would use can
-    // actually see that account — so "token can read it" and "dashboard asks
-    // for it" are checkable against each other in one response.
     const views = {};
     for (const key of Object.keys(VIEWS)) {
-      const wantId = resolveAccount(key).id;
-      const src = resolveToken(key).envName;
-      const entry = tokens.find((r) => r.envName === src);
-      views[key] = {
+      const acct = resolveAccount(key);
+      const tok = resolveToken(key);
+      const entry = {
         label: VIEWS[key].label,
-        accountId: wantId,
-        tokenSource: src,
-        reachable: !wantId || !entry || !entry.canRead ? null : entry.canRead.some((a) => a.id === wantId),
+        accountId: acct.id,
+        accountFrom: acct.envName,
+        tokenSource: tok.envName,
+        tokenConfigured: Boolean(tok.value),
       };
+
+      if (!acct.id || !tok.value) {
+        entry.reachable = null;
+        entry.note = !acct.id
+          ? `Set ${acct.envName} to this dashboard's act_… id.`
+          : `No token configured — set ${tok.envName} or the shared META_ADS_TOKEN.`;
+      } else {
+        try {
+          const u = new URL(`https://graph.facebook.com/${API_VERSION}/${acct.id}`);
+          u.searchParams.set('fields', 'id,name,account_status,currency');
+          u.searchParams.set('access_token', tok.value);
+          const { json } = await fetchWithBackoff(u.toString());
+          entry.reachable = true;
+          entry.accountName = json.name || null;
+          entry.currency = json.currency || null;
+        } catch (e) {
+          entry.reachable = false;
+          entry.error = e.error || 'meta_error';
+          entry.note = scrubSecrets(e.message || 'Request failed');
+        }
+      }
+      views[key] = entry;
     }
-    return res.status(200).json({ tokens, views });
+
+    // One token that reaches every account means no second token is needed.
+    const reach = Object.values(views).filter((v) => v.reachable !== null);
+    const summary = reach.length === 0
+      ? 'Nothing configured yet.'
+      : reach.every((v) => v.reachable)
+        ? 'Every dashboard is reachable with its configured token. No extra token needed.'
+        : `Unreachable: ${reach.filter((v) => !v.reachable).map((v) => v.label).join(', ')}. ` +
+          'Either assign the System User to that ad account in Business Settings with View ' +
+          'Performance, or set a separate token for that view.';
+
+    return res.status(200).json({ summary, views });
   }
 
   // META_AD_ACCOUNT_ID and META_ADS_ACCOUNT_ID are trivially easy to confuse
