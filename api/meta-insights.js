@@ -420,6 +420,94 @@ export default async function handler(req, res) {
     return res.status(200).json({ summary, views });
   }
 
+  // ?debug=meta-assets — the Facebook Pages each configured Meta token can act
+  // on, and the Instagram account linked to each one.
+  //
+  // This exists to answer "what do I put in FB_PAGE_ID and IG_USER_ID" without
+  // digging through Business Settings, and to show whether the token actually
+  // holds the publishing permissions — being in the same business portfolio
+  // gets the assets in one place, but a token still only does what its scopes
+  // allow, and an ads_read token cannot post.
+  //
+  // Master only. Returns ids and names. It deliberately does NOT return any
+  // page access token: those are long-lived credentials, and printing one into
+  // a response body puts it somewhere it does not need to be.
+  if (req.query.debug === 'meta-assets') {
+    if (session.role !== ROLE_MASTER) {
+      return res.status(403).json({
+        error: 'forbidden_view',
+        message: 'This diagnostic requires the master password.',
+      });
+    }
+
+    const names = [...new Set(Object.values(VIEWS).flatMap((v) => v.tokenEnv))];
+    const tokens = [];
+
+    for (const name of names) {
+      const value = (process.env[name] || '').trim();
+      if (!value) { tokens.push({ envName: name, configured: false }); continue; }
+
+      const entry = { envName: name, configured: true };
+
+      // Which scopes the token actually carries. Publishing needs more than
+      // reading insights does, so a token that works for the dashboard can
+      // still be unable to post.
+      try {
+        const pu = new URL(`https://graph.facebook.com/${API_VERSION}/me/permissions`);
+        pu.searchParams.set('access_token', value);
+        const { json } = await fetchWithBackoff(pu.toString());
+        const granted = (json.data || []).filter((p) => p.status === 'granted').map((p) => p.permission);
+        entry.scopes = granted;
+        entry.canPostToPages = granted.includes('pages_manage_posts');
+        entry.canPostToInstagram = granted.includes('instagram_content_publish');
+      } catch (e) {
+        // A System User token often refuses /me/permissions outright; that is
+        // not a failure of the check, just a shape it does not support.
+        entry.scopes = null;
+        entry.scopesNote = scrubSecrets(e.message || 'Could not read permissions.');
+      }
+
+      try {
+        const u = new URL(`https://graph.facebook.com/${API_VERSION}/me/accounts`);
+        u.searchParams.set('fields', 'id,name,instagram_business_account{id,username}');
+        u.searchParams.set('limit', '100');
+        u.searchParams.set('access_token', value);
+        const { json } = await fetchWithBackoff(u.toString());
+        entry.pages = (json.data || []).map((p) => ({
+          pageId: p.id,
+          pageName: p.name,
+          instagramUserId: p.instagram_business_account?.id || null,
+          instagramUsername: p.instagram_business_account?.username || null,
+        }));
+      } catch (e) {
+        entry.pages = null;
+        entry.pagesError = scrubSecrets(e.message || 'Could not list Pages.');
+      }
+
+      tokens.push(entry);
+    }
+
+    // Spell out what to set, so nothing has to be inferred from the shape above.
+    const found = tokens.flatMap((t) => (t.pages || []).map((p) => ({ ...p, from: t.envName })));
+    const suggestion = found.length
+      ? {
+          FB_PAGE_ID: found[0].pageId,
+          IG_USER_ID: found[0].instagramUserId,
+          note:
+            'FB_PAGE_ACCESS_TOKEN and IG_ACCESS_TOKEN are not shown here on purpose. Get a ' +
+            'long-lived Page token from Business Settings or the Graph API Explorer and set ' +
+            'both to it — a user token expires in about an hour.',
+        }
+      : {
+          note:
+            'No Pages came back. Either the token has no Page assigned to it, or it lacks ' +
+            'pages_show_list. Assign the Page to this System User in Business Settings and ' +
+            'grant pages_manage_posts and instagram_content_publish.',
+        };
+
+    return res.status(200).json({ tokens, pagesFound: found, setThese: suggestion });
+  }
+
   // META_AD_ACCOUNT_ID and META_ADS_ACCOUNT_ID are trivially easy to confuse
   // (the token variable is plural, so the plural form is the natural typo), so
   // each view accepts either spelling.
