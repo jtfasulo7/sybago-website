@@ -1,0 +1,16 @@
+{
+  "name": "sybago-website",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static marketing site plus the internal ads dashboard. See CLAUDE.md.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/dashboard.test.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.0"
+  }
+}
