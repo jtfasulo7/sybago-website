@@ -9,7 +9,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js" defer></script>
+<!-- Chart.js. The file on cdnjs is chart.min.js, NOT chart.umd.min.js — the
+     latter 404s, which is what left the page with tables and no graphs.
+     Pinned with SRI because this is third-party code on a page that displays
+     spend data behind a login: if the CDN were ever compromised, the hash
+     mismatch stops the script running rather than letting it read the page. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.min.js"
+        integrity="sha512-mOiNIzRB+4/INX75lwv3+eSG+Sih4wQy+qS/+0mHkk2MjHZW6ABGN6eQD1MoV5Tv9KG+G3UAMy1vW3fk5goVXA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
