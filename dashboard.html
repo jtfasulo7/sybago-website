@@ -1016,7 +1016,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      Panels fetch independently, so identical queries are shared rather than
      refetched. Cleared on every explicit refresh. */
   var cache = new Map();
-  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||''].join('|'); }
+  // adIds belongs in the key: two requests differing only by which ads are
+  // selected are different data, and without it the second would be served the
+  // first one's response.
+  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||'',p.adIds||''].join('|'); }
 
   /* Hourly only makes sense for one day. Asking for it across a month would
      return 24 rows of month totals, which reads as a plausible chart and is
@@ -1046,6 +1049,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if (p.preset) qs.set('preset', p.preset);
     if (p.campaignId) qs.set('campaignId', p.campaignId);
     if (p.adsetId) qs.set('adsetId', p.adsetId);
+    if (p.adIds) qs.set('adIds', p.adIds);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
       if (r.status === 401) { showLogin('Your session expired. Sign in again.'); throw new Error('unauthenticated'); }
       return r.json().then(function (j) {
@@ -1539,7 +1543,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var level = dim==='day' ? 'campaign' : effectiveDim(dim);
     return fetchInsights({
       level:level, since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetId:sp.adsetId,
+      campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
       hourly: isSingleDay(panelRange),
       preset: isToday(panelRange) ? 'today' : '',
     });
@@ -1980,7 +1984,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderBar(){
     var s=state.bar, m=METRICS[s.m];
-    $('bar-desc').textContent = m.label+' by '+(s.dim==='day'?'day':s.dim)+'.';
+    // Written again below once the data is in, with the KPI verdict attached.
+    $('bar-desc').textContent = m.label+' by '+(s.dim==='day'?'day':effectiveDim(s.dim))+'.';
     return loadPanel(s.range, s.dim).then(function(d){
       renderBarKpi(d, s.m);
       var rows=rowsFor(d,effectiveDim(s.dim)).filter(function(r){ return r[s.m]!=null; });
@@ -2195,7 +2200,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var r=resolveRange(globalRange), sp=scopeParams();
     return fetchInsights({
       level:'campaign', since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetId:sp.adsetId,
+      campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
       preset: isToday(globalRange) ? 'today' : '',
     })
       .then(function(d){
