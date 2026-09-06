@@ -38,8 +38,12 @@ export default async function handler(req, res) {
     return res.status(500).json({
       error: 'server_misconfigured',
       message:
-        'BLOB_READ_WRITE_TOKEN is not set. Create a Blob store in Vercel → Storage, connect it ' +
-        'to this project, and redeploy — environment changes only apply to new deployments.',
+        'BLOB_READ_WRITE_TOKEN is not set. Connecting a Blob store is not enough on its own: ' +
+        'Vercel defaults the connection to OIDC and only creates BLOB_STORE_ID and ' +
+        'BLOB_WEBHOOK_PUBLIC_KEY. Re-run the connection with "Add a read-write token env var to ' +
+        'this connection" ticked, because browser uploads mint a client token and that needs the ' +
+        'long-lived token specifically. Then redeploy — environment changes only apply to new ' +
+        'deployments.',
     });
   }
 
