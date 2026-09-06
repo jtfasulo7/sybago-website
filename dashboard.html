@@ -133,7 +133,87 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 .legend span { display:inline-flex; align-items:center; gap:.45rem; }
 .swatch { width:26px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block; }
 
-@media (max-width:640px){ .chart-box{height:270px;} h1{font-size:1.5rem;} }
+/* ---- horizontal lock ----
+   Nothing may pan the viewport sideways. overflow-x:hidden alone is not enough
+   on iOS, so the width is also pinned and overscroll in the inline axis is
+   disabled. The .table-scroll containers keep their own internal horizontal
+   scrolling — the wide tables still work, they just cannot drag the page. */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+main { overflow-x: clip; }
+.table-scroll { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+
+/* Charts capture horizontal drags for scrubbing while vertical still scrolls
+   the page. Without this the gesture would fight the page scroll. */
+.chart-box canvas { touch-action: pan-y; }
+
+/* Live readout under each chart, updated as a finger traces across it. */
+.readout {
+  min-height: 1.5rem;
+  margin-top: .5rem;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--teal-d);
+  font-variant-numeric: tabular-nums;
+}
+.readout:empty::before { content: attr(data-hint); color: var(--t3); font-weight: 400; }
+
+/* ---- data ordering ----
+   #data-area is a flex column so the running order can change per breakpoint
+   without moving anything in the DOM (which would break the table alternatives
+   sitting inside each chart panel). */
+#data-area { display: flex; flex-direction: column; }
+#kpi-h, .kpis { order: 1; }
+#panel-trend { order: 2; }
+#panel-cmp   { order: 3; }
+#panel-res   { order: 4; }
+#panel-detail{ order: 5; }
+#footer-note { order: 6; }
+
+@media (max-width: 880px) {
+  /* Graphs first on small screens: the shape of the trend is what you want at
+     a glance on a phone, with the numeric breakdown below it. */
+  #panel-trend { order: 1; }
+  #panel-res   { order: 2; }
+  #panel-cmp   { order: 3; }
+  #kpi-h, .kpis { order: 4; }
+  #panel-detail{ order: 5; }
+}
+
+@media (max-width: 720px) {
+  main { padding: 1.25rem 1rem 4rem; }
+  h1 { font-size: 1.45rem; }
+  .nav { padding: .75rem 1rem; }
+
+  /* Controls stack full width — the wrapped flex row was cramped and the
+     targets were small. */
+  .controls { flex-direction: column; align-items: stretch; gap: .9rem; padding: 1rem; }
+  .controls .field { width: 100%; }
+  .controls select, .controls input[type=date] { width: 100%; min-height: 48px; }
+  .controls fieldset { width: 100%; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+  .presets .btn-secondary { padding: .7rem .3rem; text-align: center; min-height: 48px; }
+  #refresh { width: 100%; min-height: 50px; }
+
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+  .kpi { padding: .8rem .85rem; }
+  .kpi dd { font-size: 1.3rem; }
+  .kpi dt { font-size: .68rem; }
+
+  .panel { padding: 1rem; }
+  .chart-box { height: 260px; }
+  th, td { padding: .5rem .55rem; font-size: .85rem; }
+  th:first-child, td:first-child { min-width: 130px; }
+}
+
+@media (max-width: 380px) {
+  .kpis { grid-template-columns: 1fr; }
+  .presets { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
 </style>
 </head>
@@ -228,13 +308,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     <dl class="kpis" aria-labelledby="kpi-h" id="kpis"></dl>
 
     <!-- Trend -->
-    <section class="panel" aria-labelledby="trend-h">
+    <section class="panel" id="panel-trend" aria-labelledby="trend-h">
       <h2 id="trend-h">Daily trend</h2>
       <p class="sub" id="trend-desc">Spend, impressions and link clicks per day across the selected range. Each series uses a different line style as well as a different colour.</p>
       <div class="legend" id="trend-legend" aria-hidden="true"></div>
       <div class="chart-box">
         <canvas id="trend-chart" role="img" aria-labelledby="trend-h" aria-describedby="trend-desc trend-summary"></canvas>
       </div>
+      <p class="readout" id="trend-readout" data-hint="Drag across the chart to read values for a given day."></p>
       <p id="trend-summary" class="sr-only"></p>
       <details class="alt">
         <summary>View daily trend as a table</summary>
@@ -243,12 +324,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </section>
 
     <!-- Comparison -->
-    <section class="panel" aria-labelledby="cmp-h">
+    <section class="panel" id="panel-cmp" aria-labelledby="cmp-h">
       <h2 id="cmp-h">Spend by <span id="cmp-level">campaign</span></h2>
       <p class="sub" id="cmp-desc">Total spend compared across the selected breakdown level, highest first.</p>
       <div class="chart-box">
         <canvas id="cmp-chart" role="img" aria-labelledby="cmp-h" aria-describedby="cmp-desc cmp-summary"></canvas>
       </div>
+      <p class="readout" id="cmp-readout" data-hint="Drag across the bars to read each value."></p>
       <p id="cmp-summary" class="sr-only"></p>
       <details class="alt">
         <summary>View comparison as a table</summary>
@@ -257,7 +339,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </section>
 
     <!-- Results -->
-    <section class="panel" aria-labelledby="res-h">
+    <section class="panel" id="panel-res" aria-labelledby="res-h">
       <h2 id="res-h">Results</h2>
       <p class="sub" id="res-desc">Reported results and cost per result over time.</p>
       <div class="notice notice-info" id="lag-note">
@@ -267,6 +349,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="chart-box">
         <canvas id="res-chart" role="img" aria-labelledby="res-h" aria-describedby="res-desc res-summary"></canvas>
       </div>
+      <p class="readout" id="res-readout" data-hint="Drag across the chart to read values for a given day."></p>
       <p id="res-summary" class="sr-only"></p>
       <details class="alt">
         <summary>View results as a table</summary>
@@ -275,7 +358,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     </section>
 
     <!-- Detail table -->
-    <section class="panel" aria-labelledby="detail-h">
+    <section class="panel" id="panel-detail" aria-labelledby="detail-h">
       <h2 id="detail-h">Breakdown detail</h2>
       <div class="field" style="max-width:340px; margin-bottom:1rem;">
         <label for="filter">Filter by name</label>
@@ -476,6 +559,28 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      alternatives in the first place. */
   function chartsReady() { return typeof window.Chart !== "undefined"; }
 
+  /* Finger-trace readout.
+     Chart.js fires hover on touchmove, but only if the canvas is allowed to
+     receive the gesture — hence touch-action:pan-y in the CSS, which claims
+     horizontal drags for scrubbing while leaving vertical drags to scroll the
+     page. The readout is plain text under the chart rather than a floating
+     tooltip: on a phone a tooltip sits under your own finger. */
+  function scrubHandler(readoutId, fmts) {
+    return function (evt, active, chart) {
+      var el = $(readoutId);
+      if (!el) return;
+      if (!active || !active.length) { el.textContent = ""; return; }
+      var i = active[0].index;
+      var label = chart.data.labels[i];
+      var parts = chart.data.datasets.map(function (ds, di) {
+        var v = ds.data[i];
+        var f = fmts[di] || fmtNum;
+        return ds.label + " " + f(v);
+      });
+      el.textContent = label + " — " + parts.join("  ·  ");
+    };
+  }
+
   function makeChart(key, el, config) {
     if (!chartsReady()) return;
     if (charts[key]) charts[key].destroy();
@@ -607,6 +712,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         })
       },
       options: baseOpts({
+        onHover: scrubHandler('trend-readout', [fmtMoney, fmtNum, fmtNum]),
         scales: {
           x: { grid: { color: 'rgba(17,17,17,0.06)' } },
           y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Spend (USD)' } },
@@ -635,7 +741,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         labels: rows.map(function (r) { return r.name; }),
         datasets: [{ label: 'Spend', data: rows.map(function (r) { return r.spend; }), backgroundColor: '#2F6779', borderColor: '#244e5b', borderWidth: 1 }]
       },
-      options: baseOpts({ indexAxis: 'y' })
+      options: baseOpts({ indexAxis: 'y', onHover: scrubHandler('cmp-readout', [fmtMoney]) })
     });
 
     $('cmp-summary').textContent = rows.length
@@ -663,6 +769,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         ]
       },
       options: baseOpts({
+        onHover: scrubHandler('res-readout', [fmtNum, fmtNum, fmtMoney]),
         scales: {
           x: { grid: { color: 'rgba(17,17,17,0.06)' } },
           y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Registrations / landing page views' } },
