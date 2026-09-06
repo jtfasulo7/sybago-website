@@ -1268,7 +1268,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         // Nothing on screen belongs to the view that is selected now, so it
         // must go. A same-account refresh failure keeps its data — renderedView
         // still matches — and only the status line changes.
-        if(renderedView !== state.view) clearData();
+        if(renderedView !== state.view) clearData('Unavailable — see the message above.');
         panelError(e); $('status').textContent='Could not load data.';
       })
       .then(function(){
@@ -1306,10 +1306,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      leaves the other client's spend and conversions sitting under the new
      client's heading, which reads as that client's numbers. Blank is honest,
      stale is a lie. */
-  function clearData(){
+  function clearData(msg){
     $('kpis').innerHTML = '';
     ['ts','bar'].forEach(function(k){ if(charts[k]){ charts[k].destroy(); charts[k]=null; } });
-    ['ts-box','bar-box'].forEach(function(id){ $(id).innerHTML = emptyState('Loading…'); });
+    ['ts-box','bar-box'].forEach(function(id){ $(id).innerHTML = emptyState(msg || 'Loading…'); });
     // Drop the head and body but keep the <caption>: buildTable() re-appends
     // the caption it finds, so wiping innerHTML here would strip every table
     // of its description permanently after the first view switch.
@@ -1332,11 +1332,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // moment ago. Carrying them across would either scope to nothing or, worse,
     // silently filter the new account by an id that means something else there.
     $('campaign-pick').value = '';
-    $('adset-pick').innerHTML = '';
-    $('adset-pick').disabled = true;
+    // Repopulated rather than emptied: a select with no options at all reads as
+    // a broken control, not as "nothing selected".
+    var as = $('adset-pick');
+    as.innerHTML = '';
+    as.appendChild(opt('', 'All ad sets'));
+    as.disabled = true;
     state.campaigns = [];
 
     applyView();
+    // The chips draw each series' colour and dash, which are per-view, so they
+    // are stale the moment the palette changes.
+    renderSeriesRows();
     clearData();
     $('status').textContent = 'Loading…';
     var body = $('dash-body');
