@@ -26,6 +26,42 @@ const ALLOWED = [
   'video/webm',
 ];
 
+/**
+ * Find the Blob read-write token whatever Vercel decided to call it.
+ *
+ * The connection dialog offers a custom variable prefix, so the name is not
+ * guaranteed to be BLOB_READ_WRITE_TOKEN — which is the only name the SDK looks
+ * for on its own. Rather than depend on someone having left the prefix alone,
+ * the value is identified by its shape: Vercel read-write tokens all begin
+ * vercel_blob_rw_.
+ *
+ * Checked by name first so the ordinary setup costs nothing, then by value.
+ * Only the NAME is ever reported anywhere; the value goes straight to the SDK.
+ */
+const TOKEN_PREFIX = 'vercel_blob_rw_';
+
+function findBlobToken(env = process.env) {
+  if (String(env.BLOB_READ_WRITE_TOKEN || '').startsWith(TOKEN_PREFIX)) {
+    return { name: 'BLOB_READ_WRITE_TOKEN', token: env.BLOB_READ_WRITE_TOKEN };
+  }
+  for (const [name, value] of Object.entries(env)) {
+    if (typeof value === 'string' && value.startsWith(TOKEN_PREFIX)) {
+      return { name, token: value };
+    }
+  }
+  // A token that is set but malformed is worth separating from one that is
+  // absent — the fixes are different.
+  if (env.BLOB_READ_WRITE_TOKEN) {
+    return { name: 'BLOB_READ_WRITE_TOKEN', token: env.BLOB_READ_WRITE_TOKEN, unrecognised: true };
+  }
+  return null;
+}
+
+/** Names that exist but are not the read-write token, to say what WAS found. */
+function blobVarsPresent(env = process.env) {
+  return Object.keys(env).filter((k) => /BLOB/i.test(k));
+}
+
 export default async function handler(req, res) {
   noStore(res);
 
@@ -34,16 +70,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const found = findBlobToken();
+
+  if (!found) {
+    const present = blobVarsPresent();
     return res.status(500).json({
       error: 'server_misconfigured',
+      // Saying which Blob variables DID arrive turns this from "it is not set"
+      // into something diagnosable: BLOB_STORE_ID present on its own is the
+      // signature of a connection made without the read-write token.
+      blobVarsFound: present,
       message:
         'BLOB_READ_WRITE_TOKEN is not set. Connecting a Blob store is not enough on its own: ' +
         'Vercel defaults the connection to OIDC and only creates BLOB_STORE_ID and ' +
         'BLOB_WEBHOOK_PUBLIC_KEY. Re-run the connection with "Add a read-write token env var to ' +
         'this connection" ticked, because browser uploads mint a client token and that needs the ' +
         'long-lived token specifically. Then redeploy — environment changes only apply to new ' +
-        'deployments.',
+        'deployments.' +
+        (present.length
+          ? ' Blob variables that DID reach this deployment: ' + present.join(', ') + '.'
+          : ' No Blob variables reached this deployment at all, so the store is not connected ' +
+            'to this project in the Production environment.'),
     });
   }
 
@@ -55,6 +102,9 @@ export default async function handler(req, res) {
   try {
     const result = await handleUpload({
       body,
+      // Passed explicitly rather than left to the SDK's own lookup, which only
+      // reads BLOB_READ_WRITE_TOKEN and would miss a prefixed name.
+      token: found.token,
       // Passed straight through. handleUpload reads the callback signature as
       // `request.headers[name]` when the object has no `credentials` property,
       // which is exactly what a Node req is.
