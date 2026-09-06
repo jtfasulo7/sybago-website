@@ -13,6 +13,45 @@ import { requireSession, noStore } from '../lib/auth.js';
 import { PLATFORMS, PLATFORM_IDS } from '../lib/social/platforms.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
+
+/**
+ * Frames are sampled in the BROWSER and posted here as base64 JPEGs.
+ *
+ * That is deliberate. The file is already on the user's machine when they pick
+ * it, Vercel functions have no ffmpeg, and doing it client-side means the video
+ * is never uploaded twice — once for storage and again for analysis. It also
+ * starts while the upload to Blob is still running, so the frames are usually
+ * ready before the file finishes.
+ *
+ * Capped hard because images are the expensive part of a vision request and a
+ * serverless body is capped at 4.5 MB. Ten frames at ~60 KB is a comfortable
+ * fraction of that and is plenty to read a short video.
+ */
+const MAX_FRAMES = 10;
+const MAX_FRAME_BYTES = 900 * 1024;
+const FRAME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+/** Turn a data URL or bare base64 into an Anthropic image block, or null. */
+function toImageBlock(raw) {
+  if (typeof raw !== 'string' || !raw) return null;
+
+  let mediaType = 'image/jpeg';
+  let data = raw;
+
+  const m = raw.match(/^data:([^;,]+);base64,(.*)$/);
+  if (m) {
+    mediaType = m[1].toLowerCase();
+    data = m[2];
+  }
+  if (!FRAME_TYPES.has(mediaType)) return null;
+
+  // Reject anything that is not plausibly base64 rather than forwarding it.
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return null;
+  // 4 base64 chars per 3 bytes.
+  if ((data.length * 3) / 4 > MAX_FRAME_BYTES) return null;
+
+  return { type: 'image', source: { type: 'base64', media_type: mediaType, data } };
+}
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const ANTHROPIC_VERSION = '2023-06-01';
 
@@ -41,17 +80,24 @@ function platformBrief(id) {
   return parts.join('\n');
 }
 
-function buildPrompt({ context, tone, link, platforms }) {
+function buildPrompt({ context, tone, link, platforms, frameCount }) {
   return [
     'You write social captions for Peps by Dave, a brand selling a Skool community.',
     '',
+    frameCount
+      ? `You are shown ${frameCount} frames sampled evenly across a finished video, in order. ` +
+        'Read them as one clip: what is being shown, what changes between the first and ' +
+        'last frame, any text visible on screen, and the setting. Write from what is ' +
+        'actually there. Do not describe anything you cannot see, and do not invent a ' +
+        'result, a number or a claim that is not on screen.'
+      : '',
     'Write ONE caption per platform for the same finished video. They must not be',
     'the same text with different hashtags — each platform rewards a different shape,',
     'and a caption that reads as cross-posted performs worse than one written for the',
     'place it appears.',
     '',
     '# The video',
-    context,
+    context || (frameCount ? '(described by the frames above)' : ''),
     tone ? `\n# Tone\n${tone}` : '',
     link ? `\n# Link to include where the platform allows it\n${link}` : '',
     '',
@@ -158,10 +204,20 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   const context = String(body.context || '').trim();
-  if (context.length < 10) {
+
+  const frames = (Array.isArray(body.frames) ? body.frames : [])
+    .slice(0, MAX_FRAMES)
+    .map(toImageBlock)
+    .filter(Boolean);
+
+  // Either the frames or a typed description has to say what the video is.
+  // With frames, notes are optional context rather than the whole brief.
+  if (!frames.length && context.length < 10) {
     return res.status(400).json({
       error: 'missing_context',
-      message: 'Describe what happens in the video so the captions have something to work from.',
+      message:
+        'Nothing to write from. Upload a video so the frames can be read, or describe what ' +
+        'happens in it.',
     });
   }
   if (context.length > 4000) {
@@ -180,6 +236,7 @@ export default async function handler(req, res) {
     tone: String(body.tone || '').trim().slice(0, 500),
     link: String(body.link || '').trim().slice(0, 300),
     platforms: requested,
+    frameCount: frames.length,
   });
 
   try {
@@ -193,7 +250,14 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          {
+            role: 'user',
+            // Frames first, prompt last: the instructions read better when the
+            // model already has the images in front of it.
+            content: frames.length ? [...frames, { type: 'text', text: prompt }] : prompt,
+          },
+        ],
       }),
     });
 
@@ -205,6 +269,14 @@ export default async function handler(req, res) {
         return res.status(401).json({
           error: 'anthropic_unauthorized',
           message: 'The Anthropic API rejected the key. Check ANTHROPIC_API_KEY is current and complete.',
+        });
+      }
+      if (resp.status === 413 || /too large|exceeds/i.test(detail)) {
+        return res.status(413).json({
+          error: 'frames_too_large',
+          message:
+            'The sampled frames were too large for one request. Try a shorter clip, or the ' +
+            'captions can be generated from a typed description instead.',
         });
       }
       if (resp.status === 429) {
@@ -233,6 +305,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       captions,
       model: MODEL,
+      // So the UI can say the captions came from the video rather than from a
+      // typed description — the difference matters when reviewing them.
+      framesRead: frames.length,
       generatedAt: new Date().toISOString(),
     });
   } catch (e) {

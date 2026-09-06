@@ -235,6 +235,24 @@ select:disabled { opacity:.55; }
 .ready-row { display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; }
 .preview { width:132px; aspect-ratio:9/16; object-fit:cover; border-radius:var(--r-sm); background:#000; flex:0 0 auto; }
 
+/* The sampled frames, shown so the captions can be judged against what the
+   model actually saw rather than taken on trust. */
+.frames { margin-bottom:1rem; }
+.frames-head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem; }
+.frames-strip {
+  display:flex; gap:.5rem; overflow-x:auto; padding-bottom:.35rem;
+  scrollbar-width:thin;
+}
+.frames-strip img {
+  flex:0 0 auto; height:88px; border-radius:8px; border:1px solid var(--hairline);
+  background:#000; display:block;
+}
+.frames-strip .shot-n {
+  position:absolute; left:6px; bottom:6px; font-size:.62rem; font-weight:800;
+  padding:.1rem .3rem; border-radius:4px; background:rgba(0,0,0,.66); color:#fff;
+}
+.frame-wrap { position:relative; flex:0 0 auto; }
+
 .two-up { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; }
 textarea {
   appearance:none; border:1px solid var(--hairline); border-radius:var(--r-sm);
@@ -932,9 +950,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           </div>
         </div>
 
+        <div class="frames" id="sc-frames" hidden>
+          <div class="frames-head">
+            <span class="lbl">Frames read from the video</span>
+            <span class="sub" id="sc-frames-note"></span>
+          </div>
+          <div class="frames-strip" id="sc-frames-strip"></div>
+        </div>
+
         <div class="field" style="margin-bottom:.9rem">
-          <label for="sc-context">What happens in the video</label>
-          <textarea id="sc-context" rows="3" placeholder="Dave walks through the first week of the program and what most people get wrong."></textarea>
+          <label for="sc-context">Anything the frames won't show <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></label>
+          <textarea id="sc-context" rows="2" placeholder="A product name, a promise, the offer — anything that matters but isn't visible on screen."></textarea>
         </div>
         <div class="two-up">
           <div class="field">
@@ -2897,6 +2923,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     pane: 'performance',
     blobUrl: null,
     file: null,
+    frames: [],
     platforms: [],   // status from the server
     captions: {},    // per-platform, edited in place
     selected: {},    // which platforms to post to
@@ -2912,6 +2939,102 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function loadBlobSdk(){
     if(!blobSdk) blobSdk = import(BLOB_SDK);
     return blobSdk;
+  }
+
+  /* ------------------------------------------------------- frame sampling ---
+     Read straight from the chosen File, in the browser.
+
+     The file is already local when it is picked, Vercel functions have no
+     ffmpeg, and doing it here means the video is never uploaded twice — once
+     for storage and again for analysis. It also runs alongside the Blob upload
+     rather than after it, so the frames are usually ready first. */
+  var FRAME_COUNT = 8;
+  var FRAME_MAX_W = 640;
+
+  /* Seeking is not enough on its own: 'seeked' can fire before the new frame
+     has been painted, and drawing then gives the PREVIOUS frame.
+     requestVideoFrameCallback is the reliable signal; the timeout is the
+     fallback for browsers without it, and also stops a seek that never
+     completes from hanging the whole thing. */
+  function seekTo(v, t){
+    return new Promise(function(resolve){
+      var settled = false;
+      var finish = function(){ if(!settled){ settled = true; resolve(); } };
+      var onSeeked = function(){
+        if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(function(){ finish(); });
+        else setTimeout(finish, 45);
+      };
+      v.addEventListener('seeked', onSeeked, { once:true });
+      setTimeout(finish, 1500);
+      v.currentTime = t;
+    });
+  }
+
+  function sampleFrames(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var v = document.createElement('video');
+      v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+
+      var fail = function(e){ URL.revokeObjectURL(url); reject(e || new Error('Could not read the video.')); };
+      v.addEventListener('error', function(){ fail(new Error('The browser could not decode this video.')); });
+
+      v.addEventListener('loadeddata', function(){
+        var dur = v.duration;
+        if(!isFinite(dur) || dur <= 0) return fail(new Error('The video has no readable duration.'));
+
+        var scale = Math.min(1, FRAME_MAX_W / (v.videoWidth || FRAME_MAX_W));
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(2, Math.round((v.videoWidth || FRAME_MAX_W) * scale));
+        cv.height = Math.max(2, Math.round((v.videoHeight || 360) * scale));
+        var ctx = cv.getContext('2d');
+
+        var out = [];
+        var i = 0;
+
+        var next = function(){
+          if(i >= FRAME_COUNT){
+            URL.revokeObjectURL(url);
+            return resolve(out);
+          }
+          // Skips the first and last few percent: openers are often black and
+          // end cards are often a logo, neither of which describes the video.
+          var t = dur * (0.06 + 0.88 * (FRAME_COUNT === 1 ? 0.5 : i / (FRAME_COUNT - 1)));
+          seekTo(v, Math.min(t, Math.max(0, dur - 0.05))).then(function(){
+            try {
+              ctx.drawImage(v, 0, 0, cv.width, cv.height);
+              out.push(cv.toDataURL('image/jpeg', 0.62));
+            } catch (e) {
+              // A frame that will not draw is skipped rather than fatal.
+            }
+            i++;
+            next();
+          });
+        };
+        next();
+      });
+    });
+  }
+
+  function renderFrames(frames){
+    var wrap = $('sc-frames'), strip = $('sc-frames-strip');
+    if(!frames.length){ wrap.hidden = true; strip.innerHTML = ''; return; }
+    wrap.hidden = false;
+    strip.innerHTML = '';
+    frames.forEach(function(src, i){
+      var box = document.createElement('span');
+      box.className = 'frame-wrap';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Frame ' + (i + 1) + ' of ' + frames.length + ' sampled from the video';
+      var n = document.createElement('span');
+      n.className = 'shot-n';
+      n.textContent = i + 1;
+      box.appendChild(img); box.appendChild(n);
+      strip.appendChild(box);
+    });
+    $('sc-frames-note').textContent =
+      frames.length + ' frames · the captions are written from these';
   }
 
   function fmtBytes(n){
@@ -3098,7 +3221,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ------------------------------------------------------------ upload ---- */
   function resetVideo(){
-    social.blobUrl = null; social.file = null;
+    social.blobUrl = null; social.file = null; social.frames = [];
+    renderFrames([]);
     $('sv-ready').hidden = true;
     $('sv-progress-wrap').hidden = true;
     $('sv-drop').hidden = false;
@@ -3115,6 +3239,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }
 
     social.file = file;
+    social.frames = [];
+    renderFrames([]);
+
+    /* Started BEFORE the upload and not awaited: sampling is local and fast,
+       the upload is neither, and there is no reason for one to wait on the
+       other. */
+    sampleFrames(file).then(function(frames){
+      social.frames = frames;
+      renderFrames(frames);
+      updatePostButton();
+    }).catch(function(e){
+      social.frames = [];
+      renderFrames([]);
+      $('sc-status').textContent =
+        (e && e.message ? e.message : 'Could not read frames from this video.') +
+        ' Describe the video below instead and the captions will be written from that.';
+    });
+
     $('sv-drop').hidden = true;
     $('sv-progress-wrap').hidden = false;
     $('sv-bar-fill').style.width = '0%';
@@ -3156,19 +3298,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* ---------------------------------------------------------- captions ---- */
   function generateCaptions(){
     var context = $('sc-context').value.trim();
-    if(context.length < 10){
-      $('sc-status').textContent = 'Describe the video first — a sentence is enough.';
+    // With frames the notes are optional; without them they are the whole brief.
+    if(!social.frames.length && context.length < 10){
+      $('sc-status').textContent =
+        'Upload a video so its frames can be read, or describe it here — a sentence is enough.';
       return;
     }
     var btn = $('sc-generate');
     btn.setAttribute('aria-disabled','true');
-    $('sc-status').textContent = 'Writing captions…';
+    $('sc-status').textContent = social.frames.length
+      ? 'Watching the video and writing captions…'
+      : 'Writing captions…';
 
     fetch('/api/social-captions', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         context: context,
+        frames: social.frames,
         tone: $('sc-tone').value.trim(),
         link: $('sc-link').value.trim(),
         platforms: social.platforms.map(function(p){ return p.id; })
@@ -3182,9 +3329,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         var flagged = Object.keys(social.captions).filter(function(k){
           return (social.captions[k].problems || []).length;
         });
+        var from = o.j.framesRead
+          ? 'Written from ' + o.j.framesRead + ' frames of the video. '
+          : 'Written. ';
         $('sc-status').textContent = flagged.length
-          ? 'Written. ' + flagged.length + ' need a look before posting.'
-          : 'Written. Edit anything below before posting.';
+          ? from + flagged.length + ' need a look before posting.'
+          : from + 'Edit anything below before posting.';
       })
       .catch(function(){ $('sc-status').textContent = 'Could not reach the server.'; })
       .then(function(){ btn.removeAttribute('aria-disabled'); });

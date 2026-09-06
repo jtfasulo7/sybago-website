@@ -373,5 +373,106 @@ process.env.FB_PAGE_ACCESS_TOKEN = 'USER-TOKEN-not-a-page-token';
     assert.equal(r.body.results.facebook.ok, true));
 }
 
+
+/* ------------------------------------------- captions written from frames ---- */
+console.log('\nCaptions from video frames');
+
+const JPEG = 'data:image/jpeg;base64,' + '/9j/4AAQSkZJRg' + 'A'.repeat(200);
+const FRAMES = Array.from({ length: 6 }, () => JPEG);
+
+let sent = null;
+globalThis.fetch = async (u, o) => {
+  sent = JSON.parse(o.body);
+  return MODEL_REPLY(GOOD);
+};
+
+res = mockRes();
+await captions({ method: 'POST', body: { frames: FRAMES }, headers: { cookie } }, res);
+
+t('frames alone are enough — no typed description needed', () =>
+  assert.equal(res.code, 200));
+t('the frames are sent to the model as image blocks', () => {
+  const imgs = sent.messages[0].content.filter((c) => c.type === 'image');
+  assert.equal(imgs.length, 6);
+  assert.equal(imgs[0].source.type, 'base64');
+  assert.equal(imgs[0].source.media_type, 'image/jpeg');
+});
+t('the data URL prefix is stripped before sending', () =>
+  assert.ok(!sent.messages[0].content[0].source.data.startsWith('data:')));
+t('the prompt comes after the images', () => {
+  const c = sent.messages[0].content;
+  assert.equal(c[c.length - 1].type, 'text');
+});
+t('the prompt tells the model how many frames it has', () =>
+  assert.match(sent.messages[0].content.at(-1).text, /6 frames sampled evenly/));
+t('the response reports how many frames were read', () =>
+  assert.equal(res.body.framesRead, 6));
+
+// Typed notes still reach the model when supplied alongside frames.
+res = mockRes();
+await captions({
+  method: 'POST',
+  body: { frames: FRAMES, context: 'The offer closes on Friday.' },
+  headers: { cookie },
+}, res);
+t('typed notes are combined with the frames rather than replaced', () =>
+  assert.match(sent.messages[0].content.at(-1).text, /offer closes on Friday/));
+
+/* THE CHECK THAT MATTERS: whatever the browser posts is untrusted. A frame
+   that is not a plausible image must be dropped, not forwarded to Anthropic. */
+res = mockRes();
+await captions({
+  method: 'POST',
+  body: { frames: [JPEG, 'data:text/html;base64,PHNjcmlwdD4=', 'not-base64!!', JPEG] },
+  headers: { cookie },
+}, res);
+t('a non-image data URL is dropped', () => {
+  const imgs = sent.messages[0].content.filter((c) => c.type === 'image');
+  assert.equal(imgs.length, 2);
+});
+
+res = mockRes();
+await captions({
+  method: 'POST',
+  body: { frames: ['data:image/jpeg;base64,' + 'A'.repeat(2 * 1024 * 1024)], context: 'a video of a thing happening' },
+  headers: { cookie },
+}, res);
+t('an oversized frame is dropped rather than blowing the request', () => {
+  const imgs = sent.messages[0].content.filter
+    ? sent.messages[0].content.filter((c) => c.type === 'image')
+    : [];
+  assert.equal(imgs.length, 0);
+});
+
+// More than the cap would push the body past the serverless limit.
+res = mockRes();
+await captions({
+  method: 'POST',
+  body: { frames: Array.from({ length: 40 }, () => JPEG) },
+  headers: { cookie },
+}, res);
+t('the frame count is capped', () => {
+  const imgs = sent.messages[0].content.filter((c) => c.type === 'image');
+  assert.ok(imgs.length <= 10, 'sent ' + imgs.length);
+});
+
+// Neither frames nor a description is nothing to write from.
+res = mockRes();
+await captions({ method: 'POST', body: {}, headers: { cookie } }, res);
+t('no frames and no description is refused', () =>
+  assert.ok(res.code === 400 && res.body.error === 'missing_context'));
+
+// Text-only still works for anyone who would rather type it.
+globalThis.fetch = async (u, o) => { sent = JSON.parse(o.body); return MODEL_REPLY(GOOD); };
+res = mockRes();
+await captions({
+  method: 'POST',
+  body: { context: 'Dave walks through the first week of the program.' },
+  headers: { cookie },
+}, res);
+t('the text-only path still works', () =>
+  assert.ok(res.code === 200 && typeof sent.messages[0].content === 'string'));
+t('text-only reports no frames read', () => assert.equal(res.body.framesRead, 0));
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
