@@ -279,6 +279,23 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 #dash-body { transition:opacity .18s var(--eo); }
 #dash-body.swapping { opacity:.35; }
 
+.adpick { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; }
+.ad-chips { display:flex; flex-wrap:wrap; gap:.4rem; }
+.ad-chip {
+  display:inline-flex; align-items:center; gap:.3rem; max-width:260px;
+  padding:.28rem .35rem .28rem .6rem; border-radius:999px;
+  border:1px solid rgba(var(--accent-rgb),.28); background:rgba(var(--accent-rgb),.08);
+  font-size:.82rem; font-weight:600; color:var(--accent-d);
+}
+.ad-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ad-chip button {
+  flex:0 0 22px; width:22px; height:22px; display:grid; place-items:center;
+  border:0; border-radius:50%; background:transparent; color:inherit; cursor:pointer;
+}
+.ad-chip button:hover { background:rgba(var(--accent-rgb),.18); }
+#ad-add { width:auto; max-width:280px; min-height:38px; padding:.3rem 1.9rem .3rem .6rem; font-size:.85rem; }
+.add-ad { min-height:38px; padding:.35rem .75rem; font-size:.84rem; }
+
 .statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
 .statusbar #status { margin:0; }
 /* Collapsed by default: it is the answer to a question you ask once, and left
@@ -380,6 +397,18 @@ details.alt[open] summary::before { transform:rotate(90deg); }
    Colour cannot be the only signal, so the two states that ask for action
    carry a marker as well: "!" for within 10% of target, "x" for further off.
    "Good" is deliberately unmarked — it is the nothing-to-do state. */
+/* KPI strip above the comparison chart. */
+.kpi-strip {
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem .9rem;
+  padding:.7rem .9rem; margin-bottom:.8rem;
+  border:1px solid var(--hairline); border-radius:var(--r-sm); background:var(--seg-track);
+}
+.kpi-strip .k-label { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--t3); }
+.kpi-strip .k-actual { font-size:1.25rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.kpi-strip .k-target { font-size:.85rem; color:var(--t2); font-variant-numeric:tabular-nums; }
+.kpi-strip .k-delta { font-size:.85rem; font-weight:700; padding:.15rem .5rem; border-radius:99px; }
+.kpi-strip .k-note { flex:1 1 100%; font-size:.78rem; color:var(--t3); }
+
 .kpi-legend { font-size:.78rem; line-height:1.5; margin-bottom:.7rem; }
 .kpi-legend .kpi-good, .kpi-legend .kpi-warn, .kpi-legend .kpi-bad { padding:.05rem .3rem; border-radius:4px; }
 
@@ -444,7 +473,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* Range spans the row; the paired date and scope fields sit side by side;
      Refresh spans again so it keeps a comfortable tap target. Hidden fields
      are display:none, so the custom date row collapses out of the grid. */
-  #range-field, #refresh { grid-column:1 / -1; }
+  #range-field, #refresh, #ad-field { grid-column:1 / -1; }
+  #ad-add { max-width:none; flex:1 1 auto; }
+  .ad-chip { max-width:100%; }
   .toolbar select, .toolbar input[type=date] { min-height:42px; padding-top:.45rem; padding-bottom:.45rem; }
   .seg { display:grid; grid-template-columns:repeat(6,1fr); width:100%; padding:2px; }
   .seg button { padding:.5rem .2rem; font-size:.78rem; min-height:40px; }
@@ -588,6 +619,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <span id="adset-hint" class="sr-only">Choose a campaign first to narrow by ad set.</span>
       </div>
 
+      <div class="field" id="ad-field" style="flex:1 1 100%;">
+        <span class="lbl" id="ad-lbl">Ads</span>
+        <div class="adpick" role="group" aria-labelledby="ad-lbl">
+          <div id="ad-chips" class="ad-chips"></div>
+          <select id="ad-add" aria-label="Add an ad to compare"></select>
+          <button type="button" class="btn btn-ghost add-ad" id="ad-add-btn" aria-describedby="ad-hint">
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
+            Add ad
+          </button>
+        </div>
+        <span id="ad-hint" class="sub" style="font-size:.78rem">With no ads added, figures are for the whole ad set.</span>
+      </div>
+
       <button type="submit" class="btn btn-primary" id="refresh">
         <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 3v3.5H13"/></svg>
         Refresh
@@ -646,6 +690,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           <div class="field"><label for="bar-range">Range</label><select id="bar-range"></select></div>
         </div>
       </div>
+      <div class="kpi-strip" id="bar-kpi" hidden></div>
       <div class="chart-box" id="bar-box"><canvas id="bar-chart" role="img" aria-labelledby="bar-h" aria-describedby="bar-desc bar-summary"></canvas></div>
       <p class="readout" id="bar-readout" data-hint="Drag across the bars to read each value."></p>
       <p id="bar-summary" class="sr-only"></p>
@@ -977,7 +1022,90 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     };
   }
 
-  function scopeParams(){ return { campaignId:$('campaign-pick').value||'', adsetId:$('adset-pick').value||'' }; }
+  /* Ads selected for comparison, by id. Empty means "the whole ad set",
+     which is the default and the common case. */
+  var selectedAds = [];
+
+  function scopeParams(){
+    return {
+      campaignId: $('campaign-pick').value || '',
+      adsetId: $('adset-pick').value || '',
+      adIds: selectedAds.map(function(a){ return a.id; }).join(','),
+    };
+  }
+
+  /* Every ad under the current campaign and ad set scope. Narrowing the
+     campaign or ad set narrows this list too, so the picker never offers an ad
+     that the current scope excludes. */
+  function adsInScope(){
+    var cid = $('campaign-pick').value, aid = $('adset-pick').value;
+    var out = [];
+    (state.campaigns || []).forEach(function(c){
+      if(cid && c.id !== cid) return;
+      (c.adsets || []).forEach(function(a){
+        if(aid && a.id !== aid) return;
+        (a.ads || []).forEach(function(ad){
+          out.push({ id: ad.id, name: ad.name, adsetName: a.name });
+        });
+      });
+    });
+    return out;
+  }
+
+  function renderAdPicker(){
+    var chips = $('ad-chips'), sel = $('ad-add'), btn = $('ad-add-btn');
+    if(!chips) return;
+
+    chips.innerHTML = '';
+    selectedAds.forEach(function(ad, i){
+      var chip = document.createElement('span');
+      chip.className = 'ad-chip';
+      var label = document.createElement('span');
+      label.textContent = ad.name;
+      label.title = ad.name;
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Remove ' + ad.name);
+      x.innerHTML = '<svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
+      x.addEventListener('click', function(){
+        selectedAds.splice(i, 1);
+        renderAdPicker();
+        refreshAll();
+      });
+      chip.appendChild(label); chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+
+    var chosen = {};
+    selectedAds.forEach(function(a){ chosen[a.id] = true; });
+    var available = adsInScope().filter(function(a){ return !chosen[a.id]; });
+
+    sel.innerHTML = '';
+    if(!available.length){
+      sel.appendChild(opt('', selectedAds.length ? 'No other ads in scope' : 'No ads in this range'));
+      sel.disabled = true;
+      btn.disabled = true;
+    } else {
+      sel.appendChild(opt('', 'Choose an ad…'));
+      available.forEach(function(a){ sel.appendChild(opt(a.id, a.name)); });
+      sel.disabled = false;
+      btn.disabled = false;
+    }
+
+    $('ad-hint').textContent = selectedAds.length
+      ? 'Showing ' + selectedAds.length + ' ad' + (selectedAds.length === 1 ? '' : 's') + ' combined. Remove all to return to the whole ad set.'
+      : 'With no ads added, figures are for the whole ad set.';
+  }
+
+  function addSelectedAd(){
+    var sel = $('ad-add'), id = sel.value;
+    if(!id) return;
+    var ad = adsInScope().filter(function(a){ return a.id === id; })[0];
+    if(!ad) return;
+    selectedAds.push(ad);
+    renderAdPicker();
+    refreshAll();
+  }
 
   /* ================================ state ================================= */
   var state = {
@@ -1147,8 +1275,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   });
 
   $('controls').addEventListener('submit', function(e){ e.preventDefault(); refreshAll(); });
-  $('campaign-pick').addEventListener('change', function(){ fillAdsets(state.campaigns,this.value,''); refreshAll(); });
-  $('adset-pick').addEventListener('change', function(){ refreshAll(); });
+  $('campaign-pick').addEventListener('change', function(){
+    fillAdsets(state.campaigns, this.value, '');
+    selectedAds = [];             // ads belong to the campaign that just changed
+    renderAdPicker();
+    refreshAll();
+  });
+  $('adset-pick').addEventListener('change', function(){
+    selectedAds = [];
+    renderAdPicker();
+    refreshAll();
+  });
+  $('ad-add-btn').addEventListener('click', addSelectedAd);
+  $('ad-add').addEventListener('change', function(){ if(this.value) addSelectedAd(); });
 
   function fillAdsets(camps, campaignId, want){
     var a=$('adset-pick'); a.innerHTML=''; a.appendChild(opt('','All ad sets'));
@@ -1456,10 +1595,43 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   }
 
   /* --------------------------------------------------------------- bar ---- */
+  /* The strip above the comparison chart: what the selected metric is doing
+     against its target, and by how much.
+
+     It is computed from the WEIGHTED total rather than an average of the bars.
+     Averaging per-row CTR would let a row with fourteen impressions count as
+     much as one with sixty thousand, which is how a chart ends up disagreeing
+     with the headline figure above it. */
+  function renderBarKpi(d, key){
+    var strip = $('bar-kpi');
+    var v = kpiVerdict(key, (d.totals || {})[key]);
+
+    if(!v){
+      strip.hidden = true;
+      strip.innerHTML = '';
+      return;
+    }
+
+    var m = METRICS[key];
+    var actual = d.totals[key];
+    strip.hidden = false;
+    strip.innerHTML =
+      '<span class="k-label">' + esc(m.label) + '</span>' +
+      '<span class="k-actual kpi-' + v.band + '" style="background:transparent">' + esc(m.fmt(actual)) + '</span>' +
+      '<span class="k-target">target ' + esc(m.fmt(v.target)) + '</span>' +
+      '<span class="k-delta kpi-' + v.band + '">' + esc(v.label) + '</span>' +
+      '<span class="k-note">' +
+        (v.dir === 'down'
+          ? 'Lower is better for this metric, so under target is the good side.'
+          : 'Higher is better for this metric.') +
+      ' Measured across the whole selection, not averaged per row.</span>';
+  }
+
   function renderBar(){
     var s=state.bar, m=METRICS[s.m];
     $('bar-desc').textContent = m.label+' by '+(s.dim==='day'?'day':s.dim)+'.';
     return loadPanel(s.range, s.dim).then(function(d){
+      renderBarKpi(d, s.m);
       var rows=rowsFor(d,s.dim).filter(function(r){ return r[s.m]!=null; });
       var horizontal = s.dim!=='day';
       if(horizontal) rows=rows.slice().sort(function(a,b){ return (b[s.m]||0)-(a[s.m]||0); }).slice(0,12);
@@ -1467,7 +1639,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(!rows.length){
         if(charts.bar){ charts.bar.destroy(); charts.bar=null; }
         $('bar-box').innerHTML=emptyState('No data in this range yet.');
-        $('bar-summary').textContent='No data in this range.';
+        var bv = kpiVerdict(s.m, (d.totals||{})[s.m]);
+      $('bar-desc').textContent = m.label + ' by ' + (s.dim==='day'?'day':s.dim) +
+        (bv ? '. Overall ' + bv.label + ' against a target of ' + m.fmt(bv.target) + '.' : '.');
+      $('bar-summary').textContent='No data in this range.';
         buildTable($('bar-table'),['Name',m.label],[]);
         return;
       }
@@ -1478,7 +1653,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         data:{ labels:rows.map(function(r){return r.name;}), datasets:[{
           label:m.label, data:rows.map(function(r){return r[s.m];}),
           borderRadius:7, borderSkipped:false, maxBarThickness:38,
-          backgroundColor:function(c){ return barGradient(c,horizontal); }
+          // Each bar is coloured by its own verdict where the metric has a
+          // target, so the chart and the table tell the same story. Metrics
+          // without a target keep the neutral brand gradient.
+          backgroundColor:function(c){
+            var row = rows[c.dataIndex];
+            var v = row ? kpiVerdict(s.m, row[s.m]) : null;
+            if(!v) return barGradient(c,horizontal);
+            var css = getComputedStyle(document.documentElement);
+            return css.getPropertyValue('--kpi-'+v.band).trim() || barGradient(c,horizontal);
+          }
         }]},
         options: baseOpts({
           indexAxis: horizontal?'y':'x',
@@ -1657,6 +1841,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         cSel.value=(d.scope&&d.scope.campaignId)||keep||'';
         fillAdsets(state.campaigns, cSel.value, (d.scope&&d.scope.adsetId)||'');
 
+        // An ad that the current campaign or ad set no longer contains must not
+        // stay selected, or the figures would silently exclude everything.
+        var inScope = {};
+        adsInScope().forEach(function(a){ inScope[a.id] = true; });
+        selectedAds = selectedAds.filter(function(a){ return inScope[a.id]; });
+        renderAdPicker();
+
         renderKpis(d);
 
         if(d.results&&d.results.note){
@@ -1763,6 +1954,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // a broken control, not as "nothing selected".
     var as = $('adset-pick');
     as.innerHTML = '';
+    selectedAds = [];           // an ad id means nothing in the other account
     as.appendChild(opt('', 'All ad sets'));
     as.disabled = true;
     state.campaigns = [];

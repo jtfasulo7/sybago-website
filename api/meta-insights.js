@@ -577,9 +577,20 @@ export default async function handler(req, res) {
   const scope = {};
   if (/^\d+$/.test(req.query.campaignId || '')) scope.campaignId = req.query.campaignId;
   if (/^\d+$/.test(req.query.adsetId || '')) scope.adsetId = req.query.adsetId;
+  // Comma separated ad ids. Anything non-numeric is dropped rather than passed
+  // through, same rule as the campaign and ad set ids.
+  const adIds = String(req.query.adIds || '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter((x) => /^\d+$/.test(x))
+    .slice(0, 20);
+  if (adIds.length) scope.adIds = adIds;
 
   const filtering = [];
-  if (scope.adsetId) {
+  // Ads are the narrowest scope, so they win over the ad set and campaign.
+  if (scope.adIds) {
+    filtering.push({ field: 'ad.id', operator: 'IN', value: scope.adIds });
+  } else if (scope.adsetId) {
     filtering.push({ field: 'adset.id', operator: 'IN', value: [scope.adsetId] });
   } else if (scope.campaignId) {
     filtering.push({ field: 'campaign.id', operator: 'IN', value: [scope.campaignId] });
@@ -620,7 +631,7 @@ export default async function handler(req, res) {
         buildUrl(accountId, {
           // When scoped, the trend must be scoped too, so it is requested at
           // the scoped level rather than at account level.
-          level: scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
+          level: scope.adIds ? 'ad' : scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
           fields: BASE_FIELDS.join(','),
           time_range,
           // Hourly replaces the daily increment; the two cannot be combined.
@@ -634,8 +645,10 @@ export default async function handler(req, res) {
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
-          level: 'adset',
-          fields: 'campaign_id,campaign_name,adset_id,adset_name',
+          // Ad level, so the picker can offer individual ads. One level
+          // deeper than the scoping needs, but it is the same single request.
+          level: 'ad',
+          fields: 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name',
           time_range,
           limit: '500',
         }, token),
@@ -731,8 +744,15 @@ export default async function handler(req, res) {
       if (!byCampaign.has(r.campaign_id)) {
         byCampaign.set(r.campaign_id, { id: r.campaign_id, name: r.campaign_name || r.campaign_id, adsets: [] });
       }
-      if (r.adset_id && !byCampaign.get(r.campaign_id).adsets.some((a) => a.id === r.adset_id)) {
-        byCampaign.get(r.campaign_id).adsets.push({ id: r.adset_id, name: r.adset_name || r.adset_id });
+      if (!r.adset_id) continue;
+      const c = byCampaign.get(r.campaign_id);
+      let adset = c.adsets.find((a) => a.id === r.adset_id);
+      if (!adset) {
+        adset = { id: r.adset_id, name: r.adset_name || r.adset_id, ads: [] };
+        c.adsets.push(adset);
+      }
+      if (r.ad_id && !adset.ads.some((a) => a.id === r.ad_id)) {
+        adset.ads.push({ id: r.ad_id, name: r.ad_name || r.ad_id });
       }
     }
     const campaigns = [...byCampaign.values()].sort((a, b) => a.name.localeCompare(b.name));
