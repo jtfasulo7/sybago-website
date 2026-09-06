@@ -518,5 +518,86 @@ await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r
 t('a disabled ad account is classified as blocked, not as a bad id', () =>
   assert.equal(res.body.error, 'api_access_blocked'));
 
+
+/* ------------------------------------------------ the picker lists assets ---- */
+console.log('\nThe picker lists what exists, not what delivered');
+
+/* THE BUG THIS GUARDS: the picker was built from an insights response, which
+   only returns entities that DELIVERED in the window. A brand new ad set with
+   no spend was invisible in the dropdown — exactly when someone wants to select
+   it and watch it. It now reads the management tree instead. */
+const TREE = [{
+  id: 'c1',
+  name: 'Dave - Campaign 1',
+  status: 'ACTIVE',
+  adsets: { data: [
+    { id: 'as1', name: 'Dave - Ad Set 1', status: 'ACTIVE',
+      ads: { data: [{ id: 'ad1', name: 'Dave Image Ad 1', status: 'ACTIVE' }] } },
+    // No ads and no delivery — Meta omits the edge entirely rather than
+    // returning it empty, which is the shape of something just created.
+    { id: 'as2', name: 'Dave - Ad Set - Paid', status: 'PAUSED' },
+  ] },
+}, {
+  // A campaign with no ad sets at all: the edge is absent, not empty.
+  id: 'c2', name: 'Empty Campaign', status: 'PAUSED',
+}];
+
+globalThis.fetch = async (u) =>
+  String(u).includes('/campaigns?') || /\/campaigns\b/.test(String(u))
+    ? { ok: true, headers: { get: () => null }, json: async () => ({ data: TREE }) }
+    : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+res = mockRes();
+await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, res);
+
+t('a brand new ad set with no delivery is offered', () => {
+  const names = res.body.campaigns.flatMap((c) => c.adsets.map((a) => a.name));
+  assert.ok(names.includes('Dave - Ad Set - Paid'), 'got ' + JSON.stringify(names));
+});
+t('an ad set with no ads does not break the tree', () => {
+  const as2 = res.body.campaigns[0].adsets.find((a) => a.id === 'as2');
+  assert.deepEqual(as2.ads, []);
+});
+t('a campaign with no ad sets does not break the tree', () => {
+  const c2 = res.body.campaigns.find((c) => c.id === 'c2');
+  assert.deepEqual(c2.adsets, []);
+});
+t('existing ad sets and their ads still come through', () => {
+  const as1 = res.body.campaigns[0].adsets.find((a) => a.id === 'as1');
+  assert.equal(as1.ads[0].name, 'Dave Image Ad 1');
+});
+t('status is carried so a paused asset can be labelled', () => {
+  const as2 = res.body.campaigns[0].adsets.find((a) => a.id === 'as2');
+  assert.equal(as2.status, 'PAUSED');
+});
+t('campaigns are sorted by name', () => {
+  const names = res.body.campaigns.map((c) => c.name);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
+});
+
+// The picker must not be narrowed by the date range — that was the whole bug.
+{
+  const urls = [];
+  globalThis.fetch = async (u) => {
+    urls.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: TREE }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights({
+    method: 'GET',
+    query: { since: '2026-09-06', until: '2026-09-06' },
+    headers: { cookie: validCookie },
+  }, r);
+  const pickerUrl = urls.find((u) => /\/campaigns\b/.test(u));
+  t('the picker request carries no date range', () =>
+    assert.ok(pickerUrl && !/time_range|date_preset/.test(pickerUrl), pickerUrl));
+  t('a one-day range still offers every ad set', () => {
+    const names = r.body.campaigns.flatMap((c) => c.adsets.map((a) => a.name));
+    assert.ok(names.includes('Dave - Ad Set - Paid'));
+  });
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

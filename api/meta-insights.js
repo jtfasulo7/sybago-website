@@ -255,6 +255,24 @@ function buildUrl(accountId, params, token) {
   return u.toString();
 }
 
+/**
+ * URL for a management edge (/campaigns, /adsets, /ads) rather than /insights.
+ *
+ * The picker used to be built from an insights response, which only returns
+ * entities that DELIVERED in the selected window. A brand new ad set with no
+ * spend yet was therefore invisible in the dropdown — precisely when someone
+ * most wants to select it and watch. The management edges list what EXISTS,
+ * which is the right question for a picker.
+ */
+function buildEdgeUrl(accountId, edge, params, token) {
+  const u = new URL(`https://graph.facebook.com/${API_VERSION}/${accountId}/${edge}`);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) u.searchParams.set(k, typeof v === 'string' ? v : JSON.stringify(v));
+  }
+  u.searchParams.set('access_token', token);
+  return u.toString();
+}
+
 /* --------------------------------------------------------------- shaping */
 
 const num = (v) => {
@@ -741,14 +759,18 @@ export default async function handler(req, res) {
         { env: envNames },
       ),
       fetchWithBackoff(
-        buildUrl(accountId, {
-          // Ad level, so the picker can offer individual ads. One level
-          // deeper than the scoping needs, but it is the same single request.
-          level: 'ad',
-          fields: 'campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name',
-          ...period,
-          limit: '500',
-        }, token),
+        // The whole campaign tree in one request, via nested edges. Lists what
+        // exists rather than what delivered, so a new ad set appears
+        // immediately instead of only after its first impression.
+        buildEdgeUrl(
+          accountId,
+          'campaigns',
+          {
+            fields: 'id,name,status,adsets.limit(200){id,name,status,ads.limit(200){id,name,status}}',
+            limit: '200',
+          },
+          token,
+        ),
         { env: envNames },
       ),
     ]);
@@ -837,25 +859,29 @@ export default async function handler(req, res) {
     if (!anyReg) warnings.push('no_registration_events');
     if (!anyLpv) warnings.push('no_landing_page_views');
 
-    // Options for the picker: every campaign, each with its ad sets.
-    const byCampaign = new Map();
-    for (const r of picker.json.data || []) {
-      if (!r.campaign_id) continue;
-      if (!byCampaign.has(r.campaign_id)) {
-        byCampaign.set(r.campaign_id, { id: r.campaign_id, name: r.campaign_name || r.campaign_id, adsets: [] });
-      }
-      if (!r.adset_id) continue;
-      const c = byCampaign.get(r.campaign_id);
-      let adset = c.adsets.find((a) => a.id === r.adset_id);
-      if (!adset) {
-        adset = { id: r.adset_id, name: r.adset_name || r.adset_id, ads: [] };
-        c.adsets.push(adset);
-      }
-      if (r.ad_id && !adset.ads.some((a) => a.id === r.ad_id)) {
-        adset.ads.push({ id: r.ad_id, name: r.ad_name || r.ad_id });
-      }
-    }
-    const campaigns = [...byCampaign.values()].sort((a, b) => a.name.localeCompare(b.name));
+    // Options for the picker, read straight off the management tree.
+    //
+    // Meta omits an edge entirely rather than returning it empty, so a campaign
+    // with no ad sets, or an ad set with no ads, simply has no key — hence the
+    // ?. and the fallbacks. That is the normal shape for something just
+    // created, which is the case this exists to handle.
+    const campaigns = (picker.json.data || [])
+      .map((c) => ({
+        id: c.id,
+        name: c.name || c.id,
+        status: c.status || null,
+        adsets: (c.adsets?.data || []).map((a) => ({
+          id: a.id,
+          name: a.name || a.id,
+          status: a.status || null,
+          ads: (a.ads?.data || []).map((ad) => ({
+            id: ad.id,
+            name: ad.name || ad.id,
+            status: ad.status || null,
+          })),
+        })),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       view,
