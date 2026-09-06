@@ -24,8 +24,18 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  /* Brand tokens — unchanged from the rest of the site. */
-  --teal:#2F6779; --teal-b:#3a7d93; --teal-d:#1d4b59;
+  /* ------------------------------------------------------------------
+     THEMING. Two dashboards share this document, so every colour that
+     differs between them is a token here and is overridden wholesale in
+     the [data-view="dave"] block below. Accent tints are expressed as an
+     RGB triplet rather than a dozen pre-mixed rgba() values, so a palette
+     swap is one line instead of a search-and-replace.
+
+     Default = Sybago (the agency palette, and the site's own brand).
+     ------------------------------------------------------------------ */
+  --accent:#2F6779; --accent-b:#3a7d93; --accent-d:#1d4b59;
+  --accent-rgb:47,103,121; --accent-b-rgb:58,125,147;
+  --neg-rgb:163,58,38; --warn-rgb:138,90,0;
   --t1:#0f1419; --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
   --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --eo:cubic-bezier(.16,1,.3,1);
@@ -34,8 +44,13 @@
      more considered than flat #fff, and gives the glass edges something to
      catch. */
   --ground:#eef2f4; --ground-2:#e5ebee;
-  --surface:rgba(255,255,255,.72); --surface-solid:#ffffff;
+  --surface:rgba(255,255,255,.72); --surface-solid:#ffffff; --surface-hover:#ffffff;
   --hairline:rgba(15,20,25,.08); --hairline-2:rgba(255,255,255,.85);
+  --nav-bg:rgba(238,242,244,.78);
+  --thead-bg:rgba(255,255,255,.94);
+  --on-accent:#ffffff;
+  --seg-track:rgba(15,20,25,.05);
+  --glow-1:rgba(var(--accent-rgb),.13); --glow-2:rgba(var(--accent-b-rgb),.10);
 
   /* Elevation: a tight contact shadow plus a wide soft one. A single shadow is
      what makes a card look like a flat outlined box. */
@@ -49,20 +64,58 @@
   --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:26px;
 }
 
+/* --------------------------------------------------------------------------
+   Peps by Dave — black, gold and white.
+
+   Inverting a light theme by flipping the text tokens alone leaves the glass
+   edges, the sticky table head and the "solid surface" white, so those are
+   tokens too and are all restated here. Gold is the accent, warm white is the
+   text, and the ground is near-black rather than pure #000 so the layered
+   panels have something to sit against.
+   -------------------------------------------------------------------------- */
+:root[data-view="dave"] {
+  --accent:#D6AF52; --accent-b:#E8C87A; --accent-d:#F0D89B;
+  --accent-rgb:214,175,82; --accent-b-rgb:232,200,122;
+  --neg-rgb:224,110,86; --warn-rgb:214,175,82;
+
+  /* Warm white, not #fff — pure white on near-black glares. */
+  --t1:#F6F2E8; --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
+
+  --ground:#0B0B0C; --ground-2:#141317;
+  --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-hover:#1E1C23;
+  --hairline:rgba(246,242,232,.11); --hairline-2:rgba(255,255,255,.06);
+  --nav-bg:rgba(11,11,12,.82);
+  --thead-bg:rgba(22,21,26,.94);
+  /* Text ON the gold accent must be dark — warm white on gold fails contrast. */
+  --on-accent:#14120C;
+  --seg-track:rgba(246,242,232,.06);
+  --glow-1:rgba(214,175,82,.10); --glow-2:rgba(214,175,82,.05);
+
+  /* On a near-black ground a light shadow is invisible; depth has to come from
+     a deeper shadow plus the hairline highlight. */
+  --lift-1:0 1px 2px rgba(0,0,0,.5), 0 6px 18px -6px rgba(0,0,0,.65);
+  --lift-2:0 1px 2px rgba(0,0,0,.55), 0 14px 34px -10px rgba(0,0,0,.8);
+
+  /* Both already sit far above 4.5:1 on this ground. */
+  --neg:#E88A6E; --warn-text:#E8C87A;
+
+  color-scheme: dark;
+}
+
 html, body { max-width:100%; overflow-x:hidden; overscroll-behavior-x:none; }
 body {
   font-family:var(--ff); color:var(--t1); line-height:1.55; -webkit-font-smoothing:antialiased;
   background:
-    radial-gradient(1100px 620px at 12% -8%, rgba(47,103,121,.13), transparent 62%),
-    radial-gradient(900px 520px at 96% 4%, rgba(58,125,147,.10), transparent 60%),
+    radial-gradient(1100px 620px at 12% -8%, var(--glow-1), transparent 62%),
+    radial-gradient(900px 520px at 96% 4%, var(--glow-2), transparent 60%),
     linear-gradient(180deg, var(--ground) 0%, var(--ground-2) 100%);
   background-attachment:fixed; min-height:100vh;
 }
 main { overflow-x:clip; max-width:1400px; margin:0 auto; padding:1.75rem 1.5rem 6rem; }
 
 [hidden] { display:none !important; }
-:focus-visible { outline:2.5px solid var(--teal); outline-offset:3px; border-radius:6px; }
-.skip { position:absolute; left:-9999px; top:0; background:var(--teal); color:#fff; padding:.75rem 1.1rem; z-index:200; border-radius:0 0 var(--r-sm) 0; }
+:focus-visible { outline:2.5px solid var(--accent); outline-offset:3px; border-radius:6px; }
+.skip { position:absolute; left:-9999px; top:0; background:var(--accent); color:var(--on-accent); padding:.75rem 1.1rem; z-index:200; border-radius:0 0 var(--r-sm) 0; }
 .skip:focus { left:0; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 
@@ -76,7 +129,7 @@ main { overflow-x:clip; max-width:1400px; margin:0 auto; padding:1.75rem 1.5rem 
 .nav {
   position:sticky; top:0; z-index:100;
   display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 1.5rem;
-  background:rgba(238,242,244,.78);
+  background:var(--nav-bg);
   backdrop-filter:blur(20px) saturate(1.6); -webkit-backdrop-filter:blur(20px) saturate(1.6);
   border-bottom:1px solid var(--hairline);
 }
@@ -86,23 +139,23 @@ main { overflow-x:clip; max-width:1400px; margin:0 auto; padding:1.75rem 1.5rem 
 
 h1 { font-size:clamp(1.5rem,3.4vw,2.15rem); font-weight:800; letter-spacing:-.03em; }
 h2 { font-size:1.05rem; font-weight:700; letter-spacing:-.015em; }
-.eyebrow { font-size:.7rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+.eyebrow { font-size:.7rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
 .sub { color:var(--t3); font-size:.9rem; }
 
 button, input, select { font:inherit; color:inherit; }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; border-radius:var(--r-sm); font-weight:600; cursor:pointer; border:1px solid transparent; padding:.62rem 1.05rem; min-height:44px; transition:transform .2s var(--eo), box-shadow .2s var(--eo), background .2s var(--eo); }
 .btn:active { transform:translateY(1px); }
-.btn-primary { color:#fff; background:linear-gradient(180deg,var(--teal-b),var(--teal)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn-primary { color:var(--on-accent); background:linear-gradient(180deg,var(--accent-b),var(--accent)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.22); }
 .btn-primary:hover { box-shadow:var(--lift-2), inset 0 1px 0 rgba(255,255,255,.28); transform:translateY(-1px); }
 .btn-primary[aria-disabled="true"] { opacity:.6; pointer-events:none; }
 .btn-ghost { background:var(--surface); border-color:var(--hairline); color:var(--t1); box-shadow:inset 0 1px 0 var(--hairline-2); }
-.btn-ghost:hover { background:#fff; box-shadow:var(--lift-1); }
+.btn-ghost:hover { background:var(--surface-hover); box-shadow:var(--lift-1); }
 
 /* Segmented range control — reads as one object, not five buttons. */
-.seg { display:inline-flex; padding:3px; gap:2px; border-radius:var(--r-md); background:rgba(15,20,25,.05); border:1px solid var(--hairline); }
+.seg { display:inline-flex; padding:3px; gap:2px; border-radius:var(--r-md); background:var(--seg-track); border:1px solid var(--hairline); }
 .seg button { border:0; background:transparent; cursor:pointer; border-radius:calc(var(--r-md) - 4px); padding:.5rem .85rem; font-size:.85rem; font-weight:600; color:var(--t2); min-height:38px; transition:background .2s var(--eo), color .2s var(--eo), box-shadow .2s var(--eo); }
 .seg button:hover { color:var(--t1); }
-.seg button[aria-pressed="true"] { background:var(--surface-solid); color:var(--teal-d); box-shadow:var(--lift-1); }
+.seg button[aria-pressed="true"] { background:var(--surface-solid); color:var(--accent-d); box-shadow:var(--lift-1); }
 
 .field { display:flex; flex-direction:column; gap:.35rem; min-width:0; }
 .field label, .field .lbl { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--t3); }
@@ -112,12 +165,40 @@ select, input[type=date], input[type=text], input[type=password] {
   border:1px solid var(--hairline); border-radius:var(--r-sm);
   padding:.6rem 2.2rem .6rem .8rem; min-height:44px; width:100%;
   background:var(--surface-solid);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9), var(--lift-1);
+  box-shadow:inset 0 1px 0 var(--hairline-2), var(--lift-1);
   transition:border-color .18s var(--eo), box-shadow .18s var(--eo);
 }
 input[type=date], input[type=text], input[type=password] { padding-right:.8rem; }
-select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%232F6779' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
-select:hover, input:hover { border-color:rgba(47,103,121,.35); }
+/* The chevron is a data: URI and cannot read a custom property, so it is a
+   neutral grey that reads acceptably on both grounds. */
+select { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M3 5.2 7 9.2 11 5.2' fill='none' stroke='%23888888' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat:no-repeat; background-position:right .75rem center; }
+select:hover, input:hover { border-color:rgba(var(--accent-rgb),.35); }
+
+/* View tabs. Only a master session ever sees these, so they are hidden by
+   default and revealed after the role comes back from the server. */
+.viewtabs {
+  display:flex; gap:.3rem; padding:4px; margin:1.1rem 0 .25rem;
+  border-radius:var(--r-md); background:var(--seg-track);
+  border:1px solid var(--hairline); width:fit-content; max-width:100%;
+  overflow-x:auto; scrollbar-width:none;
+}
+.viewtabs::-webkit-scrollbar { display:none; }
+.viewtabs button {
+  flex:0 0 auto; border:0; cursor:pointer; white-space:nowrap;
+  border-radius:calc(var(--r-md) - 5px); padding:.55rem 1.1rem; min-height:42px;
+  background:transparent; color:var(--t2); font-size:.9rem; font-weight:600;
+  transition:background .2s var(--eo), color .2s var(--eo), box-shadow .2s var(--eo);
+}
+.viewtabs button:hover { color:var(--t1); }
+.viewtabs button[aria-selected="true"] {
+  background:var(--surface-solid); color:var(--accent-d);
+  box-shadow:var(--lift-1); font-weight:700;
+}
+
+/* Switching view repaints the whole page, so the content is faded through the
+   swap rather than snapping between two entirely different colour schemes. */
+#dash-body { transition:opacity .18s var(--eo); }
+#dash-body.swapping { opacity:.35; }
 
 .statusbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .9rem; margin-bottom:.4rem; }
 .statusbar #status { margin:0; }
@@ -126,7 +207,7 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .attrib-note { margin-bottom:.9rem; }
 .attrib-note > summary { display:inline-flex; align-items:center; gap:.35rem; cursor:pointer; font-size:.8rem; color:var(--t3); width:fit-content; }
 .attrib-note > summary::marker { color:var(--t3); }
-.attrib-note > summary:hover { color:var(--teal-d); }
+.attrib-note > summary:hover { color:var(--accent-d); }
 .attrib-note > p { font-size:.8rem; line-height:1.55; max-width:78ch; margin-top:.4rem; color:var(--t3); }
 
 /* Live pill. The dot is the state: filled and pulsing while auto-refresh is
@@ -139,15 +220,15 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
   box-shadow:inset 0 1px 0 var(--hairline-2);
   transition:color .2s var(--eo), border-color .2s var(--eo), background .2s var(--eo);
 }
-.live[aria-pressed="true"] { color:var(--teal-d); border-color:rgba(47,103,121,.3); background:rgba(47,103,121,.07); }
-.live:hover { background:#fff; }
-.live-dot { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 0 rgba(47,103,121,.5); }
-.live[aria-pressed="true"] .live-dot { background:var(--teal); animation:pulse 2.4s var(--eo) infinite; }
+.live[aria-pressed="true"] { color:var(--accent-d); border-color:rgba(var(--accent-rgb),.3); background:rgba(var(--accent-rgb),.07); }
+.live:hover { background:var(--surface-hover); }
+.live-dot { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 0 rgba(var(--accent-rgb),.5); }
+.live[aria-pressed="true"] .live-dot { background:var(--accent); animation:pulse 2.4s var(--eo) infinite; }
 .live[aria-pressed="false"] .live-dot { background:transparent; border:1.5px solid var(--t3); }
 @keyframes pulse {
-  0% { box-shadow:0 0 0 0 rgba(47,103,121,.45); }
-  70% { box-shadow:0 0 0 7px rgba(47,103,121,0); }
-  100% { box-shadow:0 0 0 0 rgba(47,103,121,0); }
+  0% { box-shadow:0 0 0 0 rgba(var(--accent-rgb),.45); }
+  70% { box-shadow:0 0 0 7px rgba(var(--accent-rgb),0); }
+  100% { box-shadow:0 0 0 0 rgba(var(--accent-rgb),0); }
 }
 
 .toolbar { display:flex; flex-wrap:wrap; gap:1rem 1.15rem; align-items:flex-end; padding:1.15rem 1.25rem; border-radius:var(--r-lg); margin:1.25rem 0 1.75rem; }
@@ -157,9 +238,9 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.9rem; margin-bottom:1.75rem; }
 .kpi { position:relative; overflow:hidden; border-radius:var(--r-md); padding:1rem 1.05rem; transition:transform .25s var(--eo), box-shadow .25s var(--eo); }
 .kpi:hover { transform:translateY(-2px); box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2); }
-.kpi::after { content:''; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, transparent, rgba(47,103,121,.45), transparent); }
+.kpi::after { content:''; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, transparent, rgba(var(--accent-rgb),.45), transparent); }
 .kpi-top { display:flex; align-items:center; gap:.5rem; }
-.kpi-ico { width:26px; height:26px; flex:0 0 26px; display:grid; place-items:center; border-radius:8px; background:rgba(47,103,121,.10); color:var(--teal); }
+.kpi-ico { width:26px; height:26px; flex:0 0 26px; display:grid; place-items:center; border-radius:8px; background:rgba(var(--accent-rgb),.10); color:var(--accent); }
 .kpi-ico svg { width:15px; height:15px; }
 .kpi dt { font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
 .kpi dd { font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.4rem; font-variant-numeric:tabular-nums; }
@@ -168,7 +249,7 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .panel { border-radius:var(--r-lg); padding:1.25rem 1.35rem 1.35rem; margin-bottom:1.35rem; }
 .panel-head { display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:flex-start; justify-content:space-between; margin-bottom:1rem; }
 .panel-title { display:flex; align-items:center; gap:.6rem; }
-.panel-ico { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border-radius:10px; color:#fff; background:linear-gradient(180deg,var(--teal-b),var(--teal)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.25); }
+.panel-ico { width:32px; height:32px; flex:0 0 32px; display:grid; place-items:center; border-radius:10px; color:var(--on-accent); background:linear-gradient(180deg,var(--accent-b),var(--accent)); box-shadow:var(--lift-1), inset 0 1px 0 rgba(255,255,255,.25); }
 .panel-ico svg { width:17px; height:17px; }
 .panel-ctl { display:flex; flex-wrap:wrap; gap:.7rem; align-items:flex-end; }
 .panel-ctl .field { min-width:142px; }
@@ -182,10 +263,10 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
   display:inline-flex; align-items:center; gap:.3rem;
   padding:.2rem .25rem .2rem .55rem; border-radius:var(--r-md);
   border:1px solid var(--hairline); background:var(--surface-solid);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9), var(--lift-1);
+  box-shadow:inset 0 1px 0 var(--hairline-2), var(--lift-1);
   transition:border-color .18s var(--eo), box-shadow .18s var(--eo);
 }
-.series-row:focus-within { border-color:rgba(47,103,121,.45); box-shadow:var(--lift-2); }
+.series-row:focus-within { border-color:rgba(var(--accent-rgb),.45); box-shadow:var(--lift-2); }
 /* The swatch draws the series' actual dash pattern, so line identity does not
    rest on colour alone. */
 .series-row .swatch { flex:0 0 auto; display:block; }
@@ -199,7 +280,7 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
   border:0; border-radius:8px; background:transparent; cursor:pointer; color:var(--t3);
   transition:color .18s var(--eo), background .18s var(--eo);
 }
-.series-del:hover { color:var(--neg); background:rgba(163,58,38,.08); }
+.series-del:hover { color:var(--neg); background:rgba(var(--neg-rgb),.08); }
 .series-del[disabled] { opacity:.3; cursor:not-allowed; }
 .series-del[disabled]:hover { color:var(--t3); background:transparent; }
 .add-series { min-height:38px; padding:.4rem .8rem; font-size:.85rem; }
@@ -207,11 +288,11 @@ select:hover, input:hover { border-color:rgba(47,103,121,.35); }
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
 
-.readout { min-height:1.55rem; margin-top:.6rem; font-size:.85rem; font-weight:600; color:var(--teal-d); font-variant-numeric:tabular-nums; }
+.readout { min-height:1.55rem; margin-top:.6rem; font-size:.85rem; font-weight:600; color:var(--accent-d); font-variant-numeric:tabular-nums; }
 .readout:empty::before { content:attr(data-hint); color:var(--t3); font-weight:400; }
 
 details.alt { margin-top:.9rem; border-top:1px solid var(--hairline); padding-top:.7rem; }
-details.alt summary { cursor:pointer; font-weight:600; font-size:.85rem; color:var(--teal); padding:.3rem 0; list-style:none; display:flex; align-items:center; gap:.4rem; }
+details.alt summary { cursor:pointer; font-weight:600; font-size:.85rem; color:var(--accent); padding:.3rem 0; list-style:none; display:flex; align-items:center; gap:.4rem; }
 details.alt summary::-webkit-details-marker { display:none; }
 details.alt summary::before { content:'▸'; transition:transform .2s var(--eo); display:inline-block; }
 details.alt[open] summary::before { transform:rotate(90deg); }
@@ -221,18 +302,18 @@ table { width:100%; border-collapse:collapse; font-size:.87rem; }
 caption { text-align:left; font-size:.82rem; color:var(--t3); padding-bottom:.55rem; }
 th, td { text-align:right; padding:.6rem .7rem; border-bottom:1px solid var(--hairline); white-space:nowrap; font-variant-numeric:tabular-nums; }
 th:first-child, td:first-child { text-align:left; white-space:normal; min-width:170px; font-variant-numeric:normal; }
-thead th { position:sticky; top:0; z-index:2; background:rgba(255,255,255,.94); backdrop-filter:blur(8px); font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t2); border-bottom:1.5px solid var(--hairline); }
+thead th { position:sticky; top:0; z-index:2; background:var(--thead-bg); backdrop-filter:blur(8px); font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t2); border-bottom:1.5px solid var(--hairline); }
 tbody tr { transition:background .15s var(--eo); }
-tbody tr:hover { background:rgba(47,103,121,.06); }
+tbody tr:hover { background:rgba(var(--accent-rgb),.06); }
 th button { background:none; border:0; font:inherit; font-weight:700; cursor:pointer; padding:.15rem .2rem; color:inherit; display:inline-flex; align-items:center; gap:.3rem; }
 th button::after { content:'↕'; opacity:.35; font-size:.85em; }
 th[aria-sort="ascending"] button::after { content:'↑'; opacity:1; }
 th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
 .notice { border-radius:var(--r-md); padding:.85rem 1rem; font-size:.88rem; display:flex; gap:.65rem; align-items:flex-start; margin-bottom:1rem; border:1px solid; }
-.notice-info { background:rgba(47,103,121,.07); border-color:rgba(47,103,121,.26); color:var(--teal-d); }
-.notice-warn { background:rgba(138,90,0,.07); border-color:rgba(138,90,0,.28); color:var(--warn-text); }
-.notice-error { background:rgba(163,58,38,.06); border-color:rgba(163,58,38,.3); color:var(--neg); }
+.notice-info { background:rgba(var(--accent-rgb),.07); border-color:rgba(var(--accent-rgb),.26); color:var(--accent-d); }
+.notice-warn { background:rgba(var(--warn-rgb),.07); border-color:rgba(var(--warn-rgb),.28); color:var(--warn-text); }
+.notice-error { background:rgba(var(--neg-rgb),.06); border-color:rgba(var(--neg-rgb),.3); color:var(--neg); }
 
 .empty { text-align:center; padding:2.5rem 1rem; color:var(--t3); }
 .empty svg { width:34px; height:34px; opacity:.4; margin-bottom:.6rem; }
@@ -267,6 +348,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .viewtabs { width:100%; margin-top:.9rem; }
+  .viewtabs button { flex:1 1 auto; padding:.55rem .6rem; font-size:.85rem; }
   .statusbar { gap:.4rem .6rem; }
   .attrib-note > summary, .attrib-note > p { font-size:.78rem; }
   .series-bar { gap:.4rem .5rem; }
@@ -323,8 +406,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   <!-- ===================== DASHBOARD ===================== -->
   <section id="dash-view" hidden aria-labelledby="dash-h">
+    <div class="viewtabs" id="viewtabs" role="tablist" aria-label="Dashboard" hidden>
+      <button type="button" role="tab" id="tab-dave" data-view="dave"
+              aria-selected="true" aria-controls="dash-body" tabindex="0">Peps by Dave</button>
+      <button type="button" role="tab" id="tab-sybago" data-view="sybago"
+              aria-selected="false" aria-controls="dash-body" tabindex="-1">Sybago — Russell</button>
+    </div>
+
+    <div id="dash-body" role="tabpanel" aria-labelledby="tab-dave">
     <header class="rise">
-      <p class="eyebrow">Meta ads</p>
+      <p class="eyebrow" id="eyebrow">Meta ads</p>
       <h1 id="dash-h" style="margin-top:.3rem">Performance</h1>
       <p class="sub" style="margin-top:.35rem" id="account-line">Peps by Dave — Skool sign-up campaigns</p>
     </header>
@@ -434,6 +525,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <p id="tb-count" class="sub" role="status" aria-live="polite" style="margin-bottom:.6rem"></p>
       <div class="table-scroll"><table id="tb-table"><caption>Column headers are buttons — activate one to sort by it.</caption></table></div>
     </section>
+    </div><!-- /#dash-body -->
 
   </section>
 </main>
@@ -539,9 +631,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||''].join('|'); }
 
   function fetchInsights(p) {
-    var key = queryKey(p);
+    // The view belongs in the key: two accounts answering the same date range
+    // are different data, and without it a tab switch inside one refresh cycle
+    // would redraw the previous account's numbers.
+    var key = state.view + '|' + queryKey(p);
     if (cache.has(key)) return cache.get(key);
-    var qs = new URLSearchParams({ level:p.level, since:p.since, until:p.until });
+    var qs = new URLSearchParams({ level:p.level, since:p.since, until:p.until, view:state.view });
     if (p.campaignId) qs.set('campaignId', p.campaignId);
     if (p.adsetId) qs.set('adsetId', p.adsetId);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
@@ -564,7 +659,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     bar:    { m:'spend', dim:'campaign', range:{mode:'global'} },
     table:  { dim:'campaign', range:{mode:'global'}, sortKey:'spend', sortDir:'desc', filter:'' },
     campaigns:[],
-    auto:true
+    auto:true,
+    // Which dashboard is on screen. The server maps this name to an account
+    // and checks the session's role before answering, so it is a request, not
+    // an instruction.
+    view:'dave',
+    role:null
+  };
+
+  var VIEW_META = {
+    dave:   { label:'Peps by Dave', sub:'Peps by Dave — Skool sign-up campaigns', eyebrow:'Meta ads' },
+    sybago: { label:'Sybago — Russell', sub:'Sybago — Russell', eyebrow:'Agency client' }
   };
 
   /* Meta's own pipeline is the floor on freshness here — spend and impressions
@@ -575,6 +680,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var AUTO_MS = 3 * 60 * 1000;
   var autoTimer = null;
   var isLoading = false;
+  // Set when a refresh is asked for while one is already running — a fast tab
+  // switch would otherwise be swallowed by the in-flight guard and leave the
+  // new view showing the old account's numbers.
+  var pendingRefresh = false;
   var charts = {};
 
   /* ============================== utilities =============================== */
@@ -605,20 +714,21 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       animation:{ duration:600, easing:'easeOutQuart' },
       plugins:{
         legend:{ display:false },
-        tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10, titleFont:{weight:'700',size:12}, bodyFont:{size:12}, boxPadding:4 }
+        tooltip:{ backgroundColor:palette().tooltipBg, padding:11, cornerRadius:10, titleFont:{weight:'700',size:12}, bodyFont:{size:12}, boxPadding:4 }
       },
       scales:{
-        x:{ grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)',font:{size:11}} },
-        y:{ grid:{color:'rgba(15,20,25,.055)'}, border:{display:false}, ticks:{color:'rgba(15,20,25,.55)',font:{size:11}}, beginAtZero:true }
+        x:{ grid:{color:palette().grid}, border:{display:false}, ticks:{color:palette().tick,font:{size:11}} },
+        y:{ grid:{color:palette().grid}, border:{display:false}, ticks:{color:palette().tick,font:{size:11}}, beginAtZero:true }
       }
     }, extra||{});
   }
 
   function barGradient(c, horizontal){
-    var a=c.chart.chartArea; if(!a) return 'rgba(47,103,121,.85)';
+    var p=palette();
+    var a=c.chart.chartArea; if(!a) return p.barFlat;
     var g = horizontal ? c.chart.ctx.createLinearGradient(a.left,0,a.right,0)
                        : c.chart.ctx.createLinearGradient(0,a.bottom,0,a.top);
-    g.addColorStop(0,'rgba(47,103,121,.55)'); g.addColorStop(1,'rgba(58,125,147,.95)');
+    g.addColorStop(0,p.barFrom); g.addColorStop(1,p.barTo);
     return g;
   }
 
@@ -638,15 +748,29 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   /* ================================ auth ================================== */
   function showLogin(msg){
+    // The login screen belongs to sybago.ai, not to either dashboard, so it
+    // always uses the site's own palette — otherwise signing out of Dave's view
+    // would leave a black sign-in page behind.
+    document.documentElement.setAttribute('data-view','sybago');
+    state.role=null;
     $('login-view').hidden=false; $('dash-view').hidden=true; $('logout').hidden=true;
+    $('viewtabs').hidden=true;
     if(msg){ $('login-error').textContent=msg; $('login-error').hidden=false; }
     var p=$('pw'); if(p) p.focus();
   }
-  function showDash(){ $('login-view').hidden=true; $('dash-view').hidden=false; $('logout').hidden=false; }
+  function showDash(role){
+    state.role = role || null;
+    $('login-view').hidden=true; $('dash-view').hidden=false; $('logout').hidden=false;
+    // The tab bar is a convenience for whoever holds the master password. It is
+    // NOT the access control: api/meta-insights.js refuses the agency view for
+    // a standard session whether or not this is ever rendered.
+    $('viewtabs').hidden = state.role !== 'master';
+    if(state.role !== 'master') state.view = 'dave';
+  }
 
   function checkSession(){
     fetch('/api/dashboard-login').then(function(r){return r.json();})
-      .then(function(j){ if(j.authenticated){ showDash(); boot(); } else showLogin(); })
+      .then(function(j){ if(j.authenticated){ showDash(j.role); boot(); } else showLogin(); })
       .catch(function(){ showLogin('Could not reach the server.'); });
   }
 
@@ -656,7 +780,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     fetch('/api/dashboard-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value})})
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
       .then(function(o){
-        if(o.ok&&o.j.authenticated){ $('pw').value=''; showDash(); boot(); }
+        if(o.ok&&o.j.authenticated){ $('pw').value=''; showDash(o.j.role); boot(); }
         else { $('login-error').textContent=o.j.message||'Sign-in failed.'; $('login-error').hidden=false; $('pw').focus(); }
       })
       .catch(function(){ $('login-error').textContent='Could not reach the server.'; $('login-error').hidden=false; })
@@ -738,16 +862,48 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      series therefore gets its own scale. Only the first two are drawn as
      labelled axes — past that the axis furniture costs more than it tells
      you, and the readout under the chart carries the exact figures anyway. */
-  var SERIES_STYLE = [
-    { line:'#2F6779', fill:'rgba(47,103,121,.12)', dash:[],         point:'circle'   },
-    { line:'#A33A26', fill:'rgba(163,58,38,.12)',  dash:[7,4],      point:'rect'     },
-    { line:'#43507A', fill:'rgba(67,80,122,.12)',  dash:[2,3],      point:'triangle' },
-    { line:'#1F7A4C', fill:'rgba(31,122,76,.12)',  dash:[10,4,2,4], point:'rectRot'  },
-    { line:'#8A5A00', fill:'rgba(138,90,0,.12)',   dash:[1,3],      point:'star'     },
-    { line:'#6B4E9E', fill:'rgba(107,78,158,.12)', dash:[6,3,1,3],  point:'cross'    }
-  ];
-  var MAX_SERIES = SERIES_STYLE.length;
-  function styleFor(i){ return SERIES_STYLE[i % SERIES_STYLE.length]; }
+  /* Chart.js paints onto a canvas, where var() does not resolve — so unlike
+     every other colour on this page, chart colours cannot be CSS custom
+     properties. Each view carries a literal palette instead, chosen to sit on
+     that view's own ground.
+
+     Dave's is black, gold and white, which gives far less hue to work with
+     than six distinct series would normally want. The separation there comes
+     from luminance and dash pattern rather than hue — which is the encoding
+     that has to carry the meaning anyway, since colour alone must never be
+     the difference between two lines. */
+  var PALETTES = {
+    sybago: {
+      grid:'rgba(15,20,25,.055)', tick:'rgba(15,20,25,.55)',
+      tooltipBg:'rgba(15,20,25,.92)', pointFill:'#ffffff',
+      barFrom:'rgba(47,103,121,.55)', barTo:'rgba(58,125,147,.95)', barFlat:'rgba(47,103,121,.85)',
+      series:[
+        { line:'#2F6779', fill:'rgba(47,103,121,.12)', dash:[],         point:'circle'   },
+        { line:'#A33A26', fill:'rgba(163,58,38,.12)',  dash:[7,4],      point:'rect'     },
+        { line:'#43507A', fill:'rgba(67,80,122,.12)',  dash:[2,3],      point:'triangle' },
+        { line:'#1F7A4C', fill:'rgba(31,122,76,.12)',  dash:[10,4,2,4], point:'rectRot'  },
+        { line:'#8A5A00', fill:'rgba(138,90,0,.12)',   dash:[1,3],      point:'star'     },
+        { line:'#6B4E9E', fill:'rgba(107,78,158,.12)', dash:[6,3,1,3],  point:'cross'    }
+      ]
+    },
+    dave: {
+      grid:'rgba(246,242,232,.085)', tick:'rgba(246,242,232,.55)',
+      tooltipBg:'rgba(22,21,26,.96)', pointFill:'#0B0B0C',
+      barFrom:'rgba(214,175,82,.32)', barTo:'rgba(232,200,122,.92)', barFlat:'rgba(214,175,82,.8)',
+      series:[
+        { line:'#E8C87A', fill:'rgba(232,200,122,.13)', dash:[],         point:'circle'   },
+        { line:'#F6F2E8', fill:'rgba(246,242,232,.10)', dash:[7,4],      point:'rect'     },
+        { line:'#C08A2E', fill:'rgba(192,138,46,.13)',  dash:[2,3],      point:'triangle' },
+        { line:'#A8A296', fill:'rgba(168,162,150,.11)', dash:[10,4,2,4], point:'rectRot'  },
+        { line:'#9C7A24', fill:'rgba(156,122,36,.13)',  dash:[1,3],      point:'star'     },
+        { line:'#D6CFC0', fill:'rgba(214,207,192,.10)', dash:[6,3,1,3],  point:'cross'    }
+      ]
+    }
+  };
+  function palette(){ return PALETTES[state.view] || PALETTES.dave; }
+
+  var MAX_SERIES = PALETTES.sybago.series.length;
+  function styleFor(i){ var p=palette().series; return p[i % p.length]; }
 
   /* Read aloud by a screen reader, "a and b and c" is worse than "a, b and c". */
   function listSentence(items){
@@ -853,8 +1009,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       var labels = days.map(function(x){ return fmtDate(x.dateStart); });
       var scales = {
-        x:{ grid:{ color:'rgba(15,20,25,.055)' }, border:{ display:false },
-            ticks:{ color:'rgba(15,20,25,.55)', font:{ size:11 }, maxRotation:0, autoSkipPadding:14 } }
+        x:{ grid:{ color:palette().grid }, border:{ display:false },
+            ticks:{ color:palette().tick, font:{ size:11 }, maxRotation:0, autoSkipPadding:14 } }
       };
 
       var datasets = state.series.map(function(key, i){
@@ -862,9 +1018,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         scales[axis] = {
           type:'linear', display:i < 2, position:i === 1 ? 'right' : 'left', beginAtZero:true,
           title: i < 2 ? { display:true, text:m.label, color:st.line, font:{ size:11, weight:'600' } } : { display:false },
-          grid:{ display:i === 0, color:'rgba(15,20,25,.055)' },
+          grid:{ display:i === 0, color:palette().grid },
           border:{ display:false },
-          ticks:{ color:i < 2 ? st.line : 'rgba(15,20,25,.55)', font:{ size:11 } }
+          ticks:{ color:i < 2 ? st.line : palette().tick, font:{ size:11 } }
         };
         return {
           label:m.label, yAxisID:axis,
@@ -880,7 +1036,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
           borderDash:st.dash, pointStyle:st.point,
           pointRadius:days.length > 45 ? 0 : (days.length > 20 ? 2.5 : 3.5), pointHoverRadius:7,
-          pointBackgroundColor:'#fff', pointBorderColor:st.line, pointBorderWidth:2,
+          pointBackgroundColor:palette().pointFill, pointBorderColor:st.line, pointBorderWidth:2,
           fill:state.series.length === 1, tension:0.32, spanGaps:true
         };
       });
@@ -904,7 +1060,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           },
           plugins:{
             legend:{ display:false },
-            tooltip:{ backgroundColor:'rgba(15,20,25,.92)', padding:11, cornerRadius:10,
+            tooltip:{ backgroundColor:palette().tooltipBg, padding:11, cornerRadius:10,
               callbacks:{ label:function(c){ return c.dataset.label + ': ' + METRICS[state.series[c.datasetIndex]].fmt(c.raw); } } }
           },
           scales:scales
@@ -1058,8 +1214,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function refreshAll(){
     // A poll that lands while a previous request is still in flight would
     // double the load for no new data.
-    if(isLoading) return Promise.resolve();
+    if(isLoading){ pendingRefresh = true; return Promise.resolve(); }
     isLoading = true;
+    pendingRefresh = false;
     // The response cache exists to stop the three panels each re-requesting the
     // same range within one render pass. It has no expiry, so a refresh must
     // clear it first — otherwise auto-refresh would hand back the very first
@@ -1095,8 +1252,62 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
         });
       })
-      .catch(function(e){ panelError(e); $('status').textContent='Could not load data.'; })
-      .then(function(){ isLoading=false; btn.removeAttribute('aria-disabled'); scheduleAuto(); });
+      .catch(function(e){
+        // The server is the authority on who may see what. If it refuses this
+        // view, fall back rather than sit on a tab that will never load.
+        if(e && e.payload && e.payload.error === 'forbidden_view'){
+          $('viewtabs').hidden = true;
+          state.view = 'dave';
+          applyView();
+        }
+        panelError(e); $('status').textContent='Could not load data.';
+      })
+      .then(function(){
+        isLoading=false; btn.removeAttribute('aria-disabled');
+        if(pendingRefresh) return refreshAll();
+        scheduleAuto();
+      });
+  }
+
+  /* -------------------------------------------------------------- views ---- */
+  /* Applies everything that is per-view but not per-request: the palette on
+     the root element, the headings, and the browser chrome colour. Charts pick
+     their colours up on the next render, which a view switch always triggers. */
+  function applyView(){
+    var m = VIEW_META[state.view] || VIEW_META.dave;
+    document.documentElement.setAttribute('data-view', state.view);
+    $('account-line').textContent = m.sub;
+    $('eyebrow').textContent = m.eyebrow;
+    document.title = m.label + ' — Ads Dashboard';
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if(tc) tc.setAttribute('content', state.view === 'dave' ? '#0B0B0C' : '#eef2f4');
+
+    var tabs = document.querySelectorAll('#viewtabs button');
+    for(var i=0;i<tabs.length;i++){
+      var on = tabs[i].dataset.view === state.view;
+      tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+      // Roving tabindex: one stop for the whole tablist, arrows move within it.
+      tabs[i].tabIndex = on ? 0 : -1;
+      if(on) $('dash-body').setAttribute('aria-labelledby', tabs[i].id);
+    }
+  }
+
+  function switchView(next){
+    if(next === state.view || !VIEW_META[next]) return;
+    state.view = next;
+
+    // Campaign and ad set ids belong to the account that was on screen a
+    // moment ago. Carrying them across would either scope to nothing or, worse,
+    // silently filter the new account by an id that means something else there.
+    $('campaign-pick').value = '';
+    $('adset-pick').innerHTML = '';
+    $('adset-pick').disabled = true;
+    state.campaigns = [];
+
+    applyView();
+    var body = $('dash-body');
+    body.classList.add('swapping');
+    refreshAll().then(function(){ body.classList.remove('swapping'); });
   }
 
   /* ------------------------------------------------------- auto-refresh ---- */
@@ -1128,6 +1339,25 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* ================================= boot ================================= */
   function boot(){
     renderSeriesRows();
+
+    var tabs = [].slice.call(document.querySelectorAll('#viewtabs button'));
+    tabs.forEach(function(btn, i){
+      btn.addEventListener('click', function(){ switchView(btn.dataset.view); });
+      // Left/Right move between tabs, Home/End jump to the ends — what a
+      // tablist is expected to do, and the roving tabindex is set in applyView.
+      btn.addEventListener('keydown', function(ev){
+        var to = null;
+        if(ev.key === 'ArrowRight') to = tabs[(i + 1) % tabs.length];
+        else if(ev.key === 'ArrowLeft') to = tabs[(i - 1 + tabs.length) % tabs.length];
+        else if(ev.key === 'Home') to = tabs[0];
+        else if(ev.key === 'End') to = tabs[tabs.length - 1];
+        if(!to) return;
+        ev.preventDefault();
+        to.focus();
+        switchView(to.dataset.view);
+      });
+    });
+    applyView();
 
     $('live-toggle').addEventListener('click', function(){ setAuto(!state.auto); });
     setAuto(true, true);
