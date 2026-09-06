@@ -453,6 +453,33 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 .series-del[disabled] { opacity:.3; cursor:not-allowed; }
 .series-del[disabled]:hover { color:var(--t3); background:transparent; }
 .add-series { min-height:38px; padding:.4rem .8rem; font-size:.85rem; }
+/* Legend for the per-ad overlay.
+   The metric chips are the legend everywhere else, but ad mode collapses them
+   to a single metric, which left nothing on screen saying which line was which.
+   Each entry carries the line's exact colour, dash and point marker, plus that
+   ad's figure for the metric — so the chart can be read, and ranked, without
+   touching it. */
+.ad-legend { display:flex; flex-wrap:wrap; gap:.45rem .5rem; margin-bottom:.85rem; }
+.ad-legend .lg {
+  display:inline-flex; align-items:center; gap:.5rem; min-width:0;
+  padding:.38rem .7rem .38rem .5rem; border-radius:999px;
+  border:1px solid var(--hairline); background:var(--surface-solid);
+  box-shadow:inset 0 1px 0 var(--hairline-2);
+}
+.ad-legend .lg-name {
+  font-size:.84rem; font-weight:600; color:var(--t1);
+  max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ad-legend .lg-val {
+  font-size:.84rem; font-weight:800; font-variant-numeric:tabular-nums;
+  padding-left:.5rem; margin-left:.1rem; border-left:1px solid var(--hairline);
+}
+.ad-legend svg { flex:0 0 auto; display:block; }
+@media (max-width:880px) {
+  .ad-legend .lg { flex:1 1 100%; }
+  .ad-legend .lg-name { max-width:none; flex:1 1 auto; }
+}
+
 .metric-note { flex:1 1 100%; font-size:.78rem; line-height:1.45; max-width:62ch; }
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
@@ -775,6 +802,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           Add metric
         </button>
       </div>
+      <div class="ad-legend" id="ts-legend" hidden></div>
       <div class="chart-box" id="ts-box"><canvas id="ts-chart" role="img" aria-labelledby="ts-h" aria-describedby="ts-desc ts-summary"></canvas></div>
       <p class="readout" id="ts-readout" data-hint="Drag across the chart to read every metric at a point in time."></p>
       <p id="ts-summary" class="sr-only"></p>
@@ -1628,13 +1656,33 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         { line:'#A8A296', fill:'rgba(168,162,150,.11)', dash:[10,4,2,4], point:'rectRot'  },
         { line:'#9C7A24', fill:'rgba(156,122,36,.13)',  dash:[1,3],      point:'star'     },
         { line:'#D6CFC0', fill:'rgba(214,207,192,.10)', dash:[6,3,1,3],  point:'cross'    }
+      ],
+      /* Comparing ads on one shared scale, where telling the lines apart is the
+         whole task. The first two stay gold and warm white, so the common case
+         of two ads still reads as the brand. Past that, restrained desaturated
+         hues buy separation that another gold cannot — every one still sits
+         above 4.5:1 on this ground. */
+      adSeries:[
+        { line:'#F2C75C', fill:'rgba(242,199,92,.13)',  dash:[],         point:'circle'   },
+        { line:'#F6F2E8', fill:'rgba(246,242,232,.10)', dash:[7,4],      point:'rect'     },
+        { line:'#7FB6C9', fill:'rgba(127,182,201,.13)', dash:[2,3],      point:'triangle' },
+        { line:'#D08A5C', fill:'rgba(208,138,92,.13)',  dash:[10,4,2,4], point:'rectRot'  },
+        { line:'#9DB08A', fill:'rgba(157,176,138,.13)', dash:[1,3],      point:'star'     },
+        { line:'#B79AD1', fill:'rgba(183,154,209,.13)', dash:[6,3,1,3],  point:'cross'    }
       ]
     }
   };
   function palette(){ return PALETTES[state.view] || PALETTES.dave; }
 
+  /* Ad mode gets the comparison palette where one is defined. The light theme
+     already spans six clearly separated hues, so it reuses those. */
+  function seriesPalette(){
+    var p = palette();
+    return (adMode() && p.adSeries) ? p.adSeries : p.series;
+  }
+
   var MAX_SERIES = PALETTES.sybago.series.length;
-  function styleFor(i){ var p=palette().series; return p[i % p.length]; }
+  function styleFor(i){ var p=seriesPalette(); return p[i % p.length]; }
 
   /* Read aloud by a screen reader, "a and b and c" is worse than "a, b and c". */
   function listSentence(items){
@@ -1781,6 +1829,87 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return METRIC_KEYS[0];
   }
 
+  /* A metric's total across rows.
+     Rates and costs cannot be summed — adding four daily CTRs gives a number
+     four times too large, and averaging them lets a day with fourteen
+     impressions count as much as one with sixty thousand. They are recomputed
+     from their summed components instead, which is what makes the legend figure
+     agree with the KPI tiles. */
+  function aggregateMetric(rows, key){
+    var sum = function(k){
+      return rows.reduce(function(a, r){ return a + (Number(r[k]) || 0); }, 0);
+    };
+    switch(key){
+      case 'ctr':  return sum('impressions') ? (sum('clicks') / sum('impressions')) * 100 : null;
+      case 'cpc':  return sum('clicks') ? sum('spend') / sum('clicks') : null;
+      case 'cpm':  return sum('impressions') ? (sum('spend') / sum('impressions')) * 1000 : null;
+      case 'frequency': return sum('reach') ? sum('impressions') / sum('reach') : null;
+      case 'costPerRegistration':
+        return sum('registrations') ? sum('spend') / sum('registrations') : null;
+      case 'costPerLandingPageView':
+        return sum('landingPageViews') ? sum('spend') / sum('landingPageViews') : null;
+      case 'roas': return sum('spend') ? sum('registrationValue') / sum('spend') : null;
+      default: return sum(key);
+    }
+  }
+
+  function renderAdLegend(byAd, metricKey){
+    var el = $('ts-legend');
+    if(!el) return;
+    var m = METRICS[metricKey];
+
+    el.hidden = false;
+    el.innerHTML = '';
+
+    selectedAds.forEach(function(ad, i){
+      var st = styleFor(i);
+      var rows = Object.keys(byAd[ad.id] || {}).map(function(k){ return byAd[ad.id][k]; });
+      var total = aggregateMetric(rows, metricKey);
+
+      var item = document.createElement('span');
+      item.className = 'lg';
+
+      /* The marker repeats the line exactly: same colour, same dash, same point
+         shape. Shape and dash are what carry it when colour cannot. */
+      var mark = document.createElement('span');
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML =
+        '<svg width="34" height="14" viewBox="0 0 34 14" fill="none">' +
+          '<path d="M1 7h32" stroke="' + st.line + '" stroke-width="3" stroke-linecap="round"' +
+          (st.dash.length ? ' stroke-dasharray="' + st.dash.join(' ') + '"' : '') + '/>' +
+          pointMarkSvg(st, 17, 7) +
+        '</svg>';
+
+      var name = document.createElement('span');
+      name.className = 'lg-name';
+      name.textContent = ad.name;
+      name.title = ad.name;
+
+      var val = document.createElement('span');
+      val.className = 'lg-val';
+      val.style.color = st.line;
+      val.textContent = total == null ? '—' : m.fmt(total);
+
+      item.appendChild(mark); item.appendChild(name); item.appendChild(val);
+      // Read as one unit rather than three fragments.
+      item.setAttribute('aria-label', ad.name + ': ' + m.label + ' ' + (total == null ? 'no data' : m.fmt(total)));
+      el.appendChild(item);
+    });
+  }
+
+  /* The point shape drawn on the legend marker, matching the dataset's. */
+  function pointMarkSvg(st, cx, cy){
+    var c = st.line, r = 3.6;
+    switch(st.point){
+      case 'rect':     return '<rect x="' + (cx-r) + '" y="' + (cy-r) + '" width="' + (r*2) + '" height="' + (r*2) + '" fill="' + c + '"/>';
+      case 'rectRot':  return '<rect x="' + (cx-r) + '" y="' + (cy-r) + '" width="' + (r*2) + '" height="' + (r*2) + '" fill="' + c + '" transform="rotate(45 ' + cx + ' ' + cy + ')"/>';
+      case 'triangle': return '<path d="M' + cx + ' ' + (cy-r-0.6) + 'L' + (cx+r+0.6) + ' ' + (cy+r) + 'H' + (cx-r-0.6) + 'Z" fill="' + c + '"/>';
+      case 'star':     return '<path d="M' + cx + ' ' + (cy-r-1) + 'V' + (cy+r+1) + 'M' + (cx-r-1) + ' ' + cy + 'H' + (cx+r+1) + 'M' + (cx-r) + ' ' + (cy-r) + 'L' + (cx+r) + ' ' + (cy+r) + 'M' + (cx+r) + ' ' + (cy-r) + 'L' + (cx-r) + ' ' + (cy+r) + '" stroke="' + c + '" stroke-width="1.6"/>';
+      case 'cross':    return '<path d="M' + (cx-r) + ' ' + (cy-r) + 'L' + (cx+r) + ' ' + (cy+r) + 'M' + (cx+r) + ' ' + (cy-r) + 'L' + (cx-r) + ' ' + (cy+r) + '" stroke="' + c + '" stroke-width="2"/>';
+      default:         return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + c + '"/>';
+    }
+  }
+
   function renderTimeSeries(){
     var ms = state.series.map(function(k){ return METRICS[k]; });
     $('ts-desc').textContent =
@@ -1833,6 +1962,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           ? 'Nothing has delivered yet today. Meta reports on the ad account\u2019s timezone and lags real time by up to an hour.'
           : 'No data in this range yet.';
         $('ts-box').innerHTML = emptyState(msg);
+        $('ts-legend').hidden = true;
+        $('ts-legend').innerHTML = '';
         $('ts-summary').textContent = msg;
         $('ts-readout').textContent = '';
         buildTable($('ts-table'), [isHourly ? 'Hour' : 'Date'].concat(ms.map(function(m){ return m.label; })), []);
@@ -1876,10 +2007,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
               if(r && r[metricKey] != null) return r[metricKey];
               return RATE_METRICS[metricKey] ? null : 0;
             }),
-            borderColor:st.line, backgroundColor:st.fill, borderWidth:2.4,
+            borderColor:st.line, backgroundColor:st.fill,
+            // Heavier than the metric overlay, and the points are kept visible
+            // for longer: with several ads on one scale the shape of the marker
+            // is doing as much work as the colour.
+            borderWidth:3,
             borderDash:st.dash, pointStyle:st.point,
-            pointRadius:days.length > 45 ? 0 : (days.length > 20 ? 2.5 : 3.5), pointHoverRadius:7,
-            pointBackgroundColor:palette().pointFill, pointBorderColor:st.line, pointBorderWidth:2,
+            pointRadius:days.length > 60 ? 0 : (days.length > 31 ? 3 : 4.5),
+            pointHoverRadius:8,
+            pointBackgroundColor:st.line, pointBorderColor:palette().pointFill, pointBorderWidth:1.5,
             fill:false, tension:0.32, spanGaps:true
           };
         });
@@ -1908,6 +2044,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           })
         });
 
+        renderAdLegend(byAd, metricKey);
+
         $('ts-summary').textContent =
           mo.label + ' for ' + listSentence(selectedAds.map(function(a){ return a.name; })) +
           ' across ' + days.length + (isHourly ? ' hour' : ' day') + (days.length === 1 ? '' : 's') +
@@ -1924,6 +2062,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           }));
         return;
       }
+
+      // Metric mode: the chips are the legend, so this one must not linger.
+      $('ts-legend').hidden = true;
+      $('ts-legend').innerHTML = '';
 
       var datasets = state.series.map(function(key, i){
         var st = styleFor(i), m = METRICS[key], axis = 'y' + i;
