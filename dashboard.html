@@ -9,13 +9,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<!-- Chart.js. The file on cdnjs is chart.min.js, NOT chart.umd.min.js — the
-     latter 404s, which is what left the page with tables and no graphs.
-     Pinned with SRI because this is third-party code on a page that displays
-     spend data behind a login: if the CDN were ever compromised, the hash
-     mismatch stops the script running rather than letting it read the page. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.min.js"
-        integrity="sha512-mOiNIzRB+4/INX75lwv3+eSG+Sih4wQy+qS/+0mHkk2MjHZW6ABGN6eQD1MoV5Tv9KG+G3UAMy1vW3fk5goVXA=="
+<!-- Chart.js — MUST be the .umd. build.
+     cdnjs ships four files for v4.5.1: chart.js and chart.min.js are ES
+     MODULES, and loading either as a classic script dies with "Cannot use
+     import statement outside a module". chart.umd.min.js is the classic build
+     and is the only one usable here, since this page has no bundler and no
+     type="module".
+     Pinned with SRI: this is third-party code running on a page that displays
+     ad spend behind a login, so if the CDN were compromised a hash mismatch
+     stops the script rather than letting it read the page. Hash verified
+     against the served bytes. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+        integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -185,6 +190,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="field">
         <label for="until">End date</label>
         <input type="date" id="until" name="until">
+      </div>
+      <div class="field">
+        <label for="campaign-pick">Campaign</label>
+        <select id="campaign-pick" name="campaignId">
+          <option value="">All campaigns</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="adset-pick">Ad set</label>
+        <select id="adset-pick" name="adsetId" disabled aria-describedby="adset-hint">
+          <option value="">All ad sets</option>
+        </select>
+        <span id="adset-hint" class="sr-only">Choose a campaign first to narrow by ad set.</span>
       </div>
       <div class="field">
         <label for="level">Breakdown level</label>
@@ -382,6 +400,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   $('controls').addEventListener('submit', function (ev) { ev.preventDefault(); load(); });
   $('level').addEventListener('change', function () { load(); });
 
+  $('campaign-pick').addEventListener('change', function () {
+    // Changing campaign invalidates any ad set chosen under the old one.
+    fillAdsets((state.data && state.data.campaigns) || [], $('campaign-pick').value, '');
+    load();
+  });
+
+  $('adset-pick').addEventListener('change', function () { load(); });
+
   /* ---------------- data load ---------------- */
   async function load() {
     var btn = $('refresh');
@@ -394,6 +420,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       since: $('since').value,
       until: $('until').value
     });
+    if ($('campaign-pick').value) qs.set('campaignId', $('campaign-pick').value);
+    if ($('adset-pick').value) qs.set('adsetId', $('adset-pick').value);
 
     // Fetching and rendering are caught separately. Wrapping both in one
     // try/catch meant a rendering fault surfaced as "Network error", which
@@ -474,11 +502,42 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       $("error-box").hidden = false;
     }
 
+    renderPickers(d);
     renderKpis(d);
     renderTrend(d);
     renderComparison(d);
     renderResults(d);
     renderDetail(d);
+  }
+
+  /* Options come from the server unscoped, so the dropdowns still list every
+     campaign even while the view is filtered to one of them. Selections are
+     preserved across refreshes rather than resetting. */
+  function renderPickers(d) {
+    var camps = d.campaigns || [];
+    var cSel = $("campaign-pick");
+    var aSel = $("adset-pick");
+    var wantC = (d.scope && d.scope.campaignId) || "";
+    var wantA = (d.scope && d.scope.adsetId) || "";
+
+    cSel.innerHTML = "";
+    cSel.appendChild(new Option("All campaigns", ""));
+    camps.forEach(function (c) { cSel.appendChild(new Option(c.name, c.id)); });
+    cSel.value = wantC;
+
+    fillAdsets(camps, cSel.value, wantA);
+  }
+
+  function fillAdsets(camps, campaignId, want) {
+    var aSel = $("adset-pick");
+    aSel.innerHTML = "";
+    aSel.appendChild(new Option("All ad sets", ""));
+    var c = camps.filter(function (x) { return x.id === campaignId; })[0];
+    if (c) { c.adsets.forEach(function (a) { aSel.appendChild(new Option(a.name, a.id)); }); }
+    // An ad set only means something within a campaign, so the control stays
+    // disabled until one is chosen.
+    aSel.disabled = !c;
+    aSel.value = want || "";
   }
 
   function renderKpis(d) {
@@ -490,8 +549,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       ['CTR', fmtPct(t.ctr)],
       ['CPC', fmtMoney(t.cpc)],
       ['CPM', fmtMoney(t.cpm)],
-      [d.results && d.results.available ? 'Results' : 'Results (proxy)', fmtNum(t.results)],
-      ['Cost per result', fmtMoney(t.costPerResult)]
+      // Two distinct outcome metrics, never combined.
+      ['Registrations', d.results && d.results.available ? fmtNum(t.registrations) : '—'],
+      ['Cost per registration', fmtMoney(t.costPerRegistration)],
+      ['Landing page views', d.results && d.results.landingPageViewsAvailable ? fmtNum(t.landingPageViews) : '—'],
+      ['Cost per landing page view', fmtMoney(t.costPerLandingPageView)]
     ];
     if (t.roas) items.push(['ROAS', t.roas.toFixed(2) + '×']);
 
@@ -587,33 +649,34 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function renderResults(d) {
     var labels = d.daily.map(function (r) { return fmtDate(r.dateStart); });
-    var isConv = d.results && d.results.available;
-    var seriesLabel = isConv ? 'Results' : 'Results (' + titleCase(d.results && d.results.actionType || 'none') + ')';
+    var hasReg = d.results && d.results.available;
+    var seriesLabel = 'Registrations';
 
     makeChart('res', $('res-chart'), {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [
-          { type: 'bar', label: seriesLabel, data: d.daily.map(function (r) { return r.results; }), backgroundColor: isConv ? '#2E7D4F' : '#8A5A00', yAxisID: 'y' },
-          { type: 'line', label: 'Cost per result', data: d.daily.map(function (r) { return r.costPerResult; }), borderColor: '#2F6779', borderDash: [6, 4], pointStyle: 'triangle', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
+          { type: 'bar', label: 'Registrations', data: d.daily.map(function (r) { return r.registrations; }), backgroundColor: '#2E7D4F', yAxisID: 'y' },
+          { type: 'bar', label: 'Landing page views', data: d.daily.map(function (r) { return r.landingPageViews; }), backgroundColor: '#8A5A00', yAxisID: 'y' },
+          { type: 'line', label: 'Cost per registration', data: d.daily.map(function (r) { return r.costPerRegistration; }), borderColor: '#2F6779', borderDash: [6, 4], pointStyle: 'triangle', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
         ]
       },
       options: baseOpts({
         scales: {
           x: { grid: { color: 'rgba(17,17,17,0.06)' } },
-          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: seriesLabel } },
-          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Cost per result (USD)' } }
+          y:  { position: 'left',  beginAtZero: true, title: { display: true, text: 'Registrations / landing page views' } },
+          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Cost per registration (USD)' } }
         }
       })
     });
 
-    $('res-summary').textContent = isConv
-      ? 'Combined bar and line chart. ' + fmtNum(d.totals.results) + ' results at ' + fmtMoney(d.totals.costPerResult) + ' each across the range. Data also in the table below.'
-      : 'No conversion events were reported for this range. The chart shows ' + titleCase(d.results && d.results.actionType || 'no data') + ' as a proxy. Data also in the table below.';
+    $('res-summary').textContent = hasReg
+      ? 'Bar and line chart. ' + fmtNum(d.totals.registrations) + ' registrations at ' + fmtMoney(d.totals.costPerRegistration) + ' each, against ' + fmtNum(d.totals.landingPageViews) + ' landing page views, across the range. Data also in the table below.'
+      : 'No complete-registration events were reported for this range. ' + fmtNum(d.totals.landingPageViews) + ' landing page views are shown. Data also in the table below.';
 
-    buildTable($('res-table'), ['Date', seriesLabel, 'Cost per result'],
-      d.daily.map(function (r) { return [fmtDate(r.dateStart), fmtNum(r.results), fmtMoney(r.costPerResult)]; }));
+    buildTable($('res-table'), ['Date', 'Registrations', 'Cost per registration', 'Landing page views'],
+      d.daily.map(function (r) { return [fmtDate(r.dateStart), fmtNum(r.registrations), fmtMoney(r.costPerRegistration), fmtNum(r.landingPageViews)]; }));
   }
 
   /* Static table builder for the chart alternatives. */
@@ -656,8 +719,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     { key: 'ctr',           label: 'CTR',           fmt: fmtPct },
     { key: 'cpc',           label: 'CPC',           fmt: fmtMoney },
     { key: 'cpm',           label: 'CPM',           fmt: fmtMoney },
-    { key: 'results',       label: 'Results',       fmt: fmtNum },
-    { key: 'costPerResult', label: 'Cost / result', fmt: fmtMoney }
+    { key: 'registrations',        label: 'Registrations',   fmt: fmtNum },
+    { key: 'costPerRegistration',  label: 'Cost / reg.',     fmt: fmtMoney },
+    { key: 'landingPageViews',     label: 'LP views',        fmt: fmtNum },
+    { key: 'costPerLandingPageView', label: 'Cost / LPV',    fmt: fmtMoney }
   ];
 
   function renderDetail(d) {

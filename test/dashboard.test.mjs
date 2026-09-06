@@ -102,9 +102,13 @@ const DAILY = [{
   clicks: '96', inline_link_clicks: '71', ctr: '1.88', cpc: '0.44', cpm: '8.25',
   actions: [
     { action_type: 'link_click', value: '71' },
+    { action_type: 'landing_page_view', value: '54' },
     { action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '6' },
   ],
-  cost_per_action_type: [{ action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '7.02' }],
+  cost_per_action_type: [
+    { action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '7.02' },
+    { action_type: 'landing_page_view', value: '0.78' },
+  ],
   action_values: [{ action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '180' }],
 }];
 const CAMPAIGNS = [{ campaign_id: '1', campaign_name: 'Peps — Skool signups', ...DAILY[0] }];
@@ -136,8 +140,23 @@ await insights(
 t('authenticated request returns 200', () => assert.equal(res.code, 200));
 t('campaign row is shaped correctly', () => assert.equal(res.body.rows[0].name, 'Peps — Skool signups'));
 t('numeric strings are coerced', () => assert.equal(res.body.rows[0].spend, 42.1));
-t('conversion is detected as the result', () => assert.equal(res.body.results.available, true));
-t('cost per result is surfaced', () => assert.equal(res.body.rows[0].costPerResult, 7.02));
+t('registrations are detected', () => assert.equal(res.body.results.available, true));
+t('cost per registration is surfaced', () => assert.equal(res.body.rows[0].costPerRegistration, 7.02));
+
+// THE REGRESSION THIS GUARDS: registrations and landing page views were once
+// resolved by a per-row priority guess and then summed into a single figure,
+// producing a number that mixed two different metrics. They must stay separate.
+t('registrations and landing page views are reported separately', () => {
+  assert.equal(res.body.rows[0].registrations, 6);
+  assert.equal(res.body.rows[0].landingPageViews, 54);
+});
+t('totals never merge registrations with landing page views', () => {
+  assert.equal(res.body.totals.registrations, 6);
+  assert.equal(res.body.totals.landingPageViews, 54);
+  assert.notEqual(res.body.totals.registrations, 60);
+});
+t('cost per landing page view is its own figure', () =>
+  assert.equal(res.body.rows[0].costPerLandingPageView, 0.78));
 t('ROAS is computed from action_values', () =>
   assert.ok(Math.abs(res.body.rows[0].roas - 180 / 42.1) < 1e-9));
 t('totals are summed from the daily series', () => assert.equal(res.body.totals.spend, 42.1));
@@ -146,13 +165,17 @@ t('token is absent from the response', () =>
   assert.ok(!JSON.stringify(res.body).includes('FAKE_TOKEN')));
 
 // Clicks-only account must say so rather than imply conversions.
-const NO_CONV = [{ ...DAILY[0], actions: [{ action_type: 'link_click', value: '71' }], cost_per_action_type: [], action_values: [] }];
-globalThis.fetch = stubOk(() => NO_CONV);
+const NO_REG = [{ ...DAILY[0], actions: [{ action_type: 'link_click', value: '71' }, { action_type: 'landing_page_view', value: '54' }], cost_per_action_type: [], action_values: [] }];
+globalThis.fetch = stubOk(() => NO_REG);
 res = mockRes();
 await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, res);
-t('absence of conversion events is flagged', () => assert.equal(res.body.results.available, false));
-t('the click proxy is explained in plain language', () =>
-  assert.match(res.body.results.note || '', /proxy|link click/i));
+t('absence of registration events is flagged', () => assert.equal(res.body.results.available, false));
+t('landing page views still reported when registrations are absent', () => {
+  assert.equal(res.body.results.landingPageViewsAvailable, true);
+  assert.equal(res.body.totals.landingPageViews, 54);
+});
+t('the distinction is explained in plain language', () =>
+  assert.match(res.body.results.note || '', /visits, not sign-ups|CompleteRegistration/i));
 
 // Auth and permission errors must be distinguishable.
 globalThis.fetch = stubErr(400, { code: 190, error_subcode: 463, message: 'Session has expired' });
@@ -171,6 +194,22 @@ t('permission error reports insufficient_permission', () =>
   assert.ok(res.code === 403 && res.body.error === 'insufficient_permission'));
 t('permission message names ads_read and View Performance', () =>
   assert.ok(/ads_read/.test(res.body.message) && /View Performance/.test(res.body.message)));
+
+// Scoping to one campaign must reach Meta, not just filter in the browser.
+var lastUrls = [];
+globalThis.fetch = async (u) => { lastUrls.push(String(u)); return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) }; };
+res = mockRes();
+await insights({ method: 'GET', query: { campaignId: '12345' }, headers: { cookie: validCookie } }, res);
+t('campaign scope is sent to Meta as a filter', () =>
+  assert.ok(lastUrls.some((u) => /campaign.id/.test(decodeURIComponent(u)) && /12345/.test(u))));
+t('the scoped trend is not requested at account level', () =>
+  assert.ok(lastUrls.some((u) => /time_increment/.test(u) && /level=campaign/.test(u))));
+t('a non-numeric campaign id is ignored rather than passed through', async () => {
+  lastUrls = [];
+  const r2 = mockRes();
+  await insights({ method: 'GET', query: { campaignId: "'; DROP" }, headers: { cookie: validCookie } }, r2);
+  assert.ok(!lastUrls.some((u) => /DROP/i.test(decodeURIComponent(u))));
+});
 
 // Bad input.
 globalThis.fetch = stubOk(() => DAILY);

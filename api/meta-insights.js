@@ -44,22 +44,26 @@ const LEVEL_FIELDS = {
   ad: ['campaign_name', 'adset_name', 'ad_id', 'ad_name'],
 };
 
-// Ordered by how strongly each represents a real outcome. The first type
-// present wins as the headline "result".
-const RESULT_PRIORITY = [
+// Metrics are extracted BY NAME, never guessed.
+//
+// An earlier version picked whichever action type ranked highest from a
+// priority list — per row, independently. Rows that had registrations resolved
+// to registrations, rows that did not fell back to landing page views, and the
+// totals then summed the two together. That produced a single "results" number
+// that was a mixture of two different metrics and meant nothing.
+//
+// Registrations and landing page views are now separate figures throughout and
+// are never combined.
+
+// Meta reports the same registration under a pixel-specific alias and
+// sometimes a generic one. Take the FIRST that is present — never sum, or the
+// same conversion is counted twice.
+const REGISTRATION_TYPES = [
   'offsite_conversion.fb_pixel_complete_registration',
   'complete_registration',
-  'offsite_conversion.fb_pixel_lead',
-  'lead',
-  'onsite_conversion.lead_grouped',
-  'offsite_conversion.fb_pixel_purchase',
-  'purchase',
-  'offsite_conversion.fb_pixel_custom',
-  'subscribe',
 ];
 
-// Not outcomes, but the useful fallback when no pixel is reporting.
-const PROXY_TYPES = ['landing_page_view', 'link_click'];
+const LANDING_PAGE_VIEW_TYPES = ['landing_page_view'];
 
 /* ----------------------------------------------------------------- errors */
 
@@ -176,38 +180,35 @@ const num = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-function pickResult(actions, costPer, actionValues) {
+/** Pull one named metric out of Meta's action arrays. Returns nulls when the
+ *  event simply is not being reported, which is different from zero. */
+function pull(types, byType, costByType, valueByType) {
+  for (const t of types) {
+    if (byType.has(t)) {
+      return {
+        actionType: t,
+        count: byType.get(t),
+        costPer: costByType.get(t) ?? null,
+        value: valueByType.get(t) ?? null,
+      };
+    }
+  }
+  return { actionType: null, count: null, costPer: null, value: null };
+}
+
+function extractMetrics(actions, costPer, actionValues) {
   const byType = new Map((actions || []).map((a) => [a.action_type, num(a.value)]));
   const costByType = new Map((costPer || []).map((a) => [a.action_type, num(a.value)]));
   const valueByType = new Map((actionValues || []).map((a) => [a.action_type, num(a.value)]));
 
-  for (const t of RESULT_PRIORITY) {
-    if (byType.has(t)) {
-      return {
-        actionType: t,
-        isConversion: true,
-        count: byType.get(t),
-        costPer: costByType.get(t) ?? null,
-        value: valueByType.get(t) ?? null,
-      };
-    }
-  }
-  for (const t of PROXY_TYPES) {
-    if (byType.has(t)) {
-      return {
-        actionType: t,
-        isConversion: false,
-        count: byType.get(t),
-        costPer: costByType.get(t) ?? null,
-        value: valueByType.get(t) ?? null,
-      };
-    }
-  }
-  return { actionType: null, isConversion: false, count: null, costPer: null, value: null };
+  return {
+    registration: pull(REGISTRATION_TYPES, byType, costByType, valueByType),
+    landingPageView: pull(LANDING_PAGE_VIEW_TYPES, byType, costByType, valueByType),
+  };
 }
 
 function shapeRow(r, level) {
-  const result = pickResult(r.actions, r.cost_per_action_type, r.action_values);
+  const m = extractMetrics(r.actions, r.cost_per_action_type, r.action_values);
   const spend = num(r.spend);
   return {
     id: r.ad_id || r.adset_id || r.campaign_id || 'account',
@@ -224,12 +225,15 @@ function shapeRow(r, level) {
     ctr: num(r.ctr),
     cpc: num(r.cpc),
     cpm: num(r.cpm),
-    resultType: result.actionType,
-    resultIsConversion: result.isConversion,
-    results: result.count,
-    costPerResult: result.costPer,
-    resultValue: result.value,
-    roas: result.value && spend > 0 ? result.value / spend : null,
+    // Registrations — the actual outcome. Complete-registration events only.
+    registrations: m.registration.count,
+    costPerRegistration: m.registration.costPer,
+    registrationValue: m.registration.value,
+    registrationType: m.registration.actionType,
+    roas: m.registration.value && spend > 0 ? m.registration.value / spend : null,
+    // Landing page views — a separate traffic metric, never folded into the above.
+    landingPageViews: m.landingPageView.count,
+    costPerLandingPageView: m.landingPageView.costPer,
     dateStart: r.date_start,
     dateStop: r.date_stop,
     level,
@@ -299,6 +303,25 @@ export default async function handler(req, res) {
   const time_range = { since, until };
   const warnings = [];
 
+  // Optional scoping to one campaign or ad set.
+  //
+  // This has to happen server-side. Filtering the breakdown rows in the browser
+  // would be easy, but the daily trend series is requested at account level —
+  // so without passing the filter to Meta the charts would keep showing totals
+  // for the whole account while the table showed one campaign. Meta's own
+  // `filtering` parameter scopes both requests identically.
+  const scope = {};
+  if (/^\d+$/.test(req.query.campaignId || '')) scope.campaignId = req.query.campaignId;
+  if (/^\d+$/.test(req.query.adsetId || '')) scope.adsetId = req.query.adsetId;
+
+  const filtering = [];
+  if (scope.adsetId) {
+    filtering.push({ field: 'adset.id', operator: 'IN', value: [scope.adsetId] });
+  } else if (scope.campaignId) {
+    filtering.push({ field: 'campaign.id', operator: 'IN', value: [scope.campaignId] });
+  }
+  const filterParam = filtering.length ? { filtering } : {};
+
   // NOTE ON ATTRIBUTION: action_attribution_windows is deliberately NOT sent.
   // The 7-day and 28-day view-through windows were removed from the API in
   // January 2026, and passing a retired window is an error. Omitting the
@@ -307,21 +330,36 @@ export default async function handler(req, res) {
   // windows (1d_click / 7d_click) plus 1d_view only.
 
   try {
-    const [breakdown, series] = await Promise.all([
+    // A third request fetches the campaign/ad set list for the picker. It is
+    // unscoped on purpose — the dropdown must still offer every option even
+    // when the view is filtered down to one of them.
+    const [breakdown, series, picker] = await Promise.all([
       fetchWithBackoff(
         buildUrl(accountId, {
           level,
           fields: [...LEVEL_FIELDS[level], ...BASE_FIELDS].join(','),
           time_range,
           limit: '500',
+          ...filterParam,
         }),
       ),
       fetchWithBackoff(
         buildUrl(accountId, {
-          level: 'account',
+          // When scoped, the trend must be scoped too, so it is requested at
+          // the scoped level rather than at account level.
+          level: scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
           fields: BASE_FIELDS.join(','),
           time_range,
           time_increment: '1', // one row per day, for the trend charts
+          limit: '500',
+          ...filterParam,
+        }),
+      ),
+      fetchWithBackoff(
+        buildUrl(accountId, {
+          level: 'adset',
+          fields: 'campaign_id,campaign_name,adset_id,adset_name',
+          time_range,
           limit: '500',
         }),
       ),
@@ -334,56 +372,74 @@ export default async function handler(req, res) {
 
     // Totals are summed from the daily series rather than the breakdown, so the
     // headline numbers stay correct regardless of which level is selected.
+    // Each metric is summed only against itself. Nothing is combined across
+    // action types.
     const totals = daily.reduce(
       (acc, d) => {
         acc.spend += d.spend;
         acc.impressions += d.impressions;
         acc.clicks += d.clicks;
         acc.linkClicks += d.linkClicks;
-        acc.results += d.results || 0;
-        acc.resultValue += d.resultValue || 0;
+        acc.registrations += d.registrations || 0;
+        acc.registrationValue += d.registrationValue || 0;
+        acc.landingPageViews += d.landingPageViews || 0;
         return acc;
       },
-      { spend: 0, impressions: 0, clicks: 0, linkClicks: 0, results: 0, resultValue: 0 },
+      {
+        spend: 0, impressions: 0, clicks: 0, linkClicks: 0,
+        registrations: 0, registrationValue: 0, landingPageViews: 0,
+      },
     );
     totals.ctr = totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0;
     totals.cpc = totals.clicks ? totals.spend / totals.clicks : 0;
     totals.cpm = totals.impressions ? (totals.spend / totals.impressions) * 1000 : 0;
-    totals.costPerResult = totals.results ? totals.spend / totals.results : null;
-    totals.roas = totals.spend > 0 && totals.resultValue ? totals.resultValue / totals.spend : null;
+    totals.costPerRegistration = totals.registrations ? totals.spend / totals.registrations : null;
+    totals.costPerLandingPageView = totals.landingPageViews ? totals.spend / totals.landingPageViews : null;
+    totals.roas =
+      totals.spend > 0 && totals.registrationValue ? totals.registrationValue / totals.spend : null;
 
-    // Is anything actually reporting conversions, or are we looking at clicks?
-    const conversionRow = [...rows, ...daily].find((r) => r.resultIsConversion);
-    const proxyRow = [...rows, ...daily].find((r) => r.resultType && !r.resultIsConversion);
+    // Report separately whether each metric is present at all. A row reporting
+    // landing page views but no registrations is a real and meaningful state —
+    // traffic arriving but not converting — and must not be disguised.
+    const anyReg = [...rows, ...daily].some((r) => r.registrationType);
+    const anyLpv = [...rows, ...daily].some((r) => r.landingPageViews !== null);
 
-    let results;
-    if (conversionRow) {
-      results = {
-        available: true,
-        actionType: conversionRow.resultType,
-        note: null,
-      };
-    } else if (proxyRow) {
-      results = {
-        available: false,
-        actionType: proxyRow.resultType,
-        note: `No conversion events are being reported for this account in this date range. The "results" figures below are ${proxyRow.resultType.replace(/_/g, ' ')} — a traffic proxy, not sign-ups. To measure Skool sign-ups you need a pixel or Conversions API event firing on the destination.`,
-      };
-      warnings.push('no_conversion_events');
-    } else {
-      results = {
-        available: false,
-        actionType: null,
-        note: 'Meta returned no action data at all for this range, so no result or cost-per-result figures can be shown.',
-      };
-      warnings.push('no_action_data');
+    const results = {
+      available: anyReg,
+      actionType: ([...rows, ...daily].find((r) => r.registrationType) || {}).registrationType || null,
+      landingPageViewsAvailable: anyLpv,
+      note: anyReg
+        ? null
+        : anyLpv
+          ? 'No complete-registration events were reported in this range, so there are no sign-up figures. Landing page views are shown separately below — those are visits, not sign-ups. If you expect registrations here, check that a CompleteRegistration event is firing on the Skool destination.'
+          : 'Meta reported neither complete-registration nor landing-page-view events for this range.',
+    };
+    if (!anyReg) warnings.push('no_registration_events');
+    if (!anyLpv) warnings.push('no_landing_page_views');
+
+    // Options for the picker: every campaign, each with its ad sets.
+    const byCampaign = new Map();
+    for (const r of picker.json.data || []) {
+      if (!r.campaign_id) continue;
+      if (!byCampaign.has(r.campaign_id)) {
+        byCampaign.set(r.campaign_id, { id: r.campaign_id, name: r.campaign_name || r.campaign_id, adsets: [] });
+      }
+      if (r.adset_id && !byCampaign.get(r.campaign_id).adsets.some((a) => a.id === r.adset_id)) {
+        byCampaign.get(r.campaign_id).adsets.push({ id: r.adset_id, name: r.adset_name || r.adset_id });
+      }
     }
+    const campaigns = [...byCampaign.values()].sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       account: accountId,
       apiVersion: API_VERSION,
       level,
       range: { since, until },
+      scope: {
+        campaignId: scope.campaignId || null,
+        adsetId: scope.adsetId || null,
+      },
+      campaigns,
       fetchedAt: new Date().toISOString(),
       totals,
       rows,
