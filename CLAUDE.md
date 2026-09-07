@@ -663,6 +663,21 @@ moves anything and they compose with the selection's inset shadow. **`Sheet.TINT
 `Sheet.BORDERS` must match the classes in the stylesheet** — a name with no class is a silent
 no-op that looks exactly like the click not registering.
 
+**Every toolbar style is a toggle**, and the decision is made across the WHOLE selection
+(`uniformStyle`), never per cell. Deciding per cell turns one click on a mixed selection into
+a checkerboard — half the cells switching on while the other half switch off. So: if every
+selected cell already has that fill, border or format, the click removes it; otherwise the
+click applies it to all of them.
+
+- The explicit **No fill** / **No border** controls at the end of each group always clear,
+  whatever the current state. That is what makes them useful on a mixed selection, where no
+  swatch is lit and there is nothing to "click again".
+- `paintToolbarState()` lights the swatch, border and format that the selection actually has,
+  and lights nothing when the selection is mixed. Without it a toggle is a guess — nothing on
+  screen would say which colour is already on, so nobody would think to click it twice. It
+  runs from `paintSelection()` rather than `syncFormulaBar()`, because Ctrl+A and Escape
+  repaint the selection without going through the formula bar.
+
 **`saveLedgerNow()` names every field it sends.** `version` and `updatedAt` are the server's
 to set, so the payload is built explicitly rather than sending the document whole. Anything
 that becomes part of the sheet must be added there too — omitting `rowHeights` once already

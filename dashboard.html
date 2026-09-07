@@ -398,6 +398,9 @@ table.ss-grid:not(:focus-within) td.in-range { background:rgba(var(--accent-rgb)
   border:1px solid var(--hairline); cursor:pointer;
 }
 .ss-swatch:hover { border-color:var(--accent); }
+/* A ring rather than a tick or an inset border: the swatch IS the colour, and
+   anything drawn on top of it changes the colour it is advertising. */
+.ss-swatch.is-on { border-color:var(--accent); box-shadow:0 0 0 2px rgba(var(--accent-rgb),.5); }
 .ss-swatch-none { position:relative; background:var(--surface-solid); }
 .ss-swatch-none::after {
   content:''; position:absolute; inset:5px; border-top:1px solid var(--neg);
@@ -3493,6 +3496,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }
 
     updateSelectionSummary();
+    paintToolbarState();
   }
 
   /* The status line that answers "what do these add up to" without making
@@ -3521,10 +3525,28 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var ref = ledgerRef(ledger.sel.col, ledger.sel.row);
     $('ss-addr').textContent = ref;
     if (!ledger.editing) $('ss-input').value = Sheet.editText(ledger.doc, ref);
-    var cell = ledgerCell(ref);
+  }
+
+  /* What is currently applied, read across the whole selection. Without this a
+     toggle is a guess: nothing on screen says which colour is already on, so
+     "click it again" is not something anyone would think to try. A mixed
+     selection lights nothing, which is honest — there is no single state to
+     show, and that is exactly when the explicit remove buttons earn their
+     place. */
+  function paintToolbarState(){
+    var fmt = uniformStyle('fmt'), bg = uniformStyle('bg'), bd = uniformStyle('border');
+
     ['currency','percent','number','integer','text'].forEach(function(f){
       var b = $('ss-fmt-' + f);
-      if (b) b.classList.toggle('is-on', !!cell && cell.fmt === f);
+      if (b) b.classList.toggle('is-on', fmt === f);
+    });
+    Sheet.TINTS.forEach(function(tint){
+      var b = $('ss-bg-' + tint);
+      if (b) b.classList.toggle('is-on', bg === tint);
+    });
+    Sheet.BORDERS.forEach(function(w){
+      var b = $('ss-bd-' + w);
+      if (b) b.classList.toggle('is-on', bd === w);
     });
   }
 
@@ -3761,6 +3783,36 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   }
 
   /* ---------------------------------------------------------- styling ----- */
+  /**
+   * The value a property has across the WHOLE selection, or null if it varies.
+   *
+   * Deciding per cell instead would turn one click on a mixed selection into a
+   * checkerboard — half the cells switching on while the other half switch off.
+   * A toolbar button has one state, so it has to read one state.
+   *
+   * A cell with nothing in it counts as having no value, which is why selecting
+   * a blank row and clicking amber fills it rather than clearing it.
+   */
+  function uniformStyle(prop){
+    var b = selBounds();
+    var first = null, seen = false;
+    for (var r = b.r1; r <= b.r2; r++) for (var c = b.c1; c <= b.c2; c++) {
+      var cell = ledger.doc.cells[ledgerRef(c, r)];
+      var v = (cell && cell[prop]) || null;
+      if (!seen) { first = v; seen = true; }
+      else if (v !== first) return null;
+    }
+    return first;
+  }
+
+  /* Click to apply, click again to take it off. The same rule for a fill, a
+     border and a number format, because they are the same control. */
+  function toggleStyle(prop, value){
+    styleSelection(uniformStyle(prop) === value ? pair(prop, null) : pair(prop, value));
+  }
+
+  function pair(k, v){ var o = {}; o[k] = v; return o; }
+
   /* Applied to every cell in the selection, which is why selecting a row or a
      column needed no special case: a line IS a selection. */
   function styleSelection(patch){
@@ -3985,17 +4037,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function bootLedger(){
     ['currency','percent','number','integer','text'].forEach(function(f){
       var b = $('ss-fmt-' + f);
-      if (!b) return;
-      b.addEventListener('click', function(){
-        var bd = selBounds();
-        ledgerEdit(function(){
-          for (var r = bd.r1; r <= bd.r2; r++) for (var c = bd.c1; c <= bd.c2; c++) {
-            var ref = ledgerRef(c, r);
-            var cur = ledger.doc.cells[ref];
-            Sheet.setFormat(ledger.doc, ref, (cur && cur.fmt === f) ? null : f);
-          }
-        });
-      });
+      if (b) b.addEventListener('click', function(){ toggleStyle('fmt', f); });
     });
 
     $('ss-row-add').addEventListener('click', function(){
@@ -4049,14 +4091,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       }
     });
 
-    Sheet.TINTS.concat(['none']).forEach(function(tint){
+    /* Two ways to remove a fill, because both are things people try: click the
+       colour that is already on, or use the explicit control at the end of the
+       row. The explicit one always clears, whatever the selection currently is,
+       which is what makes it useful on a MIXED selection where no single swatch
+       is lit to click again. */
+    Sheet.TINTS.forEach(function(tint){
       var b = $('ss-bg-' + tint);
-      if (b) b.addEventListener('click', function(){ styleSelection({ bg: tint === 'none' ? null : tint }); });
+      if (b) b.addEventListener('click', function(){ toggleStyle('bg', tint); });
     });
-    Sheet.BORDERS.concat(['none']).forEach(function(w){
+    $('ss-bg-none').addEventListener('click', function(){ styleSelection({ bg: null }); });
+
+    Sheet.BORDERS.forEach(function(w){
       var b = $('ss-bd-' + w);
-      if (b) b.addEventListener('click', function(){ styleSelection({ border: w === 'none' ? null : w }); });
+      if (b) b.addEventListener('click', function(){ toggleStyle('border', w); });
     });
+    $('ss-bd-none').addEventListener('click', function(){ styleSelection({ border: null }); });
 
     $('ss-save-now').addEventListener('click', function(){ saveLedgerNow(); });
 
