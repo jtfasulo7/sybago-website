@@ -451,6 +451,9 @@ tr.fin-total > * { border-top:2px solid var(--hairline); font-weight:800; }
   padding-top:.7rem; border-top:1px solid var(--hairline); margin-top:.2rem; }
 .tk-consent a { color:var(--accent-d); }
 .tk-blocked { font-size:.78rem; color:var(--neg); margin-top:.4rem; }
+.tk-connect { text-align:center; padding:.4rem 0 .2rem; }
+.tk-connect-msg { font-size:.85rem; color:var(--t2); margin:0 0 .8rem; }
+.tk-connect-note { font-size:.76rem; color:var(--t3); margin:.7rem 0 0; }
 
 .frames { margin-bottom:1rem; }
 .frames-head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem; }
@@ -3266,6 +3269,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(subs){
       subs.hidden = state.view !== 'dave';
       if(state.view !== 'dave') showPane('performance');
+      // Coming back from TikTok's authorisation screen: open the tab that sent
+      // them there. Checked once — the marker is stripped as it is read.
+      else if(tiktokReturn()) showPane('social');
     }
 
     var tabs = document.querySelectorAll('#viewtabs button');
@@ -5197,6 +5203,32 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     SELF_ONLY: 'Only you'
   };
 
+  /* Shown when the app is set up but no account has been authorised. The
+     button is a link rather than a fetch: OAuth is a full-page journey to
+     TikTok and back, not something that can happen inside an XHR. */
+  function tiktokConnectPrompt(message){
+    return '<div class="tk-connect">' +
+      '<p class="tk-connect-msg">' + esc(message || 'No TikTok account is connected yet.') + '</p>' +
+      '<a class="btn btn-primary" id="tk-connect" href="/api/tiktok-auth">' +
+        '<svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">' +
+          '<path d="M12.3 2h2.2c.2 1.5 1.1 2.7 2.5 3v2.2a5.6 5.6 0 0 1-2.5-.7v4.9a4.6 4.6 0 1 1-4.6-4.6c.2 0 .4 0 .6.1v2.3a2.3 2.3 0 1 0 1.8 2.2V2Z"/>' +
+        '</svg> Connect TikTok</a>' +
+      '<p class="tk-connect-note">You will be sent to TikTok to authorise, then back here.</p>' +
+    '</div>';
+  }
+
+  /* Returning from the OAuth round trip. The callback lands here with a marker
+     so the page can open the tab that sent the operator away, and the marker is
+     stripped so a refresh does not keep re-opening it. */
+  function tiktokReturn(){
+    var p = new URLSearchParams(location.search);
+    if(p.get('tiktok') !== 'connected') return false;
+    p.delete('tiktok');
+    var rest = p.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : ''));
+    return true;
+  }
+
   function tiktokPanel(){
     var wrap = document.createElement('div');
     wrap.className = 'tk';
@@ -5268,10 +5300,20 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       .then(function(r){ return r.json(); })
       .then(function(j){
         if(!j.ok){
-          $('tk-who').textContent = j.message || 'Could not reach TikTok.';
+          /* Not connected is the ordinary first-run state, not a fault — so it
+             gets a button rather than an error message. */
+          var needsConnect = /not connected|authoris|authoriz|access token/i.test(j.message || '');
+          if(needsConnect){
+            $('tk-panel').innerHTML = tiktokConnectPrompt(j.message);
+          } else {
+            $('tk-who').textContent = j.message || 'Could not reach TikTok.';
+          }
+          updatePostButton();
           return;
         }
         tiktok.info = j;
+        var pill = $('pill-tiktok');
+        if(pill){ pill.className='pill pill-on'; pill.textContent='Connected'; }
 
         var sel = $('tk-privacy');
         sel.innerHTML = '';
@@ -5349,7 +5391,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      requires the button to be disabled until these are settled. */
   function tiktokBlocker(){
     if(!social.selected.tiktok) return null;          // not posting there
-    if(!tiktok.info) return 'Still checking your TikTok account.';
+    if(!tiktok.info) return document.getElementById('tk-connect')
+      ? 'Connect your TikTok account first.'
+      : 'Still checking your TikTok account.';
     if(!tiktok.privacyLevel) return 'Choose who can see the TikTok.';
     if(tiktok.commercial && !tiktok.brandOrganic && !tiktok.brandedContent){
       return 'Say whether the TikTok promotes your brand, a paid partnership, or both.';
@@ -5427,7 +5471,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       head.appendChild(toggle);
 
       var pill = document.createElement('span');
-      if(p.configured){ pill.className='pill pill-on'; pill.textContent='Connected'; }
+      pill.id = 'pill-'+p.id;
+      if(p.configured && p.needsAuth){
+        /* Credentials present is not the same as an account connected. Saying
+           "Connected" here would be a lie right up until the first post fails,
+           so it stays honest and the panel upgrades it once TikTok answers. */
+        pill.className='pill pill-warn'; pill.textContent='Not connected';
+      }
+      else if(p.configured){ pill.className='pill pill-on'; pill.textContent='Connected'; }
       else { pill.className='pill pill-off'; pill.textContent='Not connected'; }
       head.appendChild(pill);
 

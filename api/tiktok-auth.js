@@ -128,10 +128,10 @@ export default async function handler(req, res) {
         process.env,
       );
       clearState(res);
-      const days = Math.round((tokens.refreshExpiresAt - Date.now()) / 86400000);
-      return page(res, 200, 'TikTok connected',
-        `<p>The access token is stored encrypted and renews itself. You will not need to do this
-        again for about ${days} days.</p>`);
+      // Straight back into the Social post tab, which re-reads the connection
+      // on render and will now find it.
+      res.status(302).setHeader('Location', '/dashboard?tiktok=connected#social');
+      return res.end();
     } catch (e) {
       clearState(res);
       return page(res, 502, 'TikTok would not issue a token',

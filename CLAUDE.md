@@ -522,7 +522,7 @@ not take insights down. The env vars are deliberately independent of the ads one
 | Instagram | `IG_USER_ID`, `IG_ACCESS_TOKEN` |
 | Facebook | `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN` |
 | YouTube | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` |
-| TikTok | `TIKTOK_ACCESS_TOKEN` |
+| TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` |
 | Captions | `ANTHROPIC_API_KEY` |
 
 Use `?debug=meta-assets` on `api/meta-insights` (master only) to discover Page and
@@ -544,6 +544,33 @@ Instagram ids and check which scopes a token actually holds.
   `blob.vercel-storage.com` is verified or the file is served from a verified domain.
   TikTok access tokens expire every **24 hours**, so a failure here is usually staleness rather
   than a wrong value, and the error says so.
+
+  **TikTok is connected by OAuth, not by a pasted token.** A 24-hour token cannot live in an
+  environment variable — it would need replacing before most days were out — so
+  `api/tiktok-auth.js` runs the Login Kit round trip and `lib/social/tiktok-auth.js` stores the
+  pair encrypted, refreshing the access token in place. Refresh tokens last a year.
+
+  - **Two credential sets, either sufficient.** `envAlt` on the registry entry is what says so:
+    the app keys, or a `TIKTOK_ACCESS_TOKEN` pasted in whole. Requiring both would mean the
+    OAuth path could never report itself configured; requiring only the token would mean the
+    app keys never did.
+  - **Configured is not connected**, and the pill says so. `needsAuth` marks a platform whose
+    credentials being present proves nothing about an account being attached; the panel upgrades
+    the pill to Connected only once `creator_info` answers. A pill reading Connected up until
+    the first post fails is the failure mode this exists to prevent.
+  - **The Connect button is a link, not a fetch.** OAuth is a full-page journey to TikTok and
+    back; there is nothing for an XHR to do with a 302 to another origin.
+  - **`/api/tiktok-auth` is session-gated and always was.** Pasting it into a fresh tab returns
+    `unauthenticated` — correct behaviour, and the reason the flow has to start from a button
+    inside the signed-in page.
+  - **The redirect URI is pinned** by `TIKTOK_REDIRECT_URI`. It is otherwise derived from
+    `x-forwarded-host`, so reaching the dashboard on a `*.vercel.app` host would send TikTok a
+    redirect_uri that does not match the registered one, and the flow dies on a bare
+    `invalid_request`. TikTok compares it byte for byte, twice — once for the code, once for
+    the exchange — which is also why one endpoint serves both legs.
+  - **The success leg redirects to `/dashboard?tiktok=connected#social`**, and the page opens
+    that tab and strips the marker. The failure legs stay on their own page: a message that
+    vanishes into a redirect is a message nobody reads.
 - **YouTube** forces uploads to private until Google verifies the project, and an upload
   costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
 - **Instagram** caps publishing at 25 per account per rolling day.

@@ -60,7 +60,15 @@ t('a platform with no credentials is not configured', () =>
   assert.equal(platforms.isConfigured('tiktok', {}), false));
 
 t('a platform with all credentials is configured', () =>
+  assert.equal(platforms.isConfigured('tiktok', { TIKTOK_CLIENT_KEY: 'k', TIKTOK_CLIENT_SECRET: 's' }), true));
+
+t('TikTok is also configured by a pasted token alone', () =>
+  // Either credential set is complete on its own. Requiring both would mean the
+  // OAuth path — the one under review — could never report itself ready.
   assert.equal(platforms.isConfigured('tiktok', { TIKTOK_ACCESS_TOKEN: 'x' }), true));
+
+t('half the TikTok app keys is not configured', () =>
+  assert.equal(platforms.isConfigured('tiktok', { TIKTOK_CLIENT_KEY: 'k' }), false));
 
 t('a partially configured platform is not configured', () =>
   assert.equal(platforms.isConfigured('youtube', { YOUTUBE_CLIENT_ID: 'a', YOUTUBE_CLIENT_SECRET: 'b' }), false));
@@ -178,7 +186,7 @@ t('posting to an unconnected platform is refused', () =>
   assert.ok(res.code === 400 && res.body.error === 'not_configured'));
 t('nothing is posted when a chosen platform is unconnected', () => assert.equal(reached, false));
 t('the refusal names the missing variables', () =>
-  assert.deepEqual(res.body.missing.tiktok, ['TIKTOK_ACCESS_TOKEN']));
+  assert.deepEqual(res.body.missing.tiktok, ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET']));
 
 // An arbitrary URL must not become a server-side fetch.
 process.env.FB_PAGE_ID = '123';
