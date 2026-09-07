@@ -556,10 +556,93 @@ Two failure modes are handled rather than left to surprise someone:
 - An **excluded line that is still spending** is named in a warning with its figures. Silently
   dropping it would make this page disagree with the bill.
 
+### The spreadsheet
+
+The revenue and expense panel is a spreadsheet built here, not an embed. It is the
+default view; a connected Google Sheet overrides it, and the computed table is the floor
+if the ledger cannot load at all.
+
+| File | Role |
+|---|---|
+| `assets/spreadsheet.js` | The engine: tokenizer, parser, evaluator, model, formats. |
+| `api/finance-ledger.js` | GET/PUT the document, plus the seeded starting sheet. |
+| `lib/finance/store.js` | Encrypted persistence in Vercel Blob. |
+| `lib/blob-token.js` | Finding the Blob read-write token. Shared with the uploader. |
+| `test/spreadsheet.test.mjs` | The engine. `node test/spreadsheet.test.mjs` |
+| `test/ledger.test.mjs` | The endpoint and storage. `node test/ledger.test.mjs` |
+
+**Scope is a ledger, not Excel.** Formulas, ranges, ~30 functions, number formats, undo,
+copy/paste, insert/delete with reference rewriting, CSV export. **No** charts, pivot tables,
+conditional formatting, real-time collaboration, revision history, data validation or merged
+cells. Everyone knows what a spreadsheet does, so every gap is felt — adding features here
+rather than admitting the gap is how a small honest tool becomes a large dishonest one.
+
+**`assets/spreadsheet.js` is a classic script, not a module**, because this site has no
+bundler. It is written so `test/spreadsheet.test.mjs` can EVALUATE the same file the browser
+loads — there is one copy of the engine and the tests run the bytes that ship. Do not convert
+it to ESM without changing how the test loads it.
+
+**Computed values are never stored.** Only what someone typed is persisted, and every value on
+screen is recalculated on load. There is no cache to invalidate, so a figure cannot be older
+than the Meta data behind it — which is the same principle as the rest of this page.
+
+**Recalculation is the whole sheet, every time.** At this size that is well under a
+millisecond and it makes staleness structurally impossible. Cycles return `#CYCLE!` via a
+visiting set rather than hanging. Do not add dependency-graph invalidation for speed here;
+the correctness is worth more than the microseconds.
+
+**Live figures are a function, not a paste.** `=META("adSpend.monthToDate")` reads the flat
+namespace `metaNamespace()` in `api/finance.js` builds on every load. That namespace is a
+public contract: **add keys freely, rename them never** — a rename silently turns somebody's
+cell into `#NAME?`. The toolbar dropdown is generated from the real keys, so the figures are
+discoverable without documenting them somewhere that can drift.
+
+Things that are easy to get wrong, all covered by tests:
+
+- **A range is not two independent references.** Deleting a line inside `=SUM(A1:D1)` must
+  shrink it to `=SUM(A1:C1)`. Endpoint-by-endpoint rewriting turns that into `#REF!` whenever
+  either end happens to be the deleted line. `deleteAxis()` moves the start when it is PAST the
+  deleted line and the end when it is past OR ON it; that asymmetry is what shrinks rather than
+  slides. Only a range whose every line is gone becomes `#REF!`.
+- **Moving cells without rewriting formulas** leaves `=SUM(A1:A3)` pointing at the wrong rows.
+  It still produces a number, just the wrong one, which is the worst kind of wrong.
+- **`"$1,200.00"` pasted from a statement must become the NUMBER 1200**, formatted as currency.
+  Stored as text it drops silently out of every SUM beneath it.
+- **`&` binds looser than `+`.** `="Total: "&2+3` is `Total: 5`. Get the precedence table wrong
+  and the error is invisible until someone reads a label.
+- **A formula copied down moves its relative references and not its anchored ones.** That
+  distinction is the only reason `$` exists.
+
+**Storage is encrypted.** A Vercel Blob store is PUBLIC — every object is served at a URL with
+no authentication in front of it — and this document is a business's revenue and costs. So
+`lib/finance/store.js` encrypts with AES-256-GCM before writing and decrypts after reading. The
+key is derived with HKDF from `DASHBOARD_SESSION_SECRET`, under a distinct salt so it can never
+coincide with the cookie signing key. **Do not store this document in plaintext**, and do not
+"simplify" the encryption away because Blob URLs look unguessable.
+
+**Concurrent saves are refused, not merged.** A PUT carries `baseVersion`; a mismatch is a 409
+that hands back the version that won. Last-write-wins would be fine for one person and silently
+destructive for two, and the destroyed work is unrecoverable.
+
+**A document from a browser is untrusted.** `sanitise()` checks every cell key against a
+reference pattern, allows only known formats, and caps formula length, text length, cell count,
+row and column counts and column widths. Unbounded input is how an internal tool becomes a way
+to fill someone else's storage bill.
+
+**`lib/finance/store.js` exposes `useBlobClient()`.** An ES module namespace is frozen, so a
+test cannot swap `@vercel/blob`'s exports the way it can swap `globalThis.fetch`. The seam
+exists so the half that can lose someone's work is testable. Nothing in production calls it.
+
+**The grid states its own alignment and select width.** This page's base styles are written for
+the metrics tables: `th, td { text-align:right }` and `select { width:100% }`. Both are right
+there and wrong in a grid, so `.ss-cell` sets `text-align:left` and `.ss-bar select` sets
+`width:auto`. Removing either re-breaks it.
+
 ### The Google Sheet
 
-The middle panel is a real spreadsheet, embedded and editable in place, and it is where the
-manual figures live. Two tabs, and the split is the whole contract:
+An ALTERNATIVE to the built-in grid above, used when it is configured: a real Google
+spreadsheet, embedded and editable in place. Setting three environment variables is an explicit
+choice to use it, so it wins when present. Two tabs, and the split is the whole contract:
 
 - **`Entered`** — yours. Columns: Type (`Revenue`/`Expense`), Line, Monthly, Note. Created and
   seeded once, then never written to again. Rows are classified by the Type column rather than

@@ -82,6 +82,37 @@ function isLive(status) {
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
+/**
+ * The namespace a spreadsheet cell can reach with =META("...").
+ *
+ * Flat and string-keyed on purpose: a formula names one figure, and a nested
+ * path would mean writing a path parser into the sheet engine to reach it.
+ * Every key here is a promise — renaming one silently turns somebody's cell
+ * into #NAME?, so add keys freely and rename them never.
+ */
+export function metaNamespace(adSpend) {
+  const ns = {
+    'adSpend.monthToDate': adSpend.monthToDate,
+    'adSpend.dailyTotal': adSpend.dailyTotal,
+    'adSpend.projectedRemainder': adSpend.projectedRemainder,
+    'adSpend.expectedMonthTotal': adSpend.expectedMonthTotal,
+    'adSpend.lifetimeTotal': adSpend.lifetimeTotal,
+    'adSpend.daysInMonth': adSpend.daysInMonth,
+    'adSpend.daysRemaining': adSpend.daysRemaining,
+    'adSpend.daysElapsed': adSpend.daysElapsed,
+    'adSpend.activeLines': adSpend.lines.filter((l) => l.live).length,
+    'adSpend.timeZone': adSpend.timeZone,
+  };
+  // Per line, addressable by name, so a sheet can break spend out by ad set
+  // without anyone hand-copying figures across.
+  for (const l of adSpend.lines) {
+    ns['spent:' + l.name] = l.spent;
+    ns['daily:' + l.name] = l.live ? l.daily : 0;
+    ns['expected:' + l.name] = l.expected;
+  }
+  return ns;
+}
+
 export default async function handler(req, res) {
   noStore(res);
   const session = requireSession(req, res);
@@ -348,6 +379,8 @@ export default async function handler(req, res) {
       expenses = [adSpendLine, ...manual.recurringCosts.map((c) => ({ ...c, source: 'manual' }))];
     }
 
+    const metaValues = metaNamespace(adSpend);
+
     const revenueTotal = round2(sumAmounts(revenue));
     const expenseTotal = round2(sumAmounts(expenses));
 
@@ -364,6 +397,10 @@ export default async function handler(req, res) {
         margin: revenueTotal > 0 ? ((revenueTotal - expenseTotal) / revenueTotal) * 100 : null,
       },
       adSpend,
+      // What a spreadsheet cell can reach with =META("..."). Sent on every
+      // load so the figures in the ledger are as fresh as the ones above it.
+      meta: metaValues,
+      metaKeys: Object.keys(metaValues),
       sheet,
       warnings,
       fetchedAt: new Date().toISOString(),

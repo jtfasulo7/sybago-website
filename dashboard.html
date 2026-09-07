@@ -26,7 +26,8 @@
      only one usable here, since this page has no bundler and no type="module".
      Pinned with SRI, hash verified against the served bytes: this is
      third-party code on a page that displays ad spend behind a login. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+<script src="/assets/spreadsheet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
         integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
@@ -237,6 +238,116 @@ select:disabled { opacity:.55; }
 
 /* The sampled frames, shown so the captions can be judged against what the
    model actually saw rather than taken on trust. */
+/* ---------------------------------------------------------- spreadsheet -- */
+/* A grid, built from a real <table> rather than absolutely positioned divs.
+   Everything on this page has a table alternative for screen readers; making
+   the spreadsheet the one exception would be backwards, and a table already
+   IS the right structure for a grid. */
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+.ss { display:flex; flex-direction:column; gap:.55rem; }
+
+.ss-bar { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; }
+/* The base select rule is width:100%, which is right for the filter controls
+   and turns a toolbar dropdown into a full-width bar. */
+.ss-bar select {
+  width:auto; flex:0 0 auto; min-height:32px;
+  padding:.3rem 1.7rem .3rem .6rem; border-radius:7px;
+  background-position:right .5rem center; box-shadow:none;
+}
+.ss-bar .sep { width:1px; height:22px; background:var(--hairline); margin:0 .2rem; }
+.ss-btn {
+  min-height:32px; padding:.3rem .6rem; font:inherit; font-size:.82rem; font-weight:600;
+  color:var(--t2); background:var(--seg-track); border:1px solid var(--hairline);
+  border-radius:7px; cursor:pointer;
+}
+.ss-btn:hover { color:var(--t1); border-color:rgba(var(--accent-rgb),.45); }
+.ss-btn:disabled { opacity:.4; cursor:default; }
+.ss-btn.is-on { color:var(--on-accent); background:var(--accent); border-color:var(--accent); }
+
+/* The formula bar. The cell reference is fixed-width so the input does not
+   jump sideways every time the selection moves between A1 and AA10. */
+.ss-formula { display:flex; align-items:stretch; gap:.4rem; }
+.ss-addr {
+  min-width:74px; display:flex; align-items:center; justify-content:center;
+  font:600 .82rem/1 var(--ff); color:var(--t2);
+  background:var(--seg-track); border:1px solid var(--hairline); border-radius:7px;
+}
+.ss-input {
+  flex:1 1 auto; min-width:0; min-height:34px; padding:.35rem .6rem;
+  font:400 .88rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color:var(--t1); background:var(--surface-solid);
+  border:1px solid var(--hairline); border-radius:7px;
+}
+.ss-input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+
+.ss-scroll {
+  overflow:auto; max-height:min(64vh, 560px);
+  border:1px solid var(--hairline); border-radius:10px; background:var(--surface-solid);
+}
+table.ss-grid { border-collapse:separate; border-spacing:0; table-layout:fixed; width:max-content; }
+
+table.ss-grid th, table.ss-grid td {
+  border-right:1px solid var(--hairline); border-bottom:1px solid var(--hairline);
+  padding:0; margin:0; height:30px; overflow:hidden; white-space:nowrap;
+}
+
+/* Headers stay put. The corner has to out-rank both or it slides under them. */
+table.ss-grid thead th {
+  position:sticky; top:0; z-index:2;
+  background:var(--thead-bg); color:var(--t3);
+  font:700 .72rem/30px var(--ff); text-align:center; letter-spacing:.04em;
+  min-width:48px;
+}
+table.ss-grid tbody th.ss-rowhead {
+  position:sticky; left:0; z-index:1;
+  background:var(--thead-bg); color:var(--t3);
+  font:700 .72rem/30px var(--ff); text-align:center; width:44px; min-width:44px;
+}
+table.ss-grid thead th.ss-corner { left:0; z-index:3; width:44px; min-width:44px; }
+
+table.ss-grid td .ss-cell {
+  display:block; height:30px; line-height:30px; padding:0 .45rem;
+  font:400 .84rem/30px var(--ff); color:var(--t1);
+  overflow:hidden; text-overflow:ellipsis; cursor:cell;
+  /* Stated, not inherited: the page's base rule right-aligns every table cell
+     because its other tables are all figures. A label column is not. */
+  text-align:left;
+}
+/* Numbers right-align. Not decoration: a column of right-aligned figures is
+   readable at a glance and a column of left-aligned ones is not. */
+table.ss-grid td.is-num .ss-cell { text-align:right; font-variant-numeric:tabular-nums; }
+table.ss-grid td.is-err .ss-cell { color:var(--neg); font-weight:700; }
+table.ss-grid td.is-formula { background:rgba(var(--accent-rgb),.035); }
+
+table.ss-grid td.is-sel { box-shadow:inset 0 0 0 2px var(--accent); }
+table.ss-grid td.in-range { background:rgba(var(--accent-rgb),.13); }
+table.ss-grid td.in-range.is-sel { background:rgba(var(--accent-rgb),.13); }
+
+/* The in-cell editor replaces the span so the text does not shift by a pixel
+   when editing starts — a jump there reads as the value having changed. */
+table.ss-grid td input.ss-edit {
+  display:block; width:100%; height:30px; padding:0 .4rem; border:0; margin:0;
+  font:400 .84rem/30px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color:var(--t1); background:var(--surface-solid); outline:2px solid var(--accent);
+  outline-offset:-2px;
+}
+
+.ss-foot { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.ss-foot .ss-sum { font-size:.8rem; color:var(--t2); font-variant-numeric:tabular-nums; }
+.ss-foot .ss-save { font-size:.8rem; color:var(--t3); }
+.ss-foot .ss-save.is-dirty { color:var(--warn-text); }
+.ss-foot .ss-save.is-error { color:var(--neg); font-weight:600; }
+
+@media (max-width:720px){
+  .ss-scroll { max-height:60vh; }
+  table.ss-grid thead th { min-width:92px; }
+  .ss-bar { gap:.3rem; }
+  .ss-btn { font-size:.78rem; padding:.3rem .5rem; }
+}
+
 /* The embedded sheet. Tall enough to work in without scrolling the page to
    reach the rows, and it keeps its own scrollbars. */
 .sheet-wrap { border:1px solid var(--hairline); border-radius:10px; overflow:hidden;
@@ -1045,8 +1156,51 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
              style="min-height:34px;padding:.35rem .8rem;font-size:.84rem" hidden>Open in Google Sheets ↗</a>
         </div>
 
-        <!-- The sheet itself. Editing happens in here; the dashboard reads the
-             Entered tab back on every refresh. -->
+        <!-- The built-in spreadsheet. Default, because it needs no setup and
+             its live figures are formulas rather than a stamped-out copy. -->
+        <div class="ss" id="fin-ss" hidden>
+          <div class="ss-bar" role="toolbar" aria-label="Spreadsheet actions">
+            <button type="button" class="ss-btn" id="ss-fmt-currency" title="Format as currency">$</button>
+            <button type="button" class="ss-btn" id="ss-fmt-percent" title="Format as a percentage">%</button>
+            <button type="button" class="ss-btn" id="ss-fmt-number" title="Format as a number with two decimals">0.00</button>
+            <button type="button" class="ss-btn" id="ss-fmt-integer" title="Format as a whole number">0</button>
+            <button type="button" class="ss-btn" id="ss-fmt-text" title="Show as plain text">Abc</button>
+            <span class="sep" aria-hidden="true"></span>
+            <button type="button" class="ss-btn" id="ss-row-add" title="Insert a row above the selection">+ Row</button>
+            <button type="button" class="ss-btn" id="ss-row-del" title="Delete the selected row">− Row</button>
+            <button type="button" class="ss-btn" id="ss-col-add" title="Insert a column before the selection">+ Col</button>
+            <button type="button" class="ss-btn" id="ss-col-del" title="Delete the selected column">− Col</button>
+            <span class="sep" aria-hidden="true"></span>
+            <button type="button" class="ss-btn" id="ss-undo" title="Undo (Ctrl+Z)">Undo</button>
+            <button type="button" class="ss-btn" id="ss-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+            <span class="sep" aria-hidden="true"></span>
+            <label class="sr-only" for="ss-meta">Insert a live Meta figure</label>
+            <select id="ss-meta" class="ss-btn" style="min-width:180px">
+              <option value="">Insert a live figure…</option>
+            </select>
+            <button type="button" class="ss-btn" id="ss-csv" title="Download as CSV">Export CSV</button>
+          </div>
+
+          <div class="ss-formula">
+            <span class="ss-addr" id="ss-addr" aria-live="off">A1</span>
+            <label class="sr-only" for="ss-input">Contents of the selected cell</label>
+            <input type="text" id="ss-input" class="ss-input" spellcheck="false" autocomplete="off"
+                   placeholder="Type a value, or a formula starting with =">
+          </div>
+
+          <div class="ss-scroll">
+            <table class="ss-grid" id="ss-grid" role="grid" tabindex="0"
+                   aria-label="Revenue and expenses spreadsheet"></table>
+          </div>
+
+          <div class="ss-foot">
+            <span class="ss-sum" id="ss-summary" role="status" aria-live="polite"></span>
+            <span class="ss-save" id="ss-save" role="status" aria-live="polite">Loading…</span>
+          </div>
+        </div>
+
+        <!-- The Google Sheet, when one is connected. Editing happens in here;
+             the dashboard reads the Entered tab back on every refresh. -->
         <div class="sheet-wrap" id="fin-sheet-wrap" hidden>
           <iframe id="fin-sheet" title="Finances spreadsheet" loading="lazy"
                   referrerpolicy="no-referrer-when-downgrade"></iframe>
@@ -2936,7 +3090,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           '<strong class="' + (t.net >= 0 ? 'fin-in' : 'fin-out') + '">' + money(t.net) + '</strong>', '']);
 
         buildRichTable($('fin-table'), ['Line', 'Source', 'Monthly', 'Detail'], rows, totals);
-        showSheet(d.sheet);
+        showSheet(d.sheet, d.meta, d.metaKeys);
 
         // The budgets the projection is built from, so the figure can be checked
         // against Ads Manager rather than taken on trust.
@@ -2985,20 +3139,34 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      back if it ever cannot be read. Keeping both is not indecision: a finance
      page that shows nothing because a third party is down is worse than one
      that shows the figures it already has, clearly labelled. */
-  function showSheet(sheet){
+  /**
+   * Which of the three ledger views to show.
+   *
+   *   1. A connected Google Sheet, when one is configured and readable.
+   *      Setting three environment variables is an explicit choice to use it;
+   *      nobody does that by accident, so it wins when present.
+   *   2. Otherwise the built-in grid, which needs no setup at all.
+   *   3. The read-only table, only if the grid itself cannot load — see
+   *      ledgerFallback(). Keeping it is not indecision: a finance page showing
+   *      nothing because storage is down is worse than one showing the figures
+   *      it already has, clearly labelled.
+   */
+  function showSheet(sheet, meta, metaKeys){
     var wrap = $('fin-sheet-wrap'), frame = $('fin-sheet'),
-        open = $('fin-sheet-open'), table = $('fin-table-wrap'), sub = $('fin-table-sub');
+        open = $('fin-sheet-open'), table = $('fin-table-wrap'),
+        grid = $('fin-ss'), sub = $('fin-table-sub');
 
-    var usable = sheet && sheet.configured && sheet.embedUrl && !sheet.error;
+    var googleUsable = sheet && sheet.configured && sheet.embedUrl && !sheet.error;
 
-    if(usable){
-      // Only assign once. Re-setting src on every refresh would reload the
+    if(googleUsable){
+      grid.hidden = true;
+      table.hidden = true;
+      // Only assign src once. Re-setting it on every refresh would reload the
       // iframe and throw away whatever cell was being typed into.
       if(frame.getAttribute('src') !== sheet.embedUrl) frame.setAttribute('src', sheet.embedUrl);
       open.href = sheet.openUrl;
       open.hidden = false;
       wrap.hidden = false;
-      table.hidden = true;
       sub.textContent = 'Type revenue and expenses in the Entered tab. The Live tab is written ' +
         'by this dashboard on every refresh — anything typed there is overwritten.';
       return;
@@ -3006,17 +3174,631 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
     wrap.hidden = true;
     open.hidden = true;
-    table.hidden = false;
+    table.hidden = true;
+    grid.hidden = false;
 
-    if(sheet && sheet.error){
-      sub.textContent = 'The Google Sheet could not be read (' + sheet.error +
-        '), so these are the fallback figures from the code, not the sheet.';
-    } else if(sheet && !sheet.configured){
-      sub.textContent = 'Not connected to a Google Sheet yet — set ' +
-        (sheet.missing || []).join(', ') + ' to edit these figures in a spreadsheet instead.';
+    sub.textContent = 'Type in the grid. Formulas start with = · live Meta figures are in the ' +
+      'dropdown and recalculate on every refresh' +
+      (sheet && sheet.error ? ' · the connected Google Sheet could not be read (' + sheet.error + ')' : '') +
+      '.';
+
+    loadLedger(meta, metaKeys);
+  }
+
+  /* If the ledger cannot be loaded, the computed table is still worth showing:
+     it is built from the same live figures and needs no storage at all. */
+  function ledgerFallback(message){
+    $('fin-ss').hidden = true;
+    $('fin-table-wrap').hidden = false;
+    $('fin-table-sub').textContent = message +
+      ' Showing the computed figures instead — read-only, and nothing typed here is saved.';
+  }
+
+  /* ---------------------------------------------------------- ledger ------ */
+  /* The spreadsheet panel. Sheet (assets/spreadsheet.js) owns the formulas and
+     the model; everything here is selection, keyboard and paint.
+
+     The model holds only what was TYPED. Values are recalculated on every
+     render, so a figure on screen can never be older than the Meta data
+     underneath it — there is no cached value to go stale. */
+
+  var ledger = {
+    doc: null,          // the document as stored: cells, sizes, version
+    values: {},         // recalculated, never persisted
+    meta: {},           // the live namespace =META("...") reads
+    sel: { col: 0, row: 0 },
+    anchor: null,       // the other corner of a multi-cell selection
+    editing: null,      // { ref, input } while a cell is open
+    clip: null,         // { cells, origin } from our own copy
+    undo: [],
+    redo: [],
+    dirty: false,
+    saving: false,
+    saveError: null,
+    store: null,
+    loaded: false,
+  };
+
+  var LEDGER_MAX_UNDO = 60;
+
+  function ledgerRef(col, row) { return Sheet.key(col, row); }
+  function ledgerCell(ref) { return ledger.doc.cells[ref]; }
+
+  /* Every change goes through here, so undo never has to be remembered
+     separately at each call site — the one place that mutates is the one place
+     that records. */
+  function ledgerEdit(fn) {
+    ledger.undo.push(JSON.stringify({ cells: ledger.doc.cells, rows: ledger.doc.rows, cols: ledger.doc.cols }));
+    if (ledger.undo.length > LEDGER_MAX_UNDO) ledger.undo.shift();
+    ledger.redo.length = 0;
+    fn();
+    ledger.dirty = true;
+    renderLedger();
+    scheduleLedgerSave();
+  }
+
+  function ledgerRestore(from, to) {
+    if (!from.length) return;
+    to.push(JSON.stringify({ cells: ledger.doc.cells, rows: ledger.doc.rows, cols: ledger.doc.cols }));
+    var snap = JSON.parse(from.pop());
+    ledger.doc.cells = snap.cells;
+    ledger.doc.rows = snap.rows;
+    ledger.doc.cols = snap.cols;
+    ledger.dirty = true;
+    renderLedger();
+    scheduleLedgerSave();
+  }
+
+  /* ------------------------------------------------------- selection ------ */
+
+  function selBounds(){
+    var a = ledger.anchor || ledger.sel;
+    return {
+      c1: Math.min(a.col, ledger.sel.col), c2: Math.max(a.col, ledger.sel.col),
+      r1: Math.min(a.row, ledger.sel.row), r2: Math.max(a.row, ledger.sel.row)
+    };
+  }
+
+  function selectCell(col, row, extend){
+    col = Math.max(0, Math.min(ledger.doc.cols - 1, col));
+    row = Math.max(0, Math.min(ledger.doc.rows - 1, row));
+    if (extend) { if (!ledger.anchor) ledger.anchor = { col: ledger.sel.col, row: ledger.sel.row }; }
+    else ledger.anchor = null;
+    ledger.sel = { col: col, row: row };
+    paintSelection();
+    syncFormulaBar();
+    var td = ledgerTd(col, row);
+    if (td && td.scrollIntoView) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  function ledgerTd(col, row){
+    return $('ss-grid').querySelector('td[data-col="' + col + '"][data-row="' + row + '"]');
+  }
+
+  /* Repainting only the selection classes, not the whole grid. Rebuilding every
+     cell on an arrow key is what makes a grid feel heavy. */
+  function paintSelection(){
+    var b = selBounds();
+    var single = b.c1 === b.c2 && b.r1 === b.r2;
+    var cells = $('ss-grid').querySelectorAll('td');
+    for (var i = 0; i < cells.length; i++) {
+      var td = cells[i];
+      var c = +td.dataset.col, r = +td.dataset.row;
+      var inRange = c >= b.c1 && c <= b.c2 && r >= b.r1 && r <= b.r2;
+      var isSel = c === ledger.sel.col && r === ledger.sel.row;
+      td.classList.toggle('in-range', inRange && !single);
+      td.classList.toggle('is-sel', isSel);
+      if (isSel) td.setAttribute('aria-selected', 'true'); else td.removeAttribute('aria-selected');
+    }
+    updateSelectionSummary();
+  }
+
+  /* The status line that answers "what do these add up to" without making
+     someone type a formula to find out. */
+  function updateSelectionSummary(){
+    var b = selBounds();
+    var nums = [], count = 0;
+    for (var r = b.r1; r <= b.r2; r++) for (var c = b.c1; c <= b.c2; c++) {
+      var v = ledger.values[ledgerRef(c, r)];
+      if (v == null || v === '') continue;
+      count++;
+      if (typeof v === 'number') nums.push(v);
+    }
+    var el = $('ss-summary');
+    if (nums.length > 1) {
+      var sum = nums.reduce(function(a, x){ return a + x; }, 0);
+      el.textContent = 'Sum ' + money(sum) + ' · Average ' + money(sum / nums.length) + ' · Count ' + count;
+    } else if (count > 1) {
+      el.textContent = 'Count ' + count;
+    } else {
+      el.textContent = '';
     }
   }
 
+  function syncFormulaBar(){
+    var ref = ledgerRef(ledger.sel.col, ledger.sel.row);
+    $('ss-addr').textContent = ref;
+    if (!ledger.editing) $('ss-input').value = Sheet.editText(ledger.doc, ref);
+    var cell = ledgerCell(ref);
+    ['currency','percent','number','integer','text'].forEach(function(f){
+      var b = $('ss-fmt-' + f);
+      if (b) b.classList.toggle('is-on', !!cell && cell.fmt === f);
+    });
+  }
+
+  /* ---------------------------------------------------------- editing ----- */
+
+  function commitCell(ref, text){
+    if (Sheet.editText(ledger.doc, ref) === text) return;   // nothing changed
+    ledgerEdit(function(){ Sheet.setCell(ledger.doc, ref, text); });
+  }
+
+  function beginEdit(seed){
+    if (ledger.editing) return;
+    var ref = ledgerRef(ledger.sel.col, ledger.sel.row);
+    var td = ledgerTd(ledger.sel.col, ledger.sel.row);
+    if (!td) return;
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'ss-edit';
+    input.value = seed != null ? seed : Sheet.editText(ledger.doc, ref);
+    input.setAttribute('aria-label', 'Cell ' + ref);
+    td.innerHTML = '';
+    td.appendChild(input);
+    input.focus();
+    if (seed != null) input.setSelectionRange(input.value.length, input.value.length);
+    else input.select();
+
+    ledger.editing = { ref: ref, input: input };
+
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter')  { e.preventDefault(); endEdit(true);  selectCell(ledger.sel.col, ledger.sel.row + (e.shiftKey ? -1 : 1)); focusGrid(); }
+      else if (e.key === 'Tab') { e.preventDefault(); endEdit(true); selectCell(ledger.sel.col + (e.shiftKey ? -1 : 1), ledger.sel.row); focusGrid(); }
+      else if (e.key === 'Escape') { e.preventDefault(); endEdit(false); focusGrid(); }
+      e.stopPropagation();
+    });
+    input.addEventListener('input', function(){ $('ss-input').value = input.value; });
+    input.addEventListener('blur', function(){ if (ledger.editing) endEdit(true); });
+  }
+
+  function endEdit(keep){
+    if (!ledger.editing) return;
+    var ref = ledger.editing.ref, text = ledger.editing.input.value;
+    ledger.editing = null;
+    if (keep) commitCell(ref, text);
+    else renderLedger();
+    syncFormulaBar();
+  }
+
+  function focusGrid(){ $('ss-grid').focus(); }
+
+  /* ------------------------------------------------------------ paint ----- */
+
+  function renderLedger(){
+    if (!ledger.doc) return;
+    ledger.values = Sheet.recalc(ledger.doc, ledger.meta);
+
+    var doc = ledger.doc;
+    var table = $('ss-grid');
+    table.innerHTML = '';
+
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    var corner = document.createElement('th');
+    corner.className = 'ss-corner';
+    corner.scope = 'col';
+    corner.innerHTML = '<span class="sr-only">Row</span>';
+    hr.appendChild(corner);
+    for (var c = 0; c < doc.cols; c++) {
+      var th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = Sheet.indexToCol(c);
+      var w = doc.colWidths[Sheet.indexToCol(c)];
+      if (w) th.style.width = w + 'px';
+      hr.appendChild(th);
+    }
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    var tb = document.createElement('tbody');
+    for (var r = 0; r < doc.rows; r++) {
+      var tr = document.createElement('tr');
+      var rh = document.createElement('th');
+      rh.className = 'ss-rowhead';
+      rh.scope = 'row';
+      rh.textContent = String(r + 1);
+      tr.appendChild(rh);
+
+      for (var c2 = 0; c2 < doc.cols; c2++) {
+        var ref = ledgerRef(c2, r);
+        var cell = doc.cells[ref];
+        var v = ledger.values[ref];
+        var td = document.createElement('td');
+        td.dataset.col = c2;
+        td.dataset.row = r;
+        td.setAttribute('role', 'gridcell');
+
+        if (typeof v === 'number') td.className = 'is-num';
+        if (Sheet.isErr(v)) td.className = 'is-err';
+        if (cell && cell.f != null) td.classList.add('is-formula');
+
+        var span = document.createElement('span');
+        span.className = 'ss-cell';
+        span.textContent = Sheet.format(v, cell && cell.fmt);
+        // The tooltip is the only affordance a mouse user has for seeing the
+        // formula behind a figure without selecting the cell first.
+        if (cell && cell.f != null) span.title = cell.f;
+        td.appendChild(span);
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    table.appendChild(tb);
+
+    paintSelection();
+    syncFormulaBar();
+    paintSaveState();
+  }
+
+  function paintSaveState(){
+    var el = $('ss-save');
+    el.classList.remove('is-dirty', 'is-error');
+    if (ledger.saveError) { el.textContent = ledger.saveError; el.classList.add('is-error'); return; }
+    if (ledger.saving) { el.textContent = 'Saving…'; return; }
+    if (ledger.store && !ledger.store.configured) {
+      el.textContent = 'Not saved — no Blob store connected';
+      el.classList.add('is-dirty');
+      return;
+    }
+    if (ledger.dirty) { el.textContent = 'Unsaved changes'; el.classList.add('is-dirty'); return; }
+    el.textContent = ledger.doc && ledger.doc.updatedAt
+      ? 'Saved ' + new Date(ledger.doc.updatedAt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+      : 'Saved';
+  }
+
+  /* -------------------------------------------------------- persistence --- */
+
+  var ledgerSaveTimer = null;
+
+  function scheduleLedgerSave(){
+    paintSaveState();
+    if (ledger.store && !ledger.store.configured) return;
+    if (ledgerSaveTimer) clearTimeout(ledgerSaveTimer);
+    // Debounced: typing down a column should be one save, not fifteen.
+    ledgerSaveTimer = setTimeout(saveLedgerNow, 1200);
+  }
+
+  function saveLedgerNow(){
+    if (!ledger.doc || !ledger.dirty || ledger.saving) return Promise.resolve();
+    ledger.saving = true;
+    ledger.saveError = null;
+    paintSaveState();
+
+    var payload = {
+      doc: {
+        rows: ledger.doc.rows, cols: ledger.doc.cols,
+        cells: ledger.doc.cells, colWidths: ledger.doc.colWidths
+      },
+      baseVersion: ledger.doc.version
+    };
+
+    return fetch('/api/finance-ledger', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      return r.json().then(function(j){ return { ok: r.ok, status: r.status, j: j }; });
+    }).then(function(o){
+      ledger.saving = false;
+      if (o.ok) {
+        ledger.doc.version = o.j.doc.version;
+        ledger.doc.updatedAt = o.j.doc.updatedAt;
+        ledger.dirty = false;
+      } else if (o.status === 409) {
+        // Somebody else saved. Overwriting silently is the one outcome that
+        // loses work nobody can get back, so it stops and says so.
+        ledger.saveError = 'Saved elsewhere since you opened this. Reload to see that version.';
+      } else {
+        ledger.saveError = (o.j && o.j.message) || 'Could not save.';
+      }
+      paintSaveState();
+    }).catch(function(){
+      ledger.saving = false;
+      ledger.saveError = 'Could not reach the server to save.';
+      paintSaveState();
+    });
+  }
+
+  /* ------------------------------------------------------- clipboard ------ */
+
+  function selectionTSV(){
+    var b = selBounds();
+    var grid = [];
+    for (var r = b.r1; r <= b.r2; r++) {
+      var row = [];
+      for (var c = b.c1; c <= b.c2; c++) {
+        var v = ledger.values[ledgerRef(c, r)];
+        row.push(Sheet.isErr(v) ? v.err : (v == null ? '' : String(v)));
+      }
+      grid.push(row);
+    }
+    return Sheet.toTSV(grid);
+  }
+
+  function copySelection(e){
+    var b = selBounds();
+    var tsv = selectionTSV();
+    /* Our own cells are kept alongside the text, so an internal copy carries
+       formulas and formats while an external paste still gets plain values.
+       The text is kept too, so paste can tell whether the clipboard is still
+       ours or something else was copied in between. */
+    ledger.clip = { origin: { col: b.c1, row: b.r1 }, cells: {}, tsv: tsv };
+    for (var r = b.r1; r <= b.r2; r++) for (var c = b.c1; c <= b.c2; c++) {
+      var ref = ledgerRef(c, r);
+      if (ledger.doc.cells[ref]) {
+        ledger.clip.cells[(c - b.c1) + ',' + (r - b.r1)] = ledger.doc.cells[ref];
+      }
+    }
+    if (e && e.clipboardData) {
+      e.clipboardData.setData('text/plain', tsv);
+      e.preventDefault();
+    }
+  }
+
+  function pasteAt(text){
+    var grid = Sheet.fromTSV(text);
+    var base = { col: ledger.sel.col, row: ledger.sel.row };
+    var internal = !!(ledger.clip && ledger.clip.tsv === text);
+
+    ledgerEdit(function(){
+      for (var r = 0; r < grid.length; r++) {
+        for (var c = 0; c < grid[r].length; c++) {
+          var col = base.col + c, row = base.row + r;
+          if (col >= ledger.doc.cols || row >= ledger.doc.rows) continue;
+          var ref = ledgerRef(col, row);
+          var src = internal ? ledger.clip.cells[c + ',' + r] : null;
+
+          if (src && src.f != null) {
+            // A copied formula moves with the copy; anchored refs do not.
+            var dCol = col - (ledger.clip.origin.col + c);
+            var dRow = row - (ledger.clip.origin.row + r);
+            var out = { f: '=' + Sheet.offsetFormula(src.f.slice(1), dCol, dRow) };
+            if (src.fmt) out.fmt = src.fmt;
+            ledger.doc.cells[ref] = out;
+          } else if (src) {
+            ledger.doc.cells[ref] = JSON.parse(JSON.stringify(src));
+          } else {
+            Sheet.setCell(ledger.doc, ref, grid[r][c]);
+          }
+        }
+      }
+    });
+  }
+
+  function clearSelection(){
+    var b = selBounds();
+    ledgerEdit(function(){
+      for (var r = b.r1; r <= b.r2; r++) for (var c = b.c1; c <= b.c2; c++) {
+        Sheet.setCell(ledger.doc, ledgerRef(c, r), '');
+      }
+    });
+  }
+
+  /* ------------------------------------------------------- keyboard ------- */
+
+  /* Dragging extends the selection, which is how anyone builds a SUM range.
+     The handlers are module-level and re-registered rather than created per
+     mousedown: a mouseup that never arrives — pointer released outside the
+     window, or a synthetic event in a test — would otherwise leave a listener
+     calling elementFromPoint on every mouse move for the life of the page. */
+  function dragOver(ev){
+    var over = document.elementFromPoint(ev.clientX, ev.clientY);
+    var cell = over && over.closest ? over.closest('td') : null;
+    if (cell && cell.dataset.col !== undefined) selectCell(+cell.dataset.col, +cell.dataset.row, true);
+  }
+
+  function endDrag(){
+    document.removeEventListener('mousemove', dragOver);
+    document.removeEventListener('mouseup', endDrag);
+  }
+
+  function startDrag(){
+    endDrag();                       // never stack a second pair
+    document.addEventListener('mousemove', dragOver);
+    document.addEventListener('mouseup', endDrag);
+  }
+
+  function ledgerKeydown(e){
+    if (ledger.editing) return;
+    var k = e.key;
+    var mod = e.ctrlKey || e.metaKey;
+
+    if (mod && (k === 'z' || k === 'Z')) {
+      e.preventDefault();
+      if (e.shiftKey) ledgerRestore(ledger.redo, ledger.undo);
+      else ledgerRestore(ledger.undo, ledger.redo);
+      return;
+    }
+    if (mod && (k === 'y' || k === 'Y')) { e.preventDefault(); ledgerRestore(ledger.redo, ledger.undo); return; }
+    if (mod && (k === 's' || k === 'S')) { e.preventDefault(); saveLedgerNow(); return; }
+    if (mod && (k === 'a' || k === 'A')) {
+      e.preventDefault();
+      ledger.anchor = { col: 0, row: 0 };
+      ledger.sel = { col: ledger.doc.cols - 1, row: ledger.doc.rows - 1 };
+      paintSelection();
+      return;
+    }
+    if (mod && (k === 'c' || k === 'v' || k === 'x')) return;   // let the copy/paste events run
+
+    var jump = mod ? 1000 : 1;
+    switch (k) {
+      case 'ArrowUp':    e.preventDefault(); selectCell(ledger.sel.col, ledger.sel.row - jump, e.shiftKey); return;
+      case 'ArrowDown':  e.preventDefault(); selectCell(ledger.sel.col, ledger.sel.row + jump, e.shiftKey); return;
+      case 'ArrowLeft':  e.preventDefault(); selectCell(ledger.sel.col - jump, ledger.sel.row, e.shiftKey); return;
+      case 'ArrowRight': e.preventDefault(); selectCell(ledger.sel.col + jump, ledger.sel.row, e.shiftKey); return;
+      case 'Home':       e.preventDefault(); selectCell(0, mod ? 0 : ledger.sel.row, e.shiftKey); return;
+      case 'End':        e.preventDefault(); selectCell(ledger.doc.cols - 1, mod ? ledger.doc.rows - 1 : ledger.sel.row, e.shiftKey); return;
+      case 'PageDown':   e.preventDefault(); selectCell(ledger.sel.col, ledger.sel.row + 15, e.shiftKey); return;
+      case 'PageUp':     e.preventDefault(); selectCell(ledger.sel.col, ledger.sel.row - 15, e.shiftKey); return;
+      case 'Tab':        e.preventDefault(); selectCell(ledger.sel.col + (e.shiftKey ? -1 : 1), ledger.sel.row); return;
+      case 'Enter':      e.preventDefault(); beginEdit(); return;
+      case 'F2':         e.preventDefault(); beginEdit(); return;
+      case 'Backspace':
+      case 'Delete':     e.preventDefault(); clearSelection(); return;
+      case 'Escape':     ledger.anchor = null; paintSelection(); return;
+    }
+
+    // Typing over a cell replaces it, as every spreadsheet does. Modifier
+    // combinations are left alone so browser shortcuts still work.
+    if (!mod && !e.altKey && k.length === 1) {
+      e.preventDefault();
+      beginEdit(k);
+    }
+  }
+
+  /* ------------------------------------------------------------ boot ------ */
+
+  function bootLedger(){
+    ['currency','percent','number','integer','text'].forEach(function(f){
+      var b = $('ss-fmt-' + f);
+      if (!b) return;
+      b.addEventListener('click', function(){
+        var bd = selBounds();
+        ledgerEdit(function(){
+          for (var r = bd.r1; r <= bd.r2; r++) for (var c = bd.c1; c <= bd.c2; c++) {
+            var ref = ledgerRef(c, r);
+            var cur = ledger.doc.cells[ref];
+            Sheet.setFormat(ledger.doc, ref, (cur && cur.fmt === f) ? null : f);
+          }
+        });
+      });
+    });
+
+    $('ss-row-add').addEventListener('click', function(){
+      ledgerEdit(function(){ Sheet.insertRow(ledger.doc, ledger.sel.row); });
+    });
+    $('ss-row-del').addEventListener('click', function(){
+      ledgerEdit(function(){ Sheet.deleteRow(ledger.doc, ledger.sel.row); });
+    });
+    $('ss-col-add').addEventListener('click', function(){
+      ledgerEdit(function(){ Sheet.insertCol(ledger.doc, ledger.sel.col); });
+    });
+    $('ss-col-del').addEventListener('click', function(){
+      ledgerEdit(function(){ Sheet.deleteCol(ledger.doc, ledger.sel.col); });
+    });
+
+    $('ss-undo').addEventListener('click', function(){ ledgerRestore(ledger.undo, ledger.redo); });
+    $('ss-redo').addEventListener('click', function(){ ledgerRestore(ledger.redo, ledger.undo); });
+
+    $('ss-csv').addEventListener('click', function(){
+      var csv = Sheet.toCSV(ledger.doc, ledger.values);
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'peps-by-dave-finances.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    });
+
+    /* Live figures are only useful if you can find out what they are called.
+       A dropdown of the real keys beats documenting them somewhere else. */
+    $('ss-meta').addEventListener('change', function(){
+      if (!this.value) return;
+      commitCell(ledgerRef(ledger.sel.col, ledger.sel.row), '=META("' + this.value + '")');
+      this.value = '';
+      focusGrid();
+    });
+
+    var input = $('ss-input');
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitCell(ledgerRef(ledger.sel.col, ledger.sel.row), input.value);
+        selectCell(ledger.sel.col, ledger.sel.row + 1);
+        focusGrid();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        syncFormulaBar();
+        focusGrid();
+      }
+    });
+
+    var grid = $('ss-grid');
+    grid.addEventListener('keydown', ledgerKeydown);
+    grid.addEventListener('mousedown', function(e){
+      var td = e.target.closest('td');
+      if (!td) return;
+      if (ledger.editing) endEdit(true);
+      selectCell(+td.dataset.col, +td.dataset.row, e.shiftKey);
+      focusGrid();
+      startDrag();
+    });
+    grid.addEventListener('dblclick', function(e){
+      if (e.target.closest('td')) beginEdit();
+    });
+
+    grid.addEventListener('copy', copySelection);
+    grid.addEventListener('cut', function(e){ copySelection(e); clearSelection(); });
+    grid.addEventListener('paste', function(e){
+      var text = e.clipboardData && e.clipboardData.getData('text/plain');
+      if (text == null) return;
+      e.preventDefault();
+      pasteAt(text);
+    });
+
+    // Losing typed figures to a stray tab close is worth one prompt. The
+    // debounce is short, so this only fires while a save is genuinely pending.
+    window.addEventListener('beforeunload', function(e){
+      if (!ledger.dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  }
+
+  function loadLedger(meta, metaKeys){
+    ledger.meta = meta || {};
+
+    if (metaKeys && metaKeys.length) {
+      var sel = $('ss-meta');
+      sel.innerHTML = '';
+      var first = document.createElement('option');
+      first.value = '';
+      first.textContent = 'Insert a live figure…';
+      sel.appendChild(first);
+      metaKeys.forEach(function(k){
+        var o = document.createElement('option');
+        o.value = k;
+        o.textContent = k;
+        sel.appendChild(o);
+      });
+    }
+
+    // Already loaded: repaint against the new live figures rather than
+    // re-fetching and throwing away anything half-typed.
+    if (ledger.loaded) { renderLedger(); return Promise.resolve(); }
+
+    return fetch('/api/finance-ledger')
+      .then(function(r){
+        return r.json().then(function(j){
+          if (!r.ok) throw new Error(j.message || 'Could not load the sheet.');
+          return j;
+        });
+      })
+      .then(function(j){
+        ledger.doc = j.doc;
+        ledger.doc.colWidths = ledger.doc.colWidths || {};
+        ledger.store = j.store;
+        ledger.loaded = true;
+        bootLedger();
+        renderLedger();
+      })
+      .catch(function(e){
+        ledgerFallback(e.message || 'The spreadsheet could not be loaded.');
+      });
+  }
   /* buildTable sets textContent, which is right everywhere else on this page.
      These rows carry source tags and signed, coloured figures, so they need
      markup — the cell strings are built here and are never user input. */

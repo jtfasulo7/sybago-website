@@ -16,6 +16,7 @@
 
 import { handleUpload } from '@vercel/blob/client';
 import { readSession, noStore } from '../lib/auth.js';
+import { findBlobToken, blobVarsPresent } from '../lib/blob-token.js';
 
 const MAX_BYTES = 512 * 1024 * 1024; // 512 MB — well past any sane Reel.
 
@@ -25,42 +26,6 @@ const ALLOWED = [
   'video/x-m4v',
   'video/webm',
 ];
-
-/**
- * Find the Blob read-write token whatever Vercel decided to call it.
- *
- * The connection dialog offers a custom variable prefix, so the name is not
- * guaranteed to be BLOB_READ_WRITE_TOKEN — which is the only name the SDK looks
- * for on its own. Rather than depend on someone having left the prefix alone,
- * the value is identified by its shape: Vercel read-write tokens all begin
- * vercel_blob_rw_.
- *
- * Checked by name first so the ordinary setup costs nothing, then by value.
- * Only the NAME is ever reported anywhere; the value goes straight to the SDK.
- */
-const TOKEN_PREFIX = 'vercel_blob_rw_';
-
-function findBlobToken(env = process.env) {
-  if (String(env.BLOB_READ_WRITE_TOKEN || '').startsWith(TOKEN_PREFIX)) {
-    return { name: 'BLOB_READ_WRITE_TOKEN', token: env.BLOB_READ_WRITE_TOKEN };
-  }
-  for (const [name, value] of Object.entries(env)) {
-    if (typeof value === 'string' && value.startsWith(TOKEN_PREFIX)) {
-      return { name, token: value };
-    }
-  }
-  // A token that is set but malformed is worth separating from one that is
-  // absent — the fixes are different.
-  if (env.BLOB_READ_WRITE_TOKEN) {
-    return { name: 'BLOB_READ_WRITE_TOKEN', token: env.BLOB_READ_WRITE_TOKEN, unrecognised: true };
-  }
-  return null;
-}
-
-/** Names that exist but are not the read-write token, to say what WAS found. */
-function blobVarsPresent(env = process.env) {
-  return Object.keys(env).filter((k) => /BLOB/i.test(k));
-}
 
 export default async function handler(req, res) {
   noStore(res);
