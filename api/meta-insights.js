@@ -604,8 +604,21 @@ export default async function handler(req, res) {
   // nothing is wrong. date_preset=today is evaluated in the ad account's own
   // timezone, which is also the timezone Ads Manager reports in.
   const useToday = req.query.preset === 'today';
+
+  /* Lifetime is Meta's own `maximum` preset rather than a date range we invent.
+     Asking for "since the beginning" by guessing a start date means guessing:
+     too early and every chart carries months of empty axis, too late and the
+     first weeks of the account silently vanish. `maximum` is resolved by Meta
+     against what the account actually has — capped by Meta at 37 months, which
+     is why the response reports the window it really used. */
+  const useMaximum = req.query.preset === 'maximum';
+
   const time_range = { since, until };
-  const period = useToday ? { date_preset: 'today' } : { time_range };
+  const period = useToday
+    ? { date_preset: 'today' }
+    : useMaximum
+      ? { date_preset: 'maximum' }
+      : { time_range };
 
   // Hourly is a BREAKDOWN, not a finer time_increment: asking for
   // time_increment=1 across a single day returns one row for that day, not
@@ -812,6 +825,18 @@ export default async function handler(req, res) {
         return hourly ? (a.hour ?? 0) - (b.hour ?? 0) : a.dateStart < b.dateStart ? -1 : 1;
       });
 
+    /* What the range ACTUALLY was.
+       For a preset, Meta resolved the window, not us — the since/until computed
+       from the caller's clock is a placeholder that would be wrong. The client
+       builds its x-axis from this, so handing back the placeholder would draw an
+       axis that does not match the data sitting on it: for lifetime, months of
+       empty leading axis, or a chart that silently starts after the account did.
+       Read back off the rows Meta returned. */
+    const dates = daily.map((r) => r.dateStart).filter(Boolean).sort();
+    const resolved = (useToday || useMaximum) && dates.length
+      ? { since: dates[0], until: dates[dates.length - 1] }
+      : { since, until };
+
     // Totals are summed from the daily series rather than the breakdown, so the
     // headline numbers stay correct regardless of which level is selected.
     // Each metric is summed only against itself. Nothing is combined across
@@ -898,7 +923,12 @@ export default async function handler(req, res) {
       account: accountId,
       apiVersion: API_VERSION,
       level,
-      range: { since, until },
+      range: resolved,
+      // What was asked for, alongside what it resolved to — a lifetime range
+      // that came back as three days means the account is three days old, not
+      // that something failed.
+      rangePreset: useMaximum ? 'maximum' : useToday ? 'today' : null,
+      requestedRange: { since, until },
       scope: {
         campaignId: scope.campaignId || null,
         adsetId: scope.adsetId || null,

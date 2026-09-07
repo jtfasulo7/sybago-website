@@ -931,6 +931,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           <button type="button" data-days="14" aria-pressed="false">14d</button>
           <button type="button" data-days="30" aria-pressed="false">30d</button>
           <button type="button" data-days="90" aria-pressed="false">90d</button>
+          <button type="button" data-days="max" aria-pressed="false">Lifetime</button>
           <button type="button" data-days="custom" aria-pressed="false">Custom</button>
         </div>
       </div>
@@ -978,6 +979,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <button type="button" data-days="14">14d</button>
         <button type="button" data-days="30">30d</button>
         <button type="button" data-days="90">90d</button>
+        <button type="button" data-days="max">Lifetime</button>
       </div>
       <div class="sb-scope" id="sb-scope">
         <select id="sb-campaign" aria-label="Campaign, sticky bar"></select>
@@ -1391,18 +1393,32 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      midnight in the ad account's timezone is normal rather than a fault. */
   var globalRange = { mode:'preset', days:0 };
 
+  /* Lifetime has no start date we can compute — that is the point of it. The
+     server asks Meta for date_preset=maximum and reports back the window Meta
+     actually had data for, which is what the axis is then built from. The
+     placeholder below only exists so the request is well-formed; nothing draws
+     from it. */
+  function isLifetime(r) {
+    var rr = (!r || r.mode === 'global') ? globalRange : r;
+    return rr && rr.mode === 'preset' && rr.days === 'max';
+  }
+
   function resolveRange(r) {
     if (!r || r.mode === 'global') return resolveRange(globalRange);
     if (r.mode === 'custom' && r.since && r.until) return { since:r.since, until:r.until };
     // Today is a single day, so since and until are both today. Anything
     // else counts back from today inclusive.
     if (r.days === 0) return { since: daysAgo(0), until: daysAgo(0) };
+    // Meta caps its own maximum preset at 37 months; the placeholder matches so
+    // a stray read of it can never claim a wider window than exists.
+    if (r.days === 'max') return { since: daysAgo(1125), until: daysAgo(0) };
     var d = r.days || 30;
     return { since: daysAgo(d - 1), until: daysAgo(0) };
   }
 
   var RANGE_OPTS = [
     { v:'global', t:'Match global' },
+    { v:'max', t:'Lifetime' },
     { v:'7',   t:'Last 7 days'    },
     { v:'14',  t:'Last 14 days'   },
     { v:'30',  t:'Last 30 days'   },
@@ -1813,6 +1829,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var v=el.value;
     if(v==='global') return {mode:'global'};
     if(v==='custom') return {mode:'custom',since:$('since').value,until:$('until').value};
+    if(v === 'max') return {mode:'preset',days:'max'};
     return {mode:'preset',days:Number(v)};
   }
 
@@ -1981,7 +1998,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     b.addEventListener('click', function(){
       Array.prototype.forEach.call($('range-seg').querySelectorAll('button'), function(o){ o.setAttribute('aria-pressed', String(o===b)); });
       if(b.dataset.days==='custom'){ setCustomVisible(true); $('since').focus(); }
-      else { globalRange={mode:'preset',days:Number(b.dataset.days)}; setCustomVisible(false); syncStickyBar(); refreshAll(); }
+      else {
+        var d = b.dataset.days;
+        globalRange = { mode:'preset', days: d === 'max' ? 'max' : Number(d) };
+        setCustomVisible(false); syncStickyBar(); refreshAll();
+      }
     });
   });
   ['since','until'].forEach(function(id){
@@ -2049,7 +2070,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       level:level, since:r.since, until:r.until,
       campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
       hourly: isSingleDay(panelRange),
-      preset: isToday(panelRange) ? 'today' : '',
+      preset: isToday(panelRange) ? 'today' : isLifetime(panelRange) ? 'maximum' : '',
     });
   }
 
@@ -2428,7 +2449,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       } else {
         var byDate = {};
         (d.daily || []).forEach(function(x){ byDate[x.dateStart] = x; });
-        days = eachDay(range.since, range.until).map(function(iso){
+        /* For a preset the SERVER decided the window, so the spine comes from
+           the response. Building it from the local range instead would draw an
+           axis that does not match the data on it — for lifetime, months of
+           empty leading axis before the account existed. */
+        var spine = (d.rangePreset && d.range) ? d.range : range;
+        days = eachDay(spine.since, spine.until).map(function(iso){
           return byDate[iso] || { dateStart:iso, __empty:true };
         });
         labels = days.map(function(x){ return fmtDate(x.dateStart); });
@@ -2898,7 +2924,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return fetchInsights({
       level:'campaign', since:r.since, until:r.until,
       campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
-      preset: isToday(globalRange) ? 'today' : '',
+      preset: isToday(globalRange) ? 'today' : isLifetime(globalRange) ? 'maximum' : '',
     })
       .then(function(d){
         state.campaigns=d.campaigns||[];
@@ -2950,8 +2976,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         renderedView = state.view;
         return Promise.all([renderTimeSeries(), renderBar(), renderTable(), renderGeo()]).then(function(){
-          var when=new Date(d.fetchedAt).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-          $('status').textContent='Showing '+d.range.since+' to '+d.range.until+'. Total spend '+money(d.totals.spend)+'. Updated '+when+'.';
+          /* A missing or unparseable timestamp renders as "Invalid Date",
+             which reads as a fault in the DATA rather than in the clock. Say
+             nothing about freshness instead of saying something wrong. */
+          var stamp = new Date(d.fetchedAt);
+          var when = isNaN(stamp.getTime()) ? ''
+            : ' Updated ' + stamp.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) + '.';
+          $('status').textContent = 'Showing '+d.range.since+' to '+d.range.until+
+            '. Total spend '+money(d.totals.spend)+'.'+when;
         });
       })
       .catch(function(e){
@@ -4277,6 +4309,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(sp.adsetId) qs.set('adsetId', sp.adsetId);
     if(sp.adIds) qs.set('adIds', sp.adIds);
     if(isToday({mode:'global'})) qs.set('preset','today');
+    else if(isLifetime({mode:'global'})) qs.set('preset','maximum');
 
     $('geo-desc').textContent = m.label + ' by country and region.';
 

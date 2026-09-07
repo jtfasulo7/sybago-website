@@ -427,6 +427,24 @@ range uses. There is no minute-level ad reporting to build on; do not go looking
 - Meta lags real time by up to about an hour, so an empty Today shortly after midnight is
   normal, not a bug.
 
+**Lifetime is Meta's `date_preset=maximum`, not a start date we invent.** Guessing a start
+means guessing wrong in one of two ways: too early and every chart carries months of empty
+leading axis, too late and the account's first weeks silently vanish. Meta resolves it against
+what the account actually has, capped at 37 months.
+
+- The response therefore reports **`range` as what Meta resolved**, `requestedRange` as what
+  was asked for, and `rangePreset` naming which preset was in play. For a preset the client
+  builds its x-axis from `range`, not from its own arithmetic — otherwise the axis and the data
+  sitting on it disagree.
+- A lifetime range that comes back three days wide means the account is three days old. That is
+  an answer, not a failure.
+- `days` on a range is a NUMBER for the day presets and the STRING `'max'` for lifetime.
+  `Number('max')` is `NaN`, which `|| 30` would silently turn into a 30-day window — so every
+  path that reads it checks for `'max'` first.
+
+**A missing timestamp prints nothing, not "Invalid Date".** An unparseable `fetchedAt` rendered
+as "Invalid Date" reads as a fault in the data rather than in the clock.
+
 **Known upstream caveats surfaced in the UI**
 
 - Meta conversion values under-report for some date ranges and attribution keeps filling
