@@ -723,6 +723,89 @@ t('branded content is fine at a wider audience', () =>
   });
 }
 
+
+/* --------------------------------------------------- the video proxy ----- */
+console.log('\nThe video proxy');
+
+const vp = await import('../lib/social/video-proxy.js');
+const VP_ENV = { DASHBOARD_SESSION_SECRET: 's'.repeat(40) };
+const VP_BLOB = 'https://abc123.public.blob.vercel-storage.com/social/clip-xyz.mp4';
+
+t('a blob URL is signed onto our own origin', () => {
+  const u = new URL(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', VP_ENV));
+  assert.equal(u.origin, 'https://sybago.ai');
+  assert.equal(u.pathname, '/api/video');
+  assert.ok(u.searchParams.get('s'), 'no signature');
+});
+
+t('a signed URL resolves back to the same blob', () => {
+  const u = new URL(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', VP_ENV));
+  const got = vp.resolveSignedVideo(Object.fromEntries(u.searchParams), VP_ENV);
+  assert.equal(got.ok, true);
+  assert.equal(got.url, VP_BLOB);
+});
+
+{
+  /* THE BUG THIS GUARDS: the endpoint has to be public, because TikTok's
+     servers fetch it with no session. Unsigned, it is an open relay — anyone
+     could have our own domain serve any object in the store. */
+  const u = new URL(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', VP_ENV));
+  const q = Object.fromEntries(u.searchParams);
+
+  t('a missing signature is refused', () =>
+    assert.equal(vp.resolveSignedVideo({ k: q.k, e: q.e }, VP_ENV).status, 400));
+  t('a forged signature is refused', () =>
+    assert.equal(vp.resolveSignedVideo({ ...q, s: 'x'.repeat(43) }, VP_ENV).status, 403));
+  t('a signature from another secret is refused', () => {
+    const other = vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', { DASHBOARD_SESSION_SECRET: 'z'.repeat(40) });
+    const oq = Object.fromEntries(new URL(other).searchParams);
+    assert.equal(vp.resolveSignedVideo(oq, VP_ENV).status, 403);
+  });
+  t('tampering with the target invalidates the link', () => {
+    const evil = Buffer.from('evil.example.com/secret.mp4', 'utf8').toString('base64url');
+    assert.equal(vp.resolveSignedVideo({ ...q, k: evil }, VP_ENV).status, 403);
+  });
+  t('an expired link is gone, not merely refused', () => {
+    const later = Date.now() + 7 * 60 * 60 * 1000;
+    assert.equal(vp.resolveSignedVideo(q, VP_ENV, later).status, 410);
+  });
+}
+
+t('the host is signed as well as the path', () => {
+  // The store id lives in the hostname. Signing the path alone would let one
+  // signature serve the same filename out of somebody else's store.
+  const a = new URL(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', VP_ENV));
+  const b = new URL(vp.signVideoUrl(
+    'https://OTHER.public.blob.vercel-storage.com/social/clip-xyz.mp4', 'https://sybago.ai', VP_ENV));
+  assert.notEqual(a.searchParams.get('k'), b.searchParams.get('k'));
+  assert.notEqual(a.searchParams.get('s'), b.searchParams.get('s'));
+});
+
+t('only our own storage can be signed at all', () => {
+  assert.equal(vp.signVideoUrl('https://evil.example.com/x.mp4', 'https://sybago.ai', VP_ENV), null);
+  assert.equal(vp.signVideoUrl('http://abc.public.blob.vercel-storage.com/x.mp4', 'https://sybago.ai', VP_ENV), null);
+  assert.equal(vp.signVideoUrl('not a url', 'https://sybago.ai', VP_ENV), null);
+});
+
+t('traversal cannot escape the pinned host', () => {
+  /* URL parsing normalises ../.. away before any check of ours runs, so the
+     property worth asserting is not that the string is rejected — it is that
+     whatever survives is still on OUR storage host, where there is no
+     filesystem to walk out of. */
+  const got = vp.blobPathFromUrl('https://a.public.blob.vercel-storage.com/../../etc/passwd');
+  assert.equal(got.host, 'a.public.blob.vercel-storage.com');
+  assert.equal(got.path, 'etc/passwd');
+});
+t('an ENCODED traversal is refused, since parsing leaves that one intact', () =>
+  assert.equal(vp.blobPathFromUrl('https://a.public.blob.vercel-storage.com/..%2F..%2Fetc'), null));
+t('a host that only looks like ours is refused', () => {
+  assert.equal(vp.blobPathFromUrl('https://blob.vercel-storage.com.evil.example/x.mp4'), null);
+  assert.equal(vp.blobPathFromUrl('https://evil.example/blob.vercel-storage.com/x.mp4'), null);
+});
+
+t('no secret means no signing, rather than an unsigned link', () =>
+  assert.equal(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', {}), null));
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 
 process.exit(fail ? 1 : 0);

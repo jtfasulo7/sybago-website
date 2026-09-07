@@ -13,6 +13,7 @@ import { requireSession, noStore } from '../lib/auth.js';
 import { PLATFORMS, PLATFORM_IDS, isConfigured, missingEnv, platformStatus } from '../lib/social/platforms.js';
 import { ADAPTERS } from '../lib/social/adapters.js';
 import { tiktokCreatorInfo } from '../lib/social/adapters.js';
+import { signVideoUrl } from '../lib/social/video-proxy.js';
 import { getValidToken } from '../lib/social/tiktok-auth.js';
 
 /** Credentials must never appear in a response, whatever a platform echoes. */
@@ -120,9 +121,21 @@ export default async function handler(req, res) {
   const settled = await Promise.all(
     requested.map(async (id) => {
       try {
+        /* TikTok fetches the file itself and refuses any host that is not
+           verified in its developer portal — which a Blob hostname can never
+           be. It is handed a signed link on our own domain instead. Meta and
+           YouTube have no such rule, so their path is left alone rather than
+           routed through a function for no reason. */
+        let deliverUrl = video.url;
+        if (id === 'tiktok') {
+          const origin = process.env.PUBLIC_ORIGIN
+            || (req.headers['x-forwarded-host'] ? `https://${req.headers['x-forwarded-host']}` : 'https://sybago.ai');
+          deliverUrl = signVideoUrl(video.url, origin) || video.url;
+        }
+
         const out = await ADAPTERS[id](
           {
-            videoUrl: video.url,
+            videoUrl: deliverUrl,
             caption: posts[id].caption.trim(),
             hashtags: posts[id].hashtags || [],
             title: posts[id].title || '',
