@@ -571,6 +571,34 @@ Instagram ids and check which scopes a token actually holds.
   - **The success leg redirects to `/dashboard?tiktok=connected`**, and the page opens
     that tab and strips the marker. The failure legs stay on their own page: a message that
     vanishes into a redirect is a message nobody reads.
+
+  **The panel asks nothing — deliberately, and against TikTok's UX guidelines.** It was an
+  audience selector, three interaction toggles and a commercial-disclosure block. It is now two
+  lines of text: who is being posted to and at what visibility, then the required declaration.
+  Only the caption box remains as an input. **This was an explicit product decision, taken
+  knowing the cost** — TikTok's Content Sharing guidelines require the creator to pick the
+  audience with no default, and a reviewer who sees no picker may reject the submission. If the
+  app is rejected on UX grounds, this is the first thing to restore; the removed markup is one
+  commit back.
+
+  What did NOT change, and must not:
+
+  - **The privacy level is still `mostPublicLevel(j.privacyOptions)`, never a hardcoded
+    string.** "Locked to Everyone" is not implementable today: an unaudited app is offered only
+    `SELF_ONLY`, so sending `PUBLIC_TO_EVERYONE` fails `validateTikTokOptions` and nothing
+    posts. Reading TikTok's own list means the panel says SELF_ONLY now and resolves to Everyone
+    by itself the day the audit lands — with no edit, and no window where it silently posts
+    somewhere unintended.
+  - **The interaction toggles track the account** (`allowComment = !j.commentDisabled`), rather
+    than asserting `true`. A creator who has switched comments off in TikTok cannot have them
+    switched back on from here; sending `true` over their own setting is refused by the API.
+  - **The server-side check is untouched.** `validateTikTokOptions` still demands a privacy
+    level that is actually in the allowed list. The client settling the value instead of asking
+    for it does not make the backstop redundant — it is the only thing standing between a bad
+    resolve and a rejected post.
+  - **The visibility is stated in the panel**, leading the line, because "posted" for a video
+    only the account holder can see is the half-truth that costs weeks of waiting on engagement
+    that cannot arrive.
 - **YouTube** forces uploads to private until Google verifies the project, and an upload
   costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
 - **Instagram** caps publishing at 25 per account per rolling day.

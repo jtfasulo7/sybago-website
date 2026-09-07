@@ -427,30 +427,18 @@ table.ss-grid:not(:focus-within) td.in-range { background:rgba(var(--accent-rgb)
 tr.fin-total > * { border-top:2px solid var(--hairline); font-weight:800; }
 
 /* ------------------------------------------------------ tiktok panel ---- */
-/* Every control here is required by TikTok's Content Sharing UX guidelines.
-   Their audit rejects an app whose interface picks the audience for the
-   creator, defaults the interaction toggles on, or omits the disclosure. */
+/* The panel states two things and asks nothing: who is being posted to and at
+   what visibility, then the declaration TikTok requires beside the button.
+   The audience and the interaction toggles are read off the account instead of
+   offered — see loadTiktokCreator for what that costs. */
 .tk { margin-top:.9rem; padding:.9rem 1rem; border:1px solid var(--hairline);
   border-radius:var(--r-sm); background:var(--surface); }
 .tk[hidden] { display:none; }
 .tk-who { font-size:.8rem; color:var(--t2); margin-bottom:.7rem; }
 .tk-who b { color:var(--t1); }
-.tk-row { margin-bottom:.7rem; }
-.tk-lbl { display:block; font-size:.7rem; font-weight:700; letter-spacing:.08em;
-  text-transform:uppercase; color:var(--t3); margin-bottom:.3rem; }
-.tk select { max-width:22rem; }
-.tk-checks { display:flex; flex-wrap:wrap; gap:.5rem 1.1rem; }
-.tk-check { display:inline-flex; align-items:center; gap:.4rem; font-size:.85rem; color:var(--t2); }
-.tk-check input { width:16px; height:16px; min-height:0; accent-color:var(--accent); }
-/* A greyed box is how the creator learns the limit is theirs, set in TikTok,
-   rather than something this page decided. */
-.tk-check.is-off { opacity:.45; cursor:not-allowed; }
-.tk-note { font-size:.78rem; color:var(--t3); margin-top:.3rem; }
-.tk-label-preview { font-size:.78rem; color:var(--warn-text); margin-top:.35rem; }
 .tk-consent { font-size:.78rem; color:var(--t2); line-height:1.5;
   padding-top:.7rem; border-top:1px solid var(--hairline); margin-top:.2rem; }
 .tk-consent a { color:var(--accent-d); }
-.tk-blocked { font-size:.78rem; color:var(--neg); margin-top:.4rem; }
 .tk-connect { text-align:center; padding:.4rem 0 .2rem; }
 .tk-connect-msg { font-size:.85rem; color:var(--t2); margin:0 0 .8rem; }
 .tk-connect-note { font-size:.76rem; color:var(--t3); margin:.7rem 0 0; }
@@ -5233,34 +5221,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var wrap = document.createElement('div');
     wrap.className = 'tk';
     wrap.id = 'tk-panel';
+    /* No controls. The audience and the interaction toggles are settled from
+       the account itself (see loadTiktokCreator), so what remains is who is
+       being posted to and the declaration TikTok requires beside the button. */
     wrap.innerHTML =
       '<p class="tk-who" id="tk-who">Checking the account…</p>' +
-
-      '<div class="tk-row">' +
-        '<label class="tk-lbl" for="tk-privacy">Who can see this video</label>' +
-        '<select id="tk-privacy"><option value="">Choose an audience…</option></select>' +
-        '<p class="tk-blocked" id="tk-privacy-note" hidden></p>' +
-      '</div>' +
-
-      '<div class="tk-row">' +
-        '<span class="tk-lbl">Allow</span>' +
-        '<div class="tk-checks">' +
-          '<label class="tk-check" id="tk-comment-l"><input type="checkbox" id="tk-comment"> Comments</label>' +
-          '<label class="tk-check" id="tk-duet-l"><input type="checkbox" id="tk-duet"> Duet</label>' +
-          '<label class="tk-check" id="tk-stitch-l"><input type="checkbox" id="tk-stitch"> Stitch</label>' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="tk-row">' +
-        '<label class="tk-check"><input type="checkbox" id="tk-commercial"> Disclose commercial content</label>' +
-        '<p class="tk-note">Turn this on if the video promotes a brand, product or service.</p>' +
-        '<div class="tk-checks" id="tk-commercial-opts" style="margin-top:.5rem" hidden>' +
-          '<label class="tk-check"><input type="checkbox" id="tk-brand-organic"> Your brand</label>' +
-          '<label class="tk-check"><input type="checkbox" id="tk-branded"> Branded content</label>' +
-        '</div>' +
-        '<p class="tk-label-preview" id="tk-label" hidden></p>' +
-      '</div>' +
-
       '<p class="tk-consent" id="tk-consent"></p>';
 
     // Built before it is in the document, so the listeners are attached here
@@ -5271,28 +5236,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function bootTiktokPanel(){
     if(!$('tk-panel')) return;
-
-    $('tk-privacy').addEventListener('change', function(){
-      tiktok.privacyLevel = this.value;
-      renderTiktokPanel();
-    });
-    ['comment','duet','stitch'].forEach(function(k){
-      var key = 'allow' + k.charAt(0).toUpperCase() + k.slice(1);
-      $('tk-' + k).addEventListener('change', function(){ tiktok[key] = this.checked; updatePostButton(); });
-    });
-    $('tk-commercial').addEventListener('change', function(){
-      tiktok.commercial = this.checked;
-      if(!this.checked){ tiktok.brandOrganic = false; tiktok.brandedContent = false; }
-      renderTiktokPanel();
-    });
-    $('tk-brand-organic').addEventListener('change', function(){
-      tiktok.brandOrganic = this.checked; renderTiktokPanel();
-    });
-    $('tk-branded').addEventListener('change', function(){
-      tiktok.brandedContent = this.checked; renderTiktokPanel();
-    });
-
     loadTiktokCreator();
+  }
+
+  /* The most public audience TikTok says is available for THIS account.
+     Descending, and the list is always TikTok's rather than ours: an unaudited
+     app is only ever offered SELF_ONLY, so naming PUBLIC_TO_EVERYONE outright
+     would have every post rejected at init with nothing to read. This resolves
+     to Everyone on its own the moment the audit lands — no edit needed. */
+  function mostPublicLevel(options){
+    var order = ['PUBLIC_TO_EVERYONE','MUTUAL_FOLLOW_FRIENDS','FOLLOWER_OF_CREATOR','SELF_ONLY'];
+    for(var i=0;i<order.length;i++){ if(options.indexOf(order[i]) !== -1) return order[i]; }
+    return options[0] || '';
   }
 
   function loadTiktokCreator(){
@@ -5315,25 +5270,21 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         var pill = $('pill-tiktok');
         if(pill){ pill.className='pill pill-on'; pill.textContent='Connected'; }
 
-        var sel = $('tk-privacy');
-        sel.innerHTML = '';
-        // No default. TikTok's guidelines are explicit: the creator picks, and
-        // a preselected audience fails the audit.
-        sel.appendChild(opt('', 'Choose an audience…'));
-        (j.privacyOptions || []).forEach(function(v){
-          sel.appendChild(opt(v, PRIVACY_LABELS[v] || v));
-        });
+        tiktok.privacyLevel = mostPublicLevel(j.privacyOptions || []);
 
-        // An interaction the creator has switched off in TikTok can never be
-        // switched on from here, and the greyed box says whose limit it is.
-        [['comment', j.commentDisabled], ['duet', j.duetDisabled], ['stitch', j.stitchDisabled]]
-          .forEach(function(pair){
-            var box = $('tk-' + pair[0]), lbl = $('tk-' + pair[0] + '-l');
-            box.disabled = !!pair[1];
-            box.checked = false;
-            lbl.classList.toggle('is-off', !!pair[1]);
-            if(pair[1]) lbl.title = 'Turned off in your TikTok account settings.';
-          });
+        /* Everything the account permits is permitted. An interaction the
+           creator has switched off in TikTok cannot be switched on from here —
+           sending true over their own setting is refused outright — so each one
+           tracks the account rather than being asserted. */
+        tiktok.allowComment = !j.commentDisabled;
+        tiktok.allowDuet    = !j.duetDisabled;
+        tiktok.allowStitch  = !j.stitchDisabled;
+
+        // Dave's own videos on Dave's own account: no paid partnership and no
+        // third-party brand, so there is nothing to disclose.
+        tiktok.commercial = false;
+        tiktok.brandOrganic = false;
+        tiktok.brandedContent = false;
 
         renderTiktokPanel();
       })
@@ -5344,45 +5295,20 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var j = tiktok.info;
     if(!j) return;
 
+    /* Visibility is stated, not asked. It leads the line because "posted" for a
+       video only the account holder can see is the half-truth that costs weeks
+       of waiting on engagement that cannot arrive. */
+    var seen = PRIVACY_LABELS[tiktok.privacyLevel] || tiktok.privacyLevel || 'nobody yet';
     $('tk-who').innerHTML = 'Posting to <b>' + esc(j.username || 'your TikTok account') + '</b>' +
+      ' · visible to <b>' + esc(seen) + '</b>' +
+      (tiktok.privacyLevel === 'SELF_ONLY' ? ' until TikTok approves the app' : '') +
       (j.maxDurationSec ? ' · videos up to ' + j.maxDurationSec + 's' : '');
 
-    $('tk-commercial-opts').hidden = !tiktok.commercial;
-
-    /* Branded content is a paid partnership, and a partnership nobody can see
-       discloses nothing — so TikTok forbids the combination outright. The
-       option is disabled rather than hidden, with the reason attached. */
-    var sel = $('tk-privacy');
-    Array.prototype.forEach.call(sel.options, function(o){
-      if(o.value !== 'SELF_ONLY') return;
-      o.disabled = tiktok.brandedContent;
-      o.textContent = tiktok.brandedContent
-        ? 'Only you — unavailable for branded content'
-        : (PRIVACY_LABELS.SELF_ONLY);
-    });
-    if(tiktok.brandedContent && tiktok.privacyLevel === 'SELF_ONLY'){
-      tiktok.privacyLevel = '';
-      sel.value = '';
-    }
-    $('tk-privacy-note').hidden = !tiktok.brandedContent;
-    $('tk-privacy-note').textContent = tiktok.brandedContent
-      ? 'Branded content visibility cannot be set to private.' : '';
-
-    // TikTok specifies these two label strings; they are what the viewer will
-    // actually see on the post.
-    var label = '';
-    if(tiktok.brandedContent) label = 'Your video will be labeled as "Paid partnership".';
-    else if(tiktok.brandOrganic) label = 'Your video will be labeled as "Promotional content".';
-    $('tk-label').hidden = !label;
-    $('tk-label').textContent = label;
-
-    // The declaration changes with what has been disclosed, and TikTok checks
-    // the wording and the links.
+    /* TikTok requires this declaration beside the post button and checks its
+       wording and its link. Nothing here is disclosed as commercial, so it is
+       the music confirmation alone. */
     var music = '<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>';
-    var bc = '<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Branded Content Policy</a>';
-    $('tk-consent').innerHTML = tiktok.brandedContent
-      ? 'By posting, you agree to TikTok\'s ' + bc + ' and ' + music + '.'
-      : 'By posting, you agree to TikTok\'s ' + music + '.';
+    $('tk-consent').innerHTML = 'By posting, you agree to TikTok\'s ' + music + '.';
 
     updatePostButton();
   }
@@ -5394,10 +5320,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(!tiktok.info) return document.getElementById('tk-connect')
       ? 'Connect your TikTok account first.'
       : 'Still checking your TikTok account.';
-    if(!tiktok.privacyLevel) return 'Choose who can see the TikTok.';
-    if(tiktok.commercial && !tiktok.brandOrganic && !tiktok.brandedContent){
-      return 'Say whether the TikTok promotes your brand, a paid partnership, or both.';
-    }
+    /* No longer a choice, but still a real blocker: TikTok returning no privacy
+       levels at all means this app may not post to that account as anything,
+       and the attempt would fail at init. */
+    if(!tiktok.privacyLevel) return 'TikTok has not allowed this app to post to that account yet.';
     return null;
   }
 
