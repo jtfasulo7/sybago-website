@@ -12,6 +12,8 @@
 import { requireSession, noStore } from '../lib/auth.js';
 import { PLATFORMS, PLATFORM_IDS, isConfigured, missingEnv, platformStatus } from '../lib/social/platforms.js';
 import { ADAPTERS } from '../lib/social/adapters.js';
+import { tiktokCreatorInfo } from '../lib/social/adapters.js';
+import { getValidToken } from '../lib/social/tiktok-auth.js';
 
 /** Credentials must never appear in a response, whatever a platform echoes. */
 function scrubSecrets(text) {
@@ -55,6 +57,15 @@ export default async function handler(req, res) {
   if (!session) return;
 
   if (req.method === 'GET') {
+    /* The panel needs the creator's real constraints before it can render a
+       compliant form: which audiences are allowed, which interactions the
+       account has switched off. Fetched here so the token stays server-side. */
+    if (req.query && req.query.creator === 'tiktok') {
+      const { token, message } = await getValidToken();
+      if (!token) return res.status(200).json({ ok: false, message });
+      const info = await tiktokCreatorInfo(token);
+      return res.status(200).json(info.ok ? info : { ok: false, message: info.message });
+    }
     return res.status(200).json({ platforms: platformStatus() });
   }
 
@@ -115,6 +126,7 @@ export default async function handler(req, res) {
             caption: posts[id].caption.trim(),
             hashtags: posts[id].hashtags || [],
             title: posts[id].title || '',
+            options: posts[id].options || null,
           },
           process.env,
         );

@@ -509,13 +509,18 @@ t('no options at all is null, not a guess', () =>
   };
 
   const res = await tk.publishTikTok(
-    { videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: ['#a'] },
+    {
+      videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: ['#a'],
+      options: { privacyLevel: 'SELF_ONLY', allowComment: true, allowDuet: true, allowStitch: true },
+    },
     { TIKTOK_ACCESS_TOKEN: 'tok' },
   );
 
   t('an unaudited app posts at the level it is actually allowed', () =>
     assert.equal(sentBody.post_info.privacy_level, 'SELF_ONLY'));
-  t("the creator's own comment and stitch settings are respected, not overridden", () => {
+  t("the creator's own TikTok settings win over anything the browser asked for", () => {
+    // All three were requested. Comment and stitch are off in the account, and
+    // no request from this app can turn them back on.
     assert.equal(sentBody.post_info.disable_comment, true);
     assert.equal(sentBody.post_info.disable_stitch, true);
     assert.equal(sentBody.post_info.disable_duet, false);
@@ -548,7 +553,10 @@ t('no options at all is null, not a guess', () =>
   };
 
   const res = await tk.publishTikTok(
-    { videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: [] },
+    {
+      videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: [],
+      options: { privacyLevel: 'PUBLIC_TO_EVERYONE' },
+    },
     { TIKTOK_ACCESS_TOKEN: 'tok' },
   );
   t('an audited app posts publicly', () =>
@@ -566,7 +574,7 @@ t('no options at all is null, not a guess', () =>
     json: async () => ({ error: { code: 'access_token_invalid', message: 'invalid' } }),
   });
   const res = await tk.publishTikTok(
-    { videoUrl: 'https://x/v.mp4', caption: 'hi', hashtags: [] },
+    { videoUrl: 'https://x/v.mp4', caption: 'hi', hashtags: [], options: { privacyLevel: 'SELF_ONLY' } },
     { TIKTOK_ACCESS_TOKEN: 'stale' },
   );
   t('a stale token is named as stale rather than as wrong', () => {
@@ -586,7 +594,7 @@ t('no options at all is null, not a guess', () =>
     initCalled = true;
     return { ok: true, status: 200, json: async () => ({ data: {}, error: { code: 'ok' } }) };
   };
-  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [] }, { TIKTOK_ACCESS_TOKEN: 't' });
+  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [], options: { privacyLevel: 'SELF_ONLY' } }, { TIKTOK_ACCESS_TOKEN: 't' });
   t('a missing scope is caught before the video is offered', () => {
     assert.equal(res.ok, false);
     assert.equal(initCalled, false);
@@ -601,10 +609,117 @@ t('no options at all is null, not a guess', () =>
     }
     return { ok: true, status: 200, json: async () => ({ data: {}, error: { code: 'ok' } }) };
   };
-  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [] }, { TIKTOK_ACCESS_TOKEN: 't' });
+  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [], options: { privacyLevel: 'SELF_ONLY' } }, { TIKTOK_ACCESS_TOKEN: 't' });
   t('no permitted privacy level at all is refused, not defaulted', () => {
     assert.equal(res.ok, false);
     assert.match(res.message, /no privacy levels/i);
+  });
+}
+
+
+/* --------------------------------------------- tiktok disclosure rules --- */
+console.log('\nTikTok disclosure rules');
+
+/* These are TikTok's Content Sharing UX guidelines, checked on the server as
+   well as in the page. The UI enforces all of them and the UI is a browser —
+   breaking them is not merely a bug, it is what gets posting access revoked. */
+const ALL = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'];
+
+t('no audience chosen is refused — TikTok forbids a default', () =>
+  assert.match(tk.validateTikTokOptions({}, ALL), /Choose who can see/i));
+t('an audience the account is not offered is refused', () =>
+  assert.match(tk.validateTikTokOptions({ privacyLevel: 'PUBLIC_TO_EVERYONE' }, ['SELF_ONLY']), /does not allow/i));
+t('a permitted audience passes', () =>
+  assert.equal(tk.validateTikTokOptions({ privacyLevel: 'SELF_ONLY' }, ALL), null));
+
+t('commercial disclosure with neither box ticked is refused', () =>
+  assert.match(tk.validateTikTokOptions({ privacyLevel: 'PUBLIC_TO_EVERYONE', commercial: true }, ALL), /promotes your/i));
+t('commercial disclosure with one box ticked passes', () =>
+  assert.equal(tk.validateTikTokOptions(
+    { privacyLevel: 'PUBLIC_TO_EVERYONE', commercial: true, brandOrganic: true }, ALL), null));
+
+t('branded content cannot be posted privately', () => {
+  // A paid partnership that nobody can see discloses nothing to anyone, which
+  // is why TikTok forbids the combination outright.
+  assert.match(tk.validateTikTokOptions(
+    { privacyLevel: 'SELF_ONLY', commercial: true, brandedContent: true }, ALL), /cannot be posted privately/i);
+});
+t('branded content is fine at a wider audience', () =>
+  assert.equal(tk.validateTikTokOptions(
+    { privacyLevel: 'PUBLIC_TO_EVERYONE', commercial: true, brandedContent: true }, ALL), null));
+
+{
+  // Interactions are opt-IN. TikTok requires every box to start unchecked, so
+  // an untouched form must post with all three disabled.
+  let sentBody = null;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes('creator_info')) {
+      return { ok: true, status: 200, json: async () => ({ data: { privacy_level_options: ALL }, error: { code: 'ok' } }) };
+    }
+    sentBody = JSON.parse(init.body);
+    return { ok: true, status: 200, json: async () => ({ data: { publish_id: 'p' }, error: { code: 'ok' } }) };
+  };
+  await tk.publishTikTok(
+    { videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [], options: { privacyLevel: 'PUBLIC_TO_EVERYONE' } },
+    { TIKTOK_ACCESS_TOKEN: 't' },
+  );
+  t('an untouched form disables every interaction', () => {
+    assert.equal(sentBody.post_info.disable_comment, true);
+    assert.equal(sentBody.post_info.disable_duet, true);
+    assert.equal(sentBody.post_info.disable_stitch, true);
+  });
+  t('and declares no commercial content', () => {
+    assert.equal(sentBody.post_info.brand_organic_toggle, false);
+    assert.equal(sentBody.post_info.brand_content_toggle, false);
+  });
+}
+
+{
+  let sentBody = null;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes('creator_info')) {
+      return { ok: true, status: 200, json: async () => ({ data: { privacy_level_options: ALL }, error: { code: 'ok' } }) };
+    }
+    sentBody = JSON.parse(init.body);
+    return { ok: true, status: 200, json: async () => ({ data: { publish_id: 'p' }, error: { code: 'ok' } }) };
+  };
+  await tk.publishTikTok(
+    {
+      videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [],
+      options: {
+        privacyLevel: 'PUBLIC_TO_EVERYONE', allowComment: true,
+        commercial: true, brandOrganic: true, brandedContent: true,
+      },
+    },
+    { TIKTOK_ACCESS_TOKEN: 't' },
+  );
+  t('both disclosure flags reach TikTok when both are declared', () => {
+    assert.equal(sentBody.post_info.brand_organic_toggle, true);
+    assert.equal(sentBody.post_info.brand_content_toggle, true);
+  });
+  t('and only the interaction that was ticked is enabled', () => {
+    assert.equal(sentBody.post_info.disable_comment, false);
+    assert.equal(sentBody.post_info.disable_duet, true);
+  });
+}
+
+{
+  // A request that skipped the UI entirely must not post at some default.
+  let initCalled = false;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('creator_info')) {
+      return { ok: true, status: 200, json: async () => ({ data: { privacy_level_options: ALL }, error: { code: 'ok' } }) };
+    }
+    initCalled = true;
+    return { ok: true, status: 200, json: async () => ({ data: {}, error: { code: 'ok' } }) };
+  };
+  const res = await tk.publishTikTok(
+    { videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [] },
+    { TIKTOK_ACCESS_TOKEN: 't' },
+  );
+  t('a post with no options at all never reaches TikTok', () => {
+    assert.equal(res.ok, false);
+    assert.equal(initCalled, false);
   });
 }
 

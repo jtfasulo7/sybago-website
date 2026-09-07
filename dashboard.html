@@ -426,6 +426,32 @@ table.ss-grid:not(:focus-within) td.in-range { background:rgba(var(--accent-rgb)
 .fin-out { color:var(--neg); font-weight:700; }
 tr.fin-total > * { border-top:2px solid var(--hairline); font-weight:800; }
 
+/* ------------------------------------------------------ tiktok panel ---- */
+/* Every control here is required by TikTok's Content Sharing UX guidelines.
+   Their audit rejects an app whose interface picks the audience for the
+   creator, defaults the interaction toggles on, or omits the disclosure. */
+.tk { margin-top:.9rem; padding:.9rem 1rem; border:1px solid var(--hairline);
+  border-radius:var(--r-sm); background:var(--surface); }
+.tk[hidden] { display:none; }
+.tk-who { font-size:.8rem; color:var(--t2); margin-bottom:.7rem; }
+.tk-who b { color:var(--t1); }
+.tk-row { margin-bottom:.7rem; }
+.tk-lbl { display:block; font-size:.7rem; font-weight:700; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--t3); margin-bottom:.3rem; }
+.tk select { max-width:22rem; }
+.tk-checks { display:flex; flex-wrap:wrap; gap:.5rem 1.1rem; }
+.tk-check { display:inline-flex; align-items:center; gap:.4rem; font-size:.85rem; color:var(--t2); }
+.tk-check input { width:16px; height:16px; min-height:0; accent-color:var(--accent); }
+/* A greyed box is how the creator learns the limit is theirs, set in TikTok,
+   rather than something this page decided. */
+.tk-check.is-off { opacity:.45; cursor:not-allowed; }
+.tk-note { font-size:.78rem; color:var(--t3); margin-top:.3rem; }
+.tk-label-preview { font-size:.78rem; color:var(--warn-text); margin-top:.35rem; }
+.tk-consent { font-size:.78rem; color:var(--t2); line-height:1.5;
+  padding-top:.7rem; border-top:1px solid var(--hairline); margin-top:.2rem; }
+.tk-consent a { color:var(--accent-d); }
+.tk-blocked { font-size:.78rem; color:var(--neg); margin-top:.4rem; }
+
 .frames { margin-bottom:1rem; }
 .frames-head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem; }
 .frames-strip {
@@ -5145,6 +5171,204 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return (n/1024/1024).toFixed(1)+' MB';
   }
 
+  /* ----------------------------------------------------------- tiktok ---- */
+  /* TikTok audits the INTERFACE, not just the API calls. Their Content Sharing
+     guidelines require the creator to choose the audience with no default, to
+     opt in to each interaction rather than out, and to declare commercial
+     content before posting. An app that decides any of it on their behalf is
+     rejected — so none of this is decoration, and none of it can be skipped to
+     save a click. */
+
+  var tiktok = {
+    info: null,          // creator_info from TikTok
+    privacyLevel: '',    // deliberately empty: TikTok forbids a default
+    allowComment: false, // every interaction starts OFF, by their rule
+    allowDuet: false,
+    allowStitch: false,
+    commercial: false,
+    brandOrganic: false,
+    brandedContent: false,
+  };
+
+  var PRIVACY_LABELS = {
+    PUBLIC_TO_EVERYONE: 'Everyone',
+    MUTUAL_FOLLOW_FRIENDS: 'Friends (mutual follows)',
+    FOLLOWER_OF_CREATOR: 'Followers',
+    SELF_ONLY: 'Only you'
+  };
+
+  function tiktokPanel(){
+    var wrap = document.createElement('div');
+    wrap.className = 'tk';
+    wrap.id = 'tk-panel';
+    wrap.innerHTML =
+      '<p class="tk-who" id="tk-who">Checking the account…</p>' +
+
+      '<div class="tk-row">' +
+        '<label class="tk-lbl" for="tk-privacy">Who can see this video</label>' +
+        '<select id="tk-privacy"><option value="">Choose an audience…</option></select>' +
+        '<p class="tk-blocked" id="tk-privacy-note" hidden></p>' +
+      '</div>' +
+
+      '<div class="tk-row">' +
+        '<span class="tk-lbl">Allow</span>' +
+        '<div class="tk-checks">' +
+          '<label class="tk-check" id="tk-comment-l"><input type="checkbox" id="tk-comment"> Comments</label>' +
+          '<label class="tk-check" id="tk-duet-l"><input type="checkbox" id="tk-duet"> Duet</label>' +
+          '<label class="tk-check" id="tk-stitch-l"><input type="checkbox" id="tk-stitch"> Stitch</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="tk-row">' +
+        '<label class="tk-check"><input type="checkbox" id="tk-commercial"> Disclose commercial content</label>' +
+        '<p class="tk-note">Turn this on if the video promotes a brand, product or service.</p>' +
+        '<div class="tk-checks" id="tk-commercial-opts" style="margin-top:.5rem" hidden>' +
+          '<label class="tk-check"><input type="checkbox" id="tk-brand-organic"> Your brand</label>' +
+          '<label class="tk-check"><input type="checkbox" id="tk-branded"> Branded content</label>' +
+        '</div>' +
+        '<p class="tk-label-preview" id="tk-label" hidden></p>' +
+      '</div>' +
+
+      '<p class="tk-consent" id="tk-consent"></p>';
+
+    // Built before it is in the document, so the listeners are attached here
+    // rather than from a boot function that would have to know it exists.
+    setTimeout(function(){ bootTiktokPanel(); }, 0);
+    return wrap;
+  }
+
+  function bootTiktokPanel(){
+    if(!$('tk-panel')) return;
+
+    $('tk-privacy').addEventListener('change', function(){
+      tiktok.privacyLevel = this.value;
+      renderTiktokPanel();
+    });
+    ['comment','duet','stitch'].forEach(function(k){
+      var key = 'allow' + k.charAt(0).toUpperCase() + k.slice(1);
+      $('tk-' + k).addEventListener('change', function(){ tiktok[key] = this.checked; updatePostButton(); });
+    });
+    $('tk-commercial').addEventListener('change', function(){
+      tiktok.commercial = this.checked;
+      if(!this.checked){ tiktok.brandOrganic = false; tiktok.brandedContent = false; }
+      renderTiktokPanel();
+    });
+    $('tk-brand-organic').addEventListener('change', function(){
+      tiktok.brandOrganic = this.checked; renderTiktokPanel();
+    });
+    $('tk-branded').addEventListener('change', function(){
+      tiktok.brandedContent = this.checked; renderTiktokPanel();
+    });
+
+    loadTiktokCreator();
+  }
+
+  function loadTiktokCreator(){
+    return fetch('/api/social-publish?creator=tiktok')
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok){
+          $('tk-who').textContent = j.message || 'Could not reach TikTok.';
+          return;
+        }
+        tiktok.info = j;
+
+        var sel = $('tk-privacy');
+        sel.innerHTML = '';
+        // No default. TikTok's guidelines are explicit: the creator picks, and
+        // a preselected audience fails the audit.
+        sel.appendChild(opt('', 'Choose an audience…'));
+        (j.privacyOptions || []).forEach(function(v){
+          sel.appendChild(opt(v, PRIVACY_LABELS[v] || v));
+        });
+
+        // An interaction the creator has switched off in TikTok can never be
+        // switched on from here, and the greyed box says whose limit it is.
+        [['comment', j.commentDisabled], ['duet', j.duetDisabled], ['stitch', j.stitchDisabled]]
+          .forEach(function(pair){
+            var box = $('tk-' + pair[0]), lbl = $('tk-' + pair[0] + '-l');
+            box.disabled = !!pair[1];
+            box.checked = false;
+            lbl.classList.toggle('is-off', !!pair[1]);
+            if(pair[1]) lbl.title = 'Turned off in your TikTok account settings.';
+          });
+
+        renderTiktokPanel();
+      })
+      .catch(function(){ $('tk-who').textContent = 'Could not reach TikTok.'; });
+  }
+
+  function renderTiktokPanel(){
+    var j = tiktok.info;
+    if(!j) return;
+
+    $('tk-who').innerHTML = 'Posting to <b>' + esc(j.username || 'your TikTok account') + '</b>' +
+      (j.maxDurationSec ? ' · videos up to ' + j.maxDurationSec + 's' : '');
+
+    $('tk-commercial-opts').hidden = !tiktok.commercial;
+
+    /* Branded content is a paid partnership, and a partnership nobody can see
+       discloses nothing — so TikTok forbids the combination outright. The
+       option is disabled rather than hidden, with the reason attached. */
+    var sel = $('tk-privacy');
+    Array.prototype.forEach.call(sel.options, function(o){
+      if(o.value !== 'SELF_ONLY') return;
+      o.disabled = tiktok.brandedContent;
+      o.textContent = tiktok.brandedContent
+        ? 'Only you — unavailable for branded content'
+        : (PRIVACY_LABELS.SELF_ONLY);
+    });
+    if(tiktok.brandedContent && tiktok.privacyLevel === 'SELF_ONLY'){
+      tiktok.privacyLevel = '';
+      sel.value = '';
+    }
+    $('tk-privacy-note').hidden = !tiktok.brandedContent;
+    $('tk-privacy-note').textContent = tiktok.brandedContent
+      ? 'Branded content visibility cannot be set to private.' : '';
+
+    // TikTok specifies these two label strings; they are what the viewer will
+    // actually see on the post.
+    var label = '';
+    if(tiktok.brandedContent) label = 'Your video will be labeled as "Paid partnership".';
+    else if(tiktok.brandOrganic) label = 'Your video will be labeled as "Promotional content".';
+    $('tk-label').hidden = !label;
+    $('tk-label').textContent = label;
+
+    // The declaration changes with what has been disclosed, and TikTok checks
+    // the wording and the links.
+    var music = '<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>';
+    var bc = '<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Branded Content Policy</a>';
+    $('tk-consent').innerHTML = tiktok.brandedContent
+      ? 'By posting, you agree to TikTok\'s ' + bc + ' and ' + music + '.'
+      : 'By posting, you agree to TikTok\'s ' + music + '.';
+
+    updatePostButton();
+  }
+
+  /* Why the post button is not available yet, or null when it is. TikTok
+     requires the button to be disabled until these are settled. */
+  function tiktokBlocker(){
+    if(!social.selected.tiktok) return null;          // not posting there
+    if(!tiktok.info) return 'Still checking your TikTok account.';
+    if(!tiktok.privacyLevel) return 'Choose who can see the TikTok.';
+    if(tiktok.commercial && !tiktok.brandOrganic && !tiktok.brandedContent){
+      return 'Say whether the TikTok promotes your brand, a paid partnership, or both.';
+    }
+    return null;
+  }
+
+  function tiktokOptions(){
+    return {
+      privacyLevel: tiktok.privacyLevel,
+      allowComment: tiktok.allowComment,
+      allowDuet: tiktok.allowDuet,
+      allowStitch: tiktok.allowStitch,
+      commercial: tiktok.commercial,
+      brandOrganic: tiktok.brandOrganic,
+      brandedContent: tiktok.brandedContent
+    };
+  }
+
   /* ------------------------------------------------------------- panes ---- */
   function showPane(name){
     social.pane = name;
@@ -5218,6 +5442,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       count.id = 'count-'+p.id;
       head.appendChild(count);
       sec.appendChild(head);
+
+      // TikTok requires the creator to make these choices themselves, on the
+      // screen, before the post button becomes available.
+      if(p.id === 'tiktok' && p.configured) sec.appendChild(tiktokPanel());
 
       if(!p.configured){
         var missing = document.createElement('p');
@@ -5311,7 +5539,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       var c = social.captions[p.id];
       return c && c.caption && c.caption.trim();
     });
-    var ready = !!social.blobUrl && chosen.length > 0 && haveCaptions && !social.posting;
+    var tkBlocked = tiktokBlocker();
+    var ready = !!social.blobUrl && chosen.length > 0 && haveCaptions && !social.posting && !tkBlocked;
     btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
     btn.textContent = chosen.length
       ? 'Post to ' + chosen.length + ' platform' + (chosen.length===1?'':'s')
@@ -5321,6 +5550,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(!social.blobUrl) why.push('upload a video');
     if(!chosen.length) why.push('select a platform');
     if(chosen.length && !haveCaptions) why.push('every selected platform needs a caption');
+    if(tkBlocked) why.push(tkBlocked.replace(/.$/, '').toLowerCase());
     $('sp-sub').textContent = why.length
       ? 'Still needed: ' + why.join(', ') + '.'
       : 'Nothing is sent until you press this.';
@@ -5461,6 +5691,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(!p.configured || !social.selected[p.id]) return;
       var c = social.captions[p.id] || {};
       posts[p.id] = { caption: c.caption || '', hashtags: c.hashtags || [], title: c.title || '' };
+      // The creator's own choices travel with the post; the server checks them
+      // again, because a browser is not a place to enforce anything.
+      if(p.id === 'tiktok') posts[p.id].options = tiktokOptions();
     });
 
     social.posting = true;
