@@ -323,8 +323,9 @@ caption, and do not remove focus outlines.
   legend. There is deliberately no separate legend strip.
 
 **Where each account lands.** `VIEW_DEFAULTS` in `dashboard.html` names the campaign and ad
-set each view opens on, and the global range defaults to **Today** — this is a page someone
-opens to see what is happening now, so a 30-day window has to be asked for.
+set each view opens on, and the global range defaults to **Lifetime**. It is the only default
+that is never empty: Today is blank until the day's delivery starts, and a blank dashboard on
+open reads as broken rather than as early.
 
 - Defaults are written as **names, not ids**, and matched loosely: case and punctuation are
   ignored, but the words must appear IN ORDER. That is what picks "Dave - Ad Set 1 (Paid)"
@@ -342,81 +343,20 @@ from separate tiles that is a division someone has to do for themselves. Its `<d
 `.is-pair`, which shrinks the type: the KPI row is a fixed 5-wide grid and a tile that
 outgrows its column drags the whole row out of alignment.
 
-**The KPI row is one dashed grid, not ten cards.** The design is ported from a React/Tailwind
-"grid feature cards" component; the CODE is not, because this site has no bundler. What
-transferred is the look: a continuous dashed grid, a faded blueprint pattern behind each cell,
-icon on its own line, then label, then figure.
+**The KPI row is ten raised cards.** Solid surface, solid border, an inset top highlight and a
+shadow that deepens on hover with a 3px lift. An earlier version tied them into one dashed
+lattice with a blueprint pattern behind each cell; that read as a table ruled onto the page, and
+a figure someone checks every morning should sit on top of it. The layout inside each card is
+unchanged: icon alone on its line, a deliberate gap, then label, then figure — the gap is what
+stops a dense grid of numbers reading as a spreadsheet.
 
-- **The grid closes itself at any column count.** The container draws the top and left edges and
-  every cell draws its own right and bottom. Chasing `:nth-child` for the last row and column
-  would need re-deriving at 5, 2 and 1 columns, and would be wrong the first time a breakpoint
-  moved.
-- **`--t1-rgb` exists for the same reason `--accent-rgb` does** — the pattern needs the
-  foreground at 5% and 25%, and a triplet keeps a palette swap to one line.
-- **Pattern squares are seeded from the metric name, not `Math.random()`.** The original
-  component randomises on every render, which is fine for a page that renders once and wrong
-  here: these tiles repaint every three minutes on auto-refresh, and a pattern that reshuffles
-  reads as the tile having changed when only the clock did.
-- **Every `<pattern>` needs a document-unique id.** With a shared id the last definition wins
-  for all of them and the grid lines vanish from every tile but one. The id is derived from the
-  same seed.
-- **The entrance animation runs once per row**, guarded by `data-entered`. The reference plays
-  it on scroll into view; this row is always in view on load, so an IntersectionObserver would
-  fire immediately and cost a listener for nothing. Replaying it on every refresh would draw the
-  eye to a change that did not happen.
-
-### The 3D model
-
-The "3D Model" button on the Over time panel opens a full-screen overlay: three metrics as
-three axes, one point per period, joined in time order. The 2D panel answers "what did this
-metric do"; this answers "how do three of them move together", which is a shape rather than a
-line. Both view tabs get it, because it is the same markup.
-
-| File | Role |
-|---|---|
-| `assets/scatter3d.js` | Rotation, projection, scales, hit testing, canvas painting. |
-| `test/scatter3d.test.mjs` | `node test/scatter3d.test.mjs` — the maths only. |
-
-**Hand-rolled, not Three.js.** What is needed is a perspective divide, a depth sort and a
-wireframe box. A library would arrive as a second module format with no bundler to reconcile
-it, and could not read the CSS custom properties that are this page's entire visual language —
-its palette would have to be duplicated and kept in step by hand.
-
-**The design is ported from a canvas "helix" component; the code is not.** What transferred is
-the feel: perspective projection with depth-faded strata, everything easing toward a target
-rather than snapping, monospaced micro-labels, and glass control chips floating over the canvas
-instead of docked beside it.
-
-Things that are easy to get wrong, all covered by tests:
-
-- **Yaw before pitch, always.** Composed the other way the horizontal drag axis changes meaning
-  with how far you have already tilted, and the model fights the hand holding it.
-- **Pitch is clamped short of vertical.** Past it the world flips and the drag direction
-  inverts, which reads as the control breaking.
-- **A point behind the camera is clamped, not skipped.** A negative denominator mirrors the
-  point to the far side of the canvas — it vanishes and reappears mid-drag.
-- **A period missing ANY of the three metrics is dropped, not placed at zero.** A day with no
-  CPC did not have a CPC of zero, and planting it on the floor of the box invents a reading.
-- **Ticks round the step UP to a nice number**, comparing smallest-first. Written largest-first
-  the rule inverts and every axis comes back too coarse — 0 to 100 in two steps — which still
-  looks like a plausible axis. Tick values are rounded to the step's own precision at source
-  rather than leaving every formatter to hide `0.6000000000000001`.
-- **Axis labels go on the OUTERMOST edge, not the deepest one.** Picked by depth they land on
-  the back edge, which at most angles runs through the middle of the box, and the ticks read as
-  floating among the data rather than bounding it.
-- **Segments and markers are depth-sorted together**, not drawn series by series. Per-series
-  drawing lets whichever is last sit on top regardless of where it is, which reads as flat.
-- **Series carry a marker SHAPE as well as a colour**, the same reason the 2D chart varies its
-  point styles: the plot has to survive a screenshot, a printout and a colour-blind reader.
-- **The overlay sits at z-index 200.** The sticky nav is 100 and was punching through it.
-
-**It has a table alternative like every other chart here**, and a canvas is opaque to a screen
-reader — a 3D one doubly so. Escape closes it and Tab is trapped inside.
-
-**Testing note:** Chrome throttles `requestAnimationFrame` entirely when its window is
-occluded, which is the normal state under browser automation. The plot then paints only when a
-screenshot forces a composite, so the entrance animation appears frozen part-way and auto-
-rotate appears dead. Neither is a fault. Force `reveal = 1` to inspect a finished frame.
+- **The inset highlight is load-bearing**, not decoration. `inset 0 1px 0 var(--hairline-2)` is
+  what makes a flat rectangle read as a raised surface; a light top edge is how any real object
+  catches a light. Without it the shadow alone reads as a drop shadow on a sticker.
+- **One accent per card**, at the top edge, where it cannot compete with the figure. The icon
+  takes the accent colour too now that nothing sits behind it.
+- **The entrance animation runs once per row**, guarded by `data-entered`. Replaying it on
+  every three-minute refresh would draw the eye to a change that did not happen.
 
 **KPI tiles are a fixed 5x2 grid.** `KPI_KEYS` has exactly ten entries and the order is the
 layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the

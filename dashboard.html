@@ -47,8 +47,7 @@
   --accent:#2F6779; --accent-b:#3a7d93; --accent-d:#1d4b59;
   --accent-rgb:47,103,121; --accent-b-rgb:58,125,147;
   --neg-rgb:163,58,38; --warn-rgb:138,90,0;
-  --t1:#0f1419; --t1-rgb:15,20,25;
-  --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
+  --t1:#0f1419; --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
   --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --eo:cubic-bezier(.16,1,.3,1);
 
@@ -97,8 +96,7 @@
   --neg-rgb:224,110,86; --warn-rgb:214,175,82;
 
   /* Warm white, not #fff — pure white on near-black glares. */
-  --t1:#F6F2E8; --t1-rgb:246,242,232;
-  --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
+  --t1:#F6F2E8; --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
 
   --ground:#0B0B0C; --ground-2:#141317;
   --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-rgb:22,21,26; --surface-hover:#1E1C23;
@@ -613,51 +611,42 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 
 /* Exactly five per row. auto-fit was letting the count drift with viewport
    width, which left the second row ragged. */
-/* One continuous dashed grid rather than ten floating cards.
-   The container draws the top and left edges and every cell draws its own
-   right and bottom, so the grid closes itself at ANY column count — which
-   matters because this drops from five columns to two to one. Chasing
-   :nth-child on the last row and column would need re-deriving per
-   breakpoint, and would be wrong the first time a breakpoint moved. */
+/* Ten raised cards, each solid and self-contained.
+   The dashed lattice this replaced tied the tiles into one flat surface; a
+   figure someone checks every morning should sit ON the page rather than be
+   ruled into it. Depth is carried by the border, the shadow and the hover
+   lift — no pattern, nothing behind the number competing with it. */
 .kpis {
   display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
-  margin-bottom:1.75rem;
-  border-top:1px dashed var(--hairline); border-left:1px dashed var(--hairline);
-  border-radius:var(--r-md); overflow:hidden;
+  gap:.85rem; margin-bottom:1.75rem;
 }
 .kpi {
   position:relative; overflow:hidden; padding:1.15rem 1.15rem 1.25rem;
-  border-right:1px dashed var(--hairline); border-bottom:1px dashed var(--hairline);
-  transition:background .25s var(--eo);
+  border:1px solid var(--hairline); border-radius:var(--r-md);
+  background:var(--surface-solid);
+  /* The inset highlight is what makes a flat rectangle read as a raised
+     surface: a light top edge is how every real object catches a light. */
+  box-shadow:var(--lift-1), inset 0 1px 0 var(--hairline-2);
+  transition:transform .28s var(--eo), box-shadow .28s var(--eo), border-color .28s var(--eo);
 }
-.kpi:hover { background:rgba(var(--accent-rgb),.035); }
-
-/* The blueprint pattern. Twice-masked, as in the reference: a radial fade so
-   it dies away from the top-left corner, and a linear one so it never reaches
-   the figure underneath. mix-blend-mode keeps it honest against both palettes
-   instead of needing a second colour for the dark one. */
-.kpi-pattern {
-  pointer-events:none; position:absolute; top:0; left:50%;
-  width:100%; height:100%; margin-top:-.5rem; margin-left:-5rem;
-  -webkit-mask-image:linear-gradient(#fff, transparent);
-  mask-image:linear-gradient(#fff, transparent);
+/* A single hairline of brand along the top edge. One accent per tile, at the
+   one place it cannot compete with the figure. */
+.kpi::after {
+  content:''; position:absolute; inset:0 0 auto 0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(var(--accent-rgb),.55), transparent);
 }
-.kpi-pattern-inner {
-  position:absolute; inset:0;
-  background:linear-gradient(to right, rgba(var(--t1-rgb),.05), rgba(var(--t1-rgb),.01));
-  -webkit-mask-image:radial-gradient(farthest-side at top, #fff, transparent);
-  mask-image:radial-gradient(farthest-side at top, #fff, transparent);
-}
-.kpi-pattern svg {
-  position:absolute; inset:0; width:100%; height:100%;
-  mix-blend-mode:overlay;
-  fill:rgba(var(--t1-rgb),.05); stroke:rgba(var(--t1-rgb),.25);
+.kpi:hover {
+  transform:translateY(-3px);
+  box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2);
+  border-color:rgba(var(--accent-rgb),.38);
 }
 
 /* Icon alone on its line, then a deliberate gap before the words. The gap is
-   the design: it is what stops a dense grid of figures reading as a table. */
-.kpi-ico { display:block; color:var(--t1); opacity:.75; }
-.kpi-ico svg { width:22px; height:22px; stroke-width:1; }
+   the design: it is what stops a dense grid of figures reading as a table.
+   Accent rather than muted foreground now that nothing sits behind it — it is
+   the only colour on the card, so it can afford to be solid. */
+.kpi-ico { display:block; color:var(--accent); }
+.kpi-ico svg { width:22px; height:22px; stroke-width:1.5; }
 .kpi dt { margin-top:2.25rem; font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
 .kpi dd { position:relative; z-index:2; font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.35rem; font-variant-numeric:tabular-nums; }
 /* Two figures in the space built for one. The KPI row is a fixed 5-wide grid,
@@ -1090,12 +1079,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="field" id="range-field" style="flex:0 0 auto;">
         <span class="lbl" id="range-lbl">Date range</span>
         <div class="seg" role="group" aria-labelledby="range-lbl" id="range-seg">
-          <button type="button" data-days="0"  aria-pressed="true">Today</button>
+          <button type="button" data-days="0"  aria-pressed="false">Today</button>
           <button type="button" data-days="7"  aria-pressed="false">7d</button>
           <button type="button" data-days="14" aria-pressed="false">14d</button>
           <button type="button" data-days="30" aria-pressed="false">30d</button>
           <button type="button" data-days="90" aria-pressed="false">90d</button>
-          <button type="button" data-days="max" aria-pressed="false">Lifetime</button>
+          <button type="button" data-days="max" aria-pressed="true">Lifetime</button>
           <button type="button" data-days="custom" aria-pressed="false">Custom</button>
         </div>
       </div>
@@ -1610,11 +1599,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var iso = function (d) { return d.toISOString().slice(0,10); };
   var daysAgo = function (n) { return iso(new Date(Date.now() - n*86400000)); };
 
-  /* Today by default. This is a page someone opens to see what is happening
-     now; a 30-day window answers a different question and has to be asked for.
-     Meta lags real time by up to about an hour, so an empty Today shortly after
-     midnight in the ad account's timezone is normal rather than a fault. */
-  var globalRange = { mode:'preset', days:0 };
+  /* Lifetime by default: everything the account has ever done. It is the only
+     default that is never empty — Today is blank until delivery starts, and a
+     blank dashboard on open reads as broken rather than as early. */
+  var globalRange = { mode:'preset', days:'max' };
 
   /* Lifetime has no start date we can compute — that is the point of it. The
      server asks Meta for date_preset=maximum and reports back the window Meta
@@ -2328,7 +2316,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       }
 
       return '<div class="kpi'+(muted?' is-muted':'')+'">'+
-        kpiPattern(k)+
         '<span class="kpi-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'+ICON[m.icon]+'</svg></span>'+
         '<dt>'+esc(label)+'</dt>'+
         '<dd'+(pair?' class="is-pair"':'')+'>'+esc(shown)+'</dd></div>';
@@ -3486,7 +3473,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         ];
         $('fin-kpis').innerHTML = tiles.map(function(x){
           return '<div class="kpi' + (x.v === '—' ? ' is-muted' : '') + '">' +
-            kpiPattern(x.label) +
             '<span class="kpi-ico" aria-hidden="true">' +
             '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" ' +
             'stroke-linecap="round" stroke-linejoin="round">' + ICON[x.icon] + '</svg></span>' +
@@ -3622,57 +3608,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     $('fin-table-wrap').hidden = false;
     $('fin-table-sub').textContent = message +
       ' Showing the computed figures instead — read-only, and nothing typed here is saved.';
-  }
-
-  /* ------------------------------------------------------- kpi pattern ---- */
-  /* The blueprint square behind each tile: a 20x20 grid with a handful of
-     filled cells scattered through it.
-
-     The reference generates those cells with Math.random() on every render.
-     That is fine for a page that renders once and wrong here — these tiles
-     repaint every three minutes on auto-refresh, and a pattern that reshuffles
-     itself each time reads as the tile having changed when only the clock did.
-     So the positions are derived from the metric's own name: stable for the
-     life of the tile, still different between neighbours. */
-  function patternSquares(seed, count){
-    var h = 2166136261;
-    for (var i = 0; i < seed.length; i++) {
-      h ^= seed.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    var out = [];
-    for (var n = 0; n < (count || 5); n++) {
-      h = Math.imul(h ^ (h >>> 15), 2246822507);
-      h = Math.imul(h ^ (h >>> 13), 3266489909);
-      var v = (h >>> 0) / 4294967296;
-      var w = ((h >>> 8) & 0xffff) / 65536;
-      out.push([Math.floor(v * 4) + 7, Math.floor(w * 6) + 1]);   // x 7..10, y 1..6
-    }
-    return out;
-  }
-
-  var PATTERN_W = 20, PATTERN_H = 20, PATTERN_X = -12, PATTERN_Y = 4;
-
-  function kpiPattern(seed){
-    // Every <pattern> needs an id unique in the document, or the last one
-    // defined wins for all of them and the grid lines vanish from the rest.
-    var id = 'kp-' + String(seed).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-    var squares = patternSquares(String(seed)).map(function(sq){
-      return '<rect stroke-width="0" width="' + (PATTERN_W + 1) + '" height="' + (PATTERN_H + 1) +
-        '" x="' + (sq[0] * PATTERN_W) + '" y="' + (sq[1] * PATTERN_H) + '"/>';
-    }).join('');
-
-    return '<div class="kpi-pattern" aria-hidden="true"><div class="kpi-pattern-inner">' +
-      '<svg aria-hidden="true"><defs>' +
-        '<pattern id="' + id + '" width="' + PATTERN_W + '" height="' + PATTERN_H +
-        '" patternUnits="userSpaceOnUse" x="' + PATTERN_X + '" y="' + PATTERN_Y + '">' +
-          '<path d="M.5 ' + PATTERN_H + 'V.5H' + PATTERN_W + '" fill="none"/>' +
-        '</pattern></defs>' +
-        '<rect width="100%" height="100%" stroke-width="0" fill="url(#' + id + ')"/>' +
-        '<svg x="' + PATTERN_X + '" y="' + PATTERN_Y + '" class="overflow-visible" overflow="visible">' +
-          squares +
-        '</svg>' +
-      '</svg></div></div>';
   }
 
   /* The entrance runs on first paint only. Re-running it every three minutes
