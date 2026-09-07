@@ -530,7 +530,7 @@ not take insights down. The env vars are deliberately independent of the ads one
 |---|---|
 | Instagram | `IG_USER_ID`, `IG_ACCESS_TOKEN` |
 | Facebook | `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN` |
-| YouTube | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` |
+| YouTube | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REDIRECT_URI` |
 | TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` |
 | Captions | `ANTHROPIC_API_KEY` |
 
@@ -610,6 +610,35 @@ Instagram ids and check which scopes a token actually holds.
     that cannot arrive.
 - **YouTube** forces uploads to private until Google verifies the project, and an upload
   costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
+
+  **YouTube is connected by OAuth too**, through `api/youtube-auth.js` and
+  `lib/social/youtube-auth.js`, in the same shape as TikTok: app keys in the environment, the
+  refresh token obtained by the round trip and stored encrypted, a **Connect YouTube** button in
+  the Social post tab. `envAlt` keeps a hand-pasted `YOUTUBE_REFRESH_TOKEN` working.
+
+  It exists for a different reason than TikTok's, and the difference matters:
+
+  - **Google's refresh tokens do not expire on a clock — unless the OAuth app was in "Testing"
+    when the token was minted, in which case they die after 7 DAYS.** The failure arrives as
+    `invalid_grant`, whose raw description is "Bad Request", which sends people to check their
+    client secret. `tokenRequest()` rewrites that one error to name the actual cause. Publishing
+    status lives at **Google Auth Platform → Audience**, not under APIs & Services any more.
+  - **`access_type=offline` AND `prompt=consent` are both required, and both fail silently.**
+    Without the first, Google returns no refresh token at all. Without the second, it omits one
+    on every authorisation after the first — so reconnecting to fix a problem stores a document
+    with nothing to renew from, and the integration works for exactly one hour. Tested.
+  - **A refresh response carries no `refresh_token`.** `shape()` takes the previous document
+    so the existing one is carried forward; overwriting it with a null would break the *next*
+    refresh rather than this one, which is the hardest kind of bug to trace back.
+  - **An exchange that yields no refresh token is refused, never stored.** A document with an
+    access token and no refresh token looks connected and works until the hour is up.
+  - **Only `youtube.upload` is requested.** It is a SENSITIVE scope; the broader `youtube` and
+    `youtube.force-ssl` are RESTRICTED and would pull in a security assessment for access this
+    app never uses.
+  - **The redirect URI is pinned** by `YOUTUBE_REDIRECT_URI` for the same reason TikTok's is,
+    and must be registered on an OAuth client of type **Web application** — a Desktop client has
+    no redirect-URI field at all, which is what produces "Access blocked: this app's request is
+    invalid". That error reads like a verification wall and is not one.
 - **Instagram** caps publishing at 25 per account per rolling day.
 - **YouTube is the only platform we PUSH bytes to.** The other three fetch the URL
   themselves, which costs one small call regardless of file size. The YouTube adapter

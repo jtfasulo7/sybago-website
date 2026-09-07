@@ -3259,7 +3259,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(state.view !== 'dave') showPane('performance');
       // Coming back from TikTok's authorisation screen: open the tab that sent
       // them there. Checked once — the marker is stripped as it is read.
-      else if(tiktokReturn()) showPane('social');
+      else if(tiktokReturn() || oauthReturn('youtube')) showPane('social');
     }
 
     var tabs = document.querySelectorAll('#viewtabs button');
@@ -5184,6 +5184,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     brandedContent: false,
   };
 
+  /* YouTube has no per-post choices to make — nothing here mirrors TikTok's
+     privacy and interaction state, because Google exposes no equivalent. */
+  var youtube = { connected: false };
+
   var PRIVACY_LABELS = {
     PUBLIC_TO_EVERYONE: 'Everyone',
     MUTUAL_FOLLOW_FRIENDS: 'Friends (mutual follows)',
@@ -5192,26 +5196,92 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   };
 
   /* Shown when the app is set up but no account has been authorised. The
-     button is a link rather than a fetch: OAuth is a full-page journey to
-     TikTok and back, not something that can happen inside an XHR. */
-  function tiktokConnectPrompt(message){
+     button is a LINK rather than a fetch: OAuth is a full-page journey to the
+     platform and back, and there is nothing an XHR can do with a cross-origin
+     302. Shared by the two platforms that need authorising. */
+  var CONNECT_MARK = {
+    tiktok: '<path d="M12.3 2h2.2c.2 1.5 1.1 2.7 2.5 3v2.2a5.6 5.6 0 0 1-2.5-.7v4.9a4.6 4.6 0 1 1-4.6-4.6c.2 0 .4 0 .6.1v2.3a2.3 2.3 0 1 0 1.8 2.2V2Z"/>',
+    youtube: '<path d="M18.5 6.2a2 2 0 0 0-1.4-1.4C15.8 4.4 10 4.4 10 4.4s-5.8 0-7.1.4A2 2 0 0 0 1.5 6.2C1.1 7.5 1.1 10 1.1 10s0 2.5.4 3.8a2 2 0 0 0 1.4 1.4c1.3.4 7.1.4 7.1.4s5.8 0 7.1-.4a2 2 0 0 0 1.4-1.4c.4-1.3.4-3.8.4-3.8s0-2.5-.4-3.8ZM8.2 12.4V7.6l4.1 2.4-4.1 2.4Z"/>'
+  };
+
+  function connectPrompt(id, label, message){
     return '<div class="tk-connect">' +
-      '<p class="tk-connect-msg">' + esc(message || 'No TikTok account is connected yet.') + '</p>' +
-      '<a class="btn btn-primary" id="tk-connect" href="/api/tiktok-auth">' +
+      '<p class="tk-connect-msg">' + esc(message || ('No ' + label + ' account is connected yet.')) + '</p>' +
+      '<a class="btn btn-primary" id="' + id + '-connect" href="/api/' + id + '-auth">' +
         '<svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">' +
-          '<path d="M12.3 2h2.2c.2 1.5 1.1 2.7 2.5 3v2.2a5.6 5.6 0 0 1-2.5-.7v4.9a4.6 4.6 0 1 1-4.6-4.6c.2 0 .4 0 .6.1v2.3a2.3 2.3 0 1 0 1.8 2.2V2Z"/>' +
-        '</svg> Connect TikTok</a>' +
-      '<p class="tk-connect-note">You will be sent to TikTok to authorise, then back here.</p>' +
+          CONNECT_MARK[id] +
+        '</svg> Connect ' + label + '</a>' +
+      '<p class="tk-connect-note">You will be sent to ' + label + ' to authorise, then back here.</p>' +
     '</div>';
+  }
+
+  function tiktokConnectPrompt(message){
+    return connectPrompt('tiktok', 'TikTok', message);
+  }
+
+  /* ------------------------------------------------------------ youtube -- */
+  /* No per-post constraints to fetch, unlike TikTok — a channel is connected or
+     it is not, so this panel exists only to carry the button and to keep the
+     platform's pill honest until the answer arrives. */
+  function youtubePanel(){
+    var wrap = document.createElement('div');
+    wrap.className = 'tk';
+    wrap.id = 'yt-panel';
+    wrap.innerHTML = '<p class="tk-who" id="yt-who">Checking the channel…</p>';
+    setTimeout(loadYoutubeStatus, 0);
+    return wrap;
+  }
+
+  function loadYoutubeStatus(){
+    if(!$('yt-panel')) return;
+    fetch('/api/youtube-auth?status=1')
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j || !j.connected){
+          var why = j && j.reason === 'app'
+            ? 'Set ' + (j.missing || []).join(' and ') + ' in Vercel first.'
+            : j && j.reason === 'store'
+              ? 'Blob storage is not connected, so there is nowhere to keep the token.'
+              : null;
+          // Only offer the button when clicking it could actually work.
+          $('yt-panel').innerHTML = why
+            ? '<p class="tk-who">' + esc(why) + '</p>'
+            : connectPrompt('youtube', 'YouTube', j && j.message);
+          updatePostButton();
+          return;
+        }
+        youtube.connected = true;
+        var pill = $('pill-youtube');
+        if(pill){ pill.className='pill pill-on'; pill.textContent='Connected'; }
+        /* Uploads are forced private until Google verifies the project, which is
+           the same shape as TikTok's audit gate and worth saying before someone
+           waits on views that cannot arrive. */
+        $('yt-who').innerHTML = 'Uploading to <b>your channel</b>' +
+          (j.source === 'YOUTUBE_REFRESH_TOKEN' ? ' · using the pasted refresh token' : '') +
+          ' · videos stay <b>private</b> until Google verifies the app';
+        updatePostButton();
+      })
+      .catch(function(){ $('yt-who').textContent = 'Could not reach the server.'; });
+  }
+
+  /* Same shape as tiktokBlocker: why the post button is not available yet. */
+  function youtubeBlocker(){
+    if(!social.selected.youtube) return null;
+    if(youtube.connected) return null;
+    return document.getElementById('youtube-connect')
+      ? 'Connect your YouTube channel first.'
+      : 'Still checking your YouTube channel.';
   }
 
   /* Returning from the OAuth round trip. The callback lands here with a marker
      so the page can open the tab that sent the operator away, and the marker is
      stripped so a refresh does not keep re-opening it. */
-  function tiktokReturn(){
+  function tiktokReturn(){ return oauthReturn('tiktok'); }
+
+  function oauthReturn(which){
     var p = new URLSearchParams(location.search);
-    if(p.get('tiktok') !== 'connected') return false;
-    p.delete('tiktok');
+    if(p.get(which) !== 'connected') return false;
+    p.delete(which);
     var rest = p.toString();
     history.replaceState(null, '', location.pathname + (rest ? '?' + rest : ''));
     return true;
@@ -5423,6 +5493,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       // TikTok requires the creator to make these choices themselves, on the
       // screen, before the post button becomes available.
       if(p.id === 'tiktok' && p.configured) sec.appendChild(tiktokPanel());
+      if(p.id === 'youtube' && p.configured) sec.appendChild(youtubePanel());
 
       if(!p.configured){
         var missing = document.createElement('p');
@@ -5516,7 +5587,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       var c = social.captions[p.id];
       return c && c.caption && c.caption.trim();
     });
-    var tkBlocked = tiktokBlocker();
+    // Either platform being unconnected blocks the button, and the first
+    // unmet reason is the one named.
+    var tkBlocked = tiktokBlocker() || youtubeBlocker();
     var ready = !!social.blobUrl && chosen.length > 0 && haveCaptions && !social.posting && !tkBlocked;
     btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
     btn.textContent = chosen.length

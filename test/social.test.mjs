@@ -71,11 +71,32 @@ t('half the TikTok app keys is not configured', () =>
   assert.equal(platforms.isConfigured('tiktok', { TIKTOK_CLIENT_KEY: 'k' }), false));
 
 t('a partially configured platform is not configured', () =>
-  assert.equal(platforms.isConfigured('youtube', { YOUTUBE_CLIENT_ID: 'a', YOUTUBE_CLIENT_SECRET: 'b' }), false));
+  assert.equal(platforms.isConfigured('facebook', { FB_PAGE_ID: 'a' }), false));
 
 t('missing variables are named individually', () =>
   assert.deepEqual(platforms.missingEnv('youtube', { YOUTUBE_CLIENT_ID: 'a' }),
-    ['YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN']));
+    ['YOUTUBE_CLIENT_SECRET']));
+
+t('the YouTube app keys alone configure it', () =>
+  // The refresh token is obtained by OAuth and stored, not set by hand, so
+  // demanding it here would mean a channel connected through the dashboard
+  // could never report itself ready.
+  assert.equal(platforms.isConfigured('youtube', { YOUTUBE_CLIENT_ID: 'a', YOUTUBE_CLIENT_SECRET: 'b' }), true));
+
+t('a pasted YouTube refresh token still configures it', () =>
+  assert.equal(platforms.isConfigured('youtube', {
+    YOUTUBE_CLIENT_ID: 'a', YOUTUBE_CLIENT_SECRET: 'b', YOUTUBE_REFRESH_TOKEN: 'c',
+  }), true));
+
+t('YouTube and TikTok both declare that connecting is a separate step', () => {
+  const byId = Object.fromEntries(platforms.platformStatus({}).map((p) => [p.id, p]));
+  assert.equal(byId.youtube.needsAuth, true);
+  assert.equal(byId.tiktok.needsAuth, true);
+  // Facebook and Instagram carry their credentials whole; there is nothing to
+  // authorise, so a Connect button would be a dead end.
+  assert.equal(byId.facebook.needsAuth, false);
+  assert.equal(byId.instagram.needsAuth, false);
+});
 
 t('status never leaks a credential value', () => {
   const s = platforms.platformStatus({ TIKTOK_ACCESS_TOKEN: 'super-secret-value' });
@@ -813,6 +834,135 @@ t('a host that only looks like ours is refused', () => {
 
 t('no secret means no signing, rather than an unsigned link', () =>
   assert.equal(vp.signVideoUrl(VP_BLOB, 'https://sybago.ai', {}), null));
+
+
+/* ------------------------------------------------------ youtube oauth ---- */
+console.log('\nYouTube OAuth');
+
+const yt = await import('../lib/social/youtube-auth.js');
+const YT_ENV = { YOUTUBE_CLIENT_ID: 'cid', YOUTUBE_CLIENT_SECRET: 'csec' };
+
+t('the authorise URL asks for offline access and forces the consent screen', () => {
+  /* THE BUG THIS GUARDS: without access_type=offline Google returns no refresh
+     token at all, and without prompt=consent it omits one on every
+     authorisation after the first. Either way the stored document has nothing
+     to renew from, the integration works for one hour, and the cause is
+     invisible from the symptom. */
+  const u = new URL(yt.authUrl({ clientId: 'cid', redirect: 'https://sybago.ai/api/youtube-auth', state: 'x.y' }));
+  assert.equal(u.searchParams.get('access_type'), 'offline');
+  assert.equal(u.searchParams.get('prompt'), 'consent');
+  assert.equal(u.searchParams.get('response_type'), 'code');
+  assert.equal(u.searchParams.get('client_id'), 'cid');
+  assert.equal(u.searchParams.get('redirect_uri'), 'https://sybago.ai/api/youtube-auth');
+});
+
+t('only the upload scope is requested', () =>
+  // youtube.upload is SENSITIVE. The broader youtube / youtube.force-ssl scopes
+  // are RESTRICTED and would drag in a security assessment this app does not
+  // need, for access it never uses.
+  assert.deepEqual(yt.SCOPES, ['https://www.googleapis.com/auth/youtube.upload']));
+
+t('the redirect URI is pinned by configuration when set', () =>
+  assert.equal(
+    yt.redirectUri({ headers: { 'x-forwarded-host': 'some-preview.vercel.app' } },
+      { YOUTUBE_REDIRECT_URI: 'https://sybago.ai/api/youtube-auth' }),
+    'https://sybago.ai/api/youtube-auth'));
+
+t('without pinning it follows the host actually reached', () =>
+  // Google compares this byte for byte, so a preview host would otherwise send
+  // a redirect_uri matching nothing and fail with redirect_uri_mismatch.
+  assert.equal(
+    yt.redirectUri({ headers: { 'x-forwarded-host': 'sybago.ai' } }, {}),
+    'https://sybago.ai/api/youtube-auth'));
+
+{
+  const realFetch = globalThis.fetch;
+
+  await (async () => {
+    // A refresh response carries NO refresh_token. Losing the stored one here
+    // means the next refresh has nothing to present.
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({ access_token: 'fresh-access', expires_in: 3600, scope: 'upload' }),
+    });
+
+    const previous = {
+      accessToken: 'old', refreshToken: 'THE-REFRESH-TOKEN',
+      scope: 'upload', expiresAt: 1, obtainedAt: 1,
+    };
+
+    const saved = [];
+    const store = await import('../lib/secure-store.js');
+    store.useBlobClient({
+      put: async (p, body) => { saved.push(JSON.parse(JSON.stringify({ p }))); return { url: 'x' }; },
+      head: async () => { throw new Error('none'); },
+    });
+
+    const out = await yt.refreshTokens(previous, {
+      ...YT_ENV, DASHBOARD_SESSION_SECRET: 'z'.repeat(40), BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_x',
+    }).catch((e) => e);
+
+    t('a refresh carries the existing refresh token forward', () => {
+      assert.ok(!(out instanceof Error), out instanceof Error ? out.message : '');
+      assert.equal(out.refreshToken, 'THE-REFRESH-TOKEN');
+      assert.equal(out.accessToken, 'fresh-access');
+    });
+
+    t('a refresh sets a new absolute expiry, not a duration', () => {
+      assert.ok(out.expiresAt > Date.now() + 3000 * 1000);
+      assert.equal(typeof out.expiresAt, 'number');
+    });
+  })();
+
+  await (async () => {
+    // invalid_grant is what a token minted in "Testing" looks like on day 8.
+    // Google's own message is "Bad Request", which sends people to check the
+    // client secret instead.
+    globalThis.fetch = async () => ({
+      ok: false,
+      json: async () => ({ error: 'invalid_grant', error_description: 'Bad Request' }),
+    });
+
+    const err = await yt.refreshTokens(
+      { refreshToken: 'dead' }, { ...YT_ENV, DASHBOARD_SESSION_SECRET: 'z'.repeat(40) },
+    ).catch((e) => e);
+
+    t('invalid_grant explains the 7-day Testing expiry', () => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /7 days/);
+      assert.match(err.message, /Testing/);
+    });
+  })();
+
+  await (async () => {
+    // An authorisation that returns no refresh token must be REFUSED, not
+    // stored: it looks connected, works for an hour, then fails with nothing
+    // on screen pointing at the cause.
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({ access_token: 'a', expires_in: 3600 }),   // no refresh_token
+    });
+
+    const err = await yt.exchangeCode(
+      { code: 'c', redirect: 'https://sybago.ai/api/youtube-auth' },
+      { ...YT_ENV, DASHBOARD_SESSION_SECRET: 'z'.repeat(40) },
+    ).catch((e) => e);
+
+    t('an authorisation with no refresh token is refused, not stored', () => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /no refresh token/i);
+      assert.match(err.message, /permissions/);
+    });
+  })();
+
+  globalThis.fetch = realFetch;
+}
+
+t('missing app keys are named, not guessed at', () => {
+  assert.deepEqual(yt.missingYoutubeEnv({}), ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET']);
+  assert.deepEqual(yt.missingYoutubeEnv(YT_ENV), []);
+  assert.equal(yt.youtubeConfig({}), null);
+});
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 
