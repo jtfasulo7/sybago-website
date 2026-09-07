@@ -474,5 +474,140 @@ t('the text-only path still works', () =>
   assert.ok(res.code === 200 && typeof sent.messages[0].content === 'string'));
 t('text-only reports no frames read', () => assert.equal(res.body.framesRead, 0));
 
+/* ------------------------------------------------- tiktok visibility ----- */
+console.log('\nTikTok privacy levels');
+
+const tk = await import('../lib/social/adapters.js');
+
+t('the most public level TikTok offers is the one used', () => {
+  assert.equal(tk.pickPrivacyLevel(['SELF_ONLY', 'PUBLIC_TO_EVERYONE']), 'PUBLIC_TO_EVERYONE');
+  assert.equal(tk.pickPrivacyLevel(['SELF_ONLY', 'MUTUAL_FOLLOW_FRIENDS']), 'MUTUAL_FOLLOW_FRIENDS');
+});
+t('an unaudited app gets the only level it is offered', () =>
+  assert.equal(tk.pickPrivacyLevel(['SELF_ONLY']), 'SELF_ONLY'));
+t('no options at all is null, not a guess', () =>
+  assert.equal(tk.pickPrivacyLevel([]), null));
+
+{
+  /* THE BUG THIS GUARDS: the adapter used to hardcode PUBLIC_TO_EVERYONE.
+     TikTok only ever offers SELF_ONLY to an unaudited app, so the very first
+     post any new integration made was rejected, with an error that did not say
+     which of the several possible causes it was. */
+  let sentBody = null;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes('creator_info')) {
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          data: { privacy_level_options: ['SELF_ONLY'], comment_disabled: true, duet_disabled: false, stitch_disabled: true },
+          error: { code: 'ok' },
+        }),
+      };
+    }
+    sentBody = JSON.parse(init.body);
+    return { ok: true, status: 200, json: async () => ({ data: { publish_id: 'pub_1' }, error: { code: 'ok' } }) };
+  };
+
+  const res = await tk.publishTikTok(
+    { videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: ['#a'] },
+    { TIKTOK_ACCESS_TOKEN: 'tok' },
+  );
+
+  t('an unaudited app posts at the level it is actually allowed', () =>
+    assert.equal(sentBody.post_info.privacy_level, 'SELF_ONLY'));
+  t("the creator's own comment and stitch settings are respected, not overridden", () => {
+    assert.equal(sentBody.post_info.disable_comment, true);
+    assert.equal(sentBody.post_info.disable_stitch, true);
+    assert.equal(sentBody.post_info.disable_duet, false);
+  });
+  t('it succeeds', () => assert.equal(res.ok, true));
+  t('but it says plainly that nobody else can see it', () => {
+    // "Posted" when only the account holder can see it is the half-truth that
+    // costs weeks of waiting for engagement on an invisible video.
+    assert.match(res.message, /visible to you only|SELF_ONLY/);
+    assert.match(res.message, /audit/i);
+  });
+  t('and the visibility is reported as data, not only as prose', () =>
+    assert.equal(res.visibility, 'SELF_ONLY'));
+}
+
+{
+  let sentBody = null;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).includes('creator_info')) {
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          data: { privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'] },
+          error: { code: 'ok' },
+        }),
+      };
+    }
+    sentBody = JSON.parse(init.body);
+    return { ok: true, status: 200, json: async () => ({ data: { publish_id: 'pub_2' }, error: { code: 'ok' } }) };
+  };
+
+  const res = await tk.publishTikTok(
+    { videoUrl: 'https://x.public.blob.vercel-storage.com/v.mp4', caption: 'hi', hashtags: [] },
+    { TIKTOK_ACCESS_TOKEN: 'tok' },
+  );
+  t('an audited app posts publicly', () =>
+    assert.equal(sentBody.post_info.privacy_level, 'PUBLIC_TO_EVERYONE'));
+  t('and says so without the caveat', () => {
+    assert.match(res.message, /public/i);
+    assert.ok(!/audit/i.test(res.message), res.message);
+  });
+}
+
+{
+  // A stale token is the most common failure: TikTok's expire every 24 hours.
+  globalThis.fetch = async () => ({
+    ok: false, status: 401,
+    json: async () => ({ error: { code: 'access_token_invalid', message: 'invalid' } }),
+  });
+  const res = await tk.publishTikTok(
+    { videoUrl: 'https://x/v.mp4', caption: 'hi', hashtags: [] },
+    { TIKTOK_ACCESS_TOKEN: 'stale' },
+  );
+  t('a stale token is named as stale rather than as wrong', () => {
+    assert.equal(res.ok, false);
+    assert.match(res.message, /24 hours|refresh/i);
+  });
+}
+
+{
+  // The video is never handed over if the token check fails: no point uploading
+  // to an endpoint that has already said no.
+  let initCalled = false;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('creator_info')) {
+      return { ok: false, status: 403, json: async () => ({ error: { code: 'scope_not_authorized', message: 'no scope' } }) };
+    }
+    initCalled = true;
+    return { ok: true, status: 200, json: async () => ({ data: {}, error: { code: 'ok' } }) };
+  };
+  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [] }, { TIKTOK_ACCESS_TOKEN: 't' });
+  t('a missing scope is caught before the video is offered', () => {
+    assert.equal(res.ok, false);
+    assert.equal(initCalled, false);
+    assert.match(res.message, /video\.publish|scope/i);
+  });
+}
+
+{
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('creator_info')) {
+      return { ok: true, status: 200, json: async () => ({ data: { privacy_level_options: [] }, error: { code: 'ok' } }) };
+    }
+    return { ok: true, status: 200, json: async () => ({ data: {}, error: { code: 'ok' } }) };
+  };
+  const res = await tk.publishTikTok({ videoUrl: 'https://x/v.mp4', caption: 'a', hashtags: [] }, { TIKTOK_ACCESS_TOKEN: 't' });
+  t('no permitted privacy level at all is refused, not defaulted', () => {
+    assert.equal(res.ok, false);
+    assert.match(res.message, /no privacy levels/i);
+  });
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
+
 process.exit(fail ? 1 : 0);

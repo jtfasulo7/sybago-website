@@ -530,9 +530,20 @@ Instagram ids and check which scopes a token actually holds.
 
 **Known platform gates — surfaced in the UI, not worked around**
 
-- **TikTok** only creates drafts until the app passes audit, and PULL_FROM_URL needs the
-  hosting domain verified — a Blob URL is refused until `blob.vercel-storage.com` is
-  verified or the file is served from a verified domain.
+- **TikTok** restricts an unaudited app to **SELF_ONLY** posts — visible to the account holder
+  and nobody else. Not drafts: they publish, they are just invisible. `publishTikTok` therefore
+  calls `creator_info/query` FIRST and posts at the most public level in the
+  `privacy_level_options` TikTok actually returns. **Never hardcode a privacy level** — an
+  earlier version sent `PUBLIC_TO_EVERYONE` unconditionally, so the very first post any new
+  integration made was rejected. Querying creator info is also a TikTok UX requirement, and it
+  is where `comment_disabled` / `duet_disabled` / `stitch_disabled` come from; those are the
+  creator's own settings and sending `false` over them is refused.
+  The success message leads with the visibility, because "posted" for a video only the owner can
+  see is the half-truth that costs weeks of waiting for engagement.
+  PULL_FROM_URL also needs the hosting domain verified — a Blob URL is refused until
+  `blob.vercel-storage.com` is verified or the file is served from a verified domain.
+  TikTok access tokens expire every **24 hours**, so a failure here is usually staleness rather
+  than a wrong value, and the error says so.
 - **YouTube** forces uploads to private until Google verifies the project, and an upload
   costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
 - **Instagram** caps publishing at 25 per account per rolling day.
