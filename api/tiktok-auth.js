@@ -130,7 +130,7 @@ export default async function handler(req, res) {
       clearState(res);
       // Straight back into the Social post tab, which re-reads the connection
       // on render and will now find it.
-      res.status(302).setHeader('Location', '/dashboard?tiktok=connected#social');
+      res.status(302).setHeader('Location', '/dashboard?tiktok=connected');
       return res.end();
     } catch (e) {
       clearState(res);

@@ -568,7 +568,7 @@ Instagram ids and check which scopes a token actually holds.
     redirect_uri that does not match the registered one, and the flow dies on a bare
     `invalid_request`. TikTok compares it byte for byte, twice — once for the code, once for
     the exchange — which is also why one endpoint serves both legs.
-  - **The success leg redirects to `/dashboard?tiktok=connected#social`**, and the page opens
+  - **The success leg redirects to `/dashboard?tiktok=connected`**, and the page opens
     that tab and strips the marker. The failure legs stay on their own page: a message that
     vanishes into a redirect is a message nobody reads.
 - **YouTube** forces uploads to private until Google verifies the project, and an upload
