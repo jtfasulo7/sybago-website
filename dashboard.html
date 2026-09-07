@@ -27,6 +27,7 @@
      Pinned with SRI, hash verified against the served bytes: this is
      third-party code on a page that displays ad spend behind a login. -->
 <script src="/assets/spreadsheet.js"></script>
+<script src="/assets/scatter3d.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
         integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
         crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
@@ -55,7 +56,7 @@
      more considered than flat #fff, and gives the glass edges something to
      catch. */
   --ground:#eef2f4; --ground-2:#e5ebee;
-  --surface:rgba(255,255,255,.72); --surface-solid:#ffffff; --surface-hover:#ffffff;
+  --surface:rgba(255,255,255,.72); --surface-solid:#ffffff; --surface-rgb:255,255,255; --surface-hover:#ffffff;
   --hairline:rgba(15,20,25,.08); --hairline-2:rgba(255,255,255,.85);
   --nav-bg:rgba(238,242,244,.78);
   --thead-bg:rgba(255,255,255,.94);
@@ -100,7 +101,7 @@
   --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
 
   --ground:#0B0B0C; --ground-2:#141317;
-  --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-hover:#1E1C23;
+  --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-rgb:22,21,26; --surface-hover:#1E1C23;
   --hairline:rgba(246,242,232,.11); --hairline-2:rgba(255,255,255,.06);
   --nav-bg:rgba(11,11,12,.82);
   --thead-bg:rgba(22,21,26,.94);
@@ -915,6 +916,118 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   .panel-ctl .field { flex:1 1 100%; }
   .toolbar { gap:.45rem .5rem; }
 }
+/* ------------------------------------------------------------ 3D model -- */
+/* A full-bleed overlay rather than an inline panel. Rotating something needs
+   room, and a cube in a 400px box reads as a diagram rather than an object. */
+/* Above the sticky nav, which sits at 100. An overlay that a page header
+   punches through is not an overlay; the panel's own controls were landing
+   underneath it. */
+.v3d { position:fixed; inset:0; z-index:200; display:none; }
+.v3d.is-open { display:block; }
+.v3d-scrim {
+  position:absolute; inset:0; background:rgba(0,0,0,.55);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  animation:v3d-fade .35s var(--eo) both;
+}
+.v3d-panel {
+  position:absolute; inset:2.5vh 2.5vw; display:flex; flex-direction:column;
+  border-radius:var(--r-lg); overflow:hidden;
+  background:var(--surface-solid); border:1px solid var(--hairline);
+  box-shadow:var(--lift-2);
+  animation:v3d-rise .45s var(--eo) both;
+}
+@keyframes v3d-fade { from { opacity:0; } to { opacity:1; } }
+@keyframes v3d-rise {
+  from { opacity:0; transform:translateY(14px) scale(.985); filter:blur(6px); }
+  to   { opacity:1; transform:none; filter:blur(0); }
+}
+
+.v3d-head {
+  display:flex; flex-wrap:wrap; align-items:center; gap:.6rem 1rem;
+  padding:.85rem 1.1rem; border-bottom:1px dashed var(--hairline);
+}
+.v3d-title { font-size:.95rem; font-weight:700; letter-spacing:-.01em; }
+.v3d-eyebrow {
+  font:700 .62rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--t3);
+}
+.v3d-spacer { flex:1 1 auto; }
+
+/* The axis pickers. Monospaced micro-labels, as in the reference deck. */
+.v3d-axes { display:flex; flex-wrap:wrap; gap:.5rem; }
+.v3d-axis { display:flex; align-items:center; gap:.35rem; }
+.v3d-axis > span {
+  font:700 .62rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing:.12em; color:var(--t3); width:12px;
+}
+.v3d-axis select {
+  width:auto; min-height:32px; padding:.3rem 1.7rem .3rem .6rem;
+  border-radius:8px; font-size:.82rem; box-shadow:none;
+  background-position:right .5rem center;
+}
+
+.v3d-stage { position:relative; flex:1 1 auto; min-height:0; }
+.v3d-stage canvas { display:block; width:100%; height:100%; cursor:grab; touch-action:none; }
+.v3d-stage canvas:active { cursor:grabbing; }
+
+/* Floating glass chips over the stage, the way the reference floats its deck
+   over the canvas rather than docking it. */
+.v3d-hud {
+  position:absolute; left:1rem; bottom:1rem; display:flex; flex-wrap:wrap; gap:.4rem;
+}
+.v3d-chip {
+  display:inline-flex; align-items:center; gap:.4rem;
+  min-height:30px; padding:.28rem .6rem; border-radius:9px; cursor:pointer;
+  font:600 .74rem/1 var(--ff); color:var(--t2);
+  border:1px solid var(--hairline); background:rgba(var(--surface-rgb),.72);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  transition:color .2s var(--eo), border-color .2s var(--eo);
+}
+.v3d-chip:hover { color:var(--t1); border-color:rgba(var(--accent-rgb),.5); }
+.v3d-chip svg { width:12px; height:12px; }
+
+/* The readout. Sits top-right so it never collides with the HUD, and holds its
+   height so the stage does not jump as values come and go. */
+.v3d-readout {
+  position:absolute; right:1rem; top:1rem; min-width:170px;
+  padding:.6rem .75rem; border-radius:10px;
+  border:1px solid var(--hairline); background:rgba(var(--surface-rgb),.78);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  font:500 .74rem/1.5 var(--ff); color:var(--t2);
+  opacity:0; transition:opacity .2s var(--eo);
+}
+.v3d-readout.is-on { opacity:1; }
+.v3d-readout b { display:block; color:var(--t1); font-size:.78rem; margin-bottom:.15rem; }
+.v3d-readout .k { color:var(--t3); }
+
+/* Series legend. Same job as the 2D chart's: colour AND shape, so the plot
+   survives a screenshot, a printout and a colour-blind reader. */
+.v3d-legend {
+  display:flex; flex-wrap:wrap; gap:.35rem .8rem;
+  padding:.6rem 1.1rem; border-top:1px dashed var(--hairline);
+}
+.v3d-key {
+  display:inline-flex; align-items:center; gap:.4rem;
+  font-size:.76rem; color:var(--t2); cursor:pointer;
+  background:none; border:0; padding:.15rem .1rem;
+}
+.v3d-key.is-off { opacity:.4; }
+.v3d-key svg { width:26px; height:12px; flex:0 0 26px; }
+
+.v3d-empty {
+  position:absolute; inset:0; display:grid; place-items:center;
+  padding:2rem; text-align:center; color:var(--t3); font-size:.9rem;
+}
+
+@media (max-width:720px){
+  .v3d-panel { inset:0; border-radius:0; }
+  .v3d-axes { width:100%; }
+  .v3d-axis { flex:1 1 auto; }
+  .v3d-axis select { flex:1 1 auto; width:100%; }
+  .v3d-readout { left:1rem; right:1rem; top:auto; bottom:4rem; }
+  .v3d-hud { bottom:.75rem; left:.75rem; }
+}
+
 @media (prefers-reduced-motion:reduce) { *,*::after,*::before { animation:none !important; transition:none !important; } }
 </style>
 </head>
@@ -1078,6 +1191,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <button type="button" class="btn btn-ghost add-series" id="ts-add">
           <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
           Add metric
+        </button>
+        <button type="button" class="btn btn-ghost add-series" id="ts-3d" aria-haspopup="dialog">
+          <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.6 17 6.4v7.2L10 17.4 3 13.6V6.4Z"/><path d="M3 6.4 10 10.2l7-3.8M10 10.2v7.2"/></svg>
+          3D Model
         </button>
       </div>
       <div class="ad-legend" id="ts-legend" hidden></div>
@@ -1358,6 +1475,61 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <div class="table-scroll"><table id="fin-budget-table"><caption>Campaign and ad set budgets, and what each projects to this month.</caption></table></div>
       </section>
     </div><!-- /#pane-finance -->
+
+    <!-- ===================== 3D MODEL ===================== -->
+    <div class="v3d" id="v3d" role="dialog" aria-modal="true" aria-labelledby="v3d-title" aria-hidden="true">
+      <div class="v3d-scrim" id="v3d-scrim"></div>
+      <div class="v3d-panel">
+        <div class="v3d-head">
+          <div>
+            <p class="v3d-eyebrow">Three axes</p>
+            <h2 class="v3d-title" id="v3d-title">3D model</h2>
+          </div>
+
+          <div class="v3d-axes">
+            <label class="v3d-axis"><span>X</span>
+              <span class="sr-only">X axis metric</span>
+              <select id="v3d-x"></select></label>
+            <label class="v3d-axis"><span>Y</span>
+              <span class="sr-only">Y axis metric</span>
+              <select id="v3d-y"></select></label>
+            <label class="v3d-axis"><span>Z</span>
+              <span class="sr-only">Z axis metric</span>
+              <select id="v3d-z"></select></label>
+          </div>
+
+          <span class="v3d-spacer"></span>
+          <button type="button" class="btn btn-ghost" id="v3d-close"
+                  style="min-height:34px;padding:.35rem .8rem;font-size:.84rem">Close</button>
+        </div>
+
+        <div class="v3d-stage">
+          <canvas id="v3d-canvas" role="img"
+                  aria-label="Three metrics plotted against each other over time. The same values are in the table below."></canvas>
+          <p class="v3d-empty" id="v3d-empty" hidden></p>
+          <div class="v3d-readout" id="v3d-readout" role="status" aria-live="polite"></div>
+
+          <div class="v3d-hud">
+            <button type="button" class="v3d-chip" id="v3d-spin" aria-pressed="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 7h10M5 13h10"/></svg>
+              <span>Freeze</span>
+            </button>
+            <button type="button" class="v3d-chip" id="v3d-reset">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a6 6 0 1 1 1.8 4.2"/><path d="M4 15v-4h4"/></svg>
+              <span>Reset view</span>
+            </button>
+            <span class="v3d-chip" style="cursor:default">Drag to rotate · scroll to zoom</span>
+          </div>
+        </div>
+
+        <div class="v3d-legend" id="v3d-legend" hidden></div>
+
+        <details class="alt" style="padding:.5rem 1.1rem 1rem">
+          <summary>View as table</summary>
+          <div class="table-scroll"><table id="v3d-table"><caption>Every plotted point, with all three metrics.</caption></table></div>
+        </details>
+      </div>
+    </div>
 
     </div><!-- /#dash-body -->
 
@@ -3514,6 +3686,324 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     });
   }
 
+  /* ------------------------------------------------------------- 3D ------ */
+  /* Three metrics as three axes, one point per period, joined in time order.
+     The 2D panel answers "what did this metric do"; this answers "how do three
+     of them move together", which is a shape rather than a line.
+
+     Scatter3D (assets/scatter3d.js) owns the maths and the canvas. Everything
+     here is data shaping, the controls, and the accessible alternative. */
+
+  var v3d = {
+    plot: null,
+    series: [],
+    axes: null,
+    hidden: {},          // series name -> true
+    lastFocus: null,
+    open: false,
+  };
+
+  /* Metrics worth putting on an axis. Anything with a number per period
+     qualifies; the derived cost metrics are included because "cost per
+     registration against spend against CTR" is exactly the question this view
+     exists to answer. */
+  function v3dMetricKeys(){
+    return Object.keys(METRICS).filter(function(k){
+      return k !== 'results';
+    });
+  }
+
+  function v3dFillSelect(id, chosen){
+    var sel = $(id);
+    sel.innerHTML = '';
+    v3dMetricKeys().forEach(function(k){
+      sel.appendChild(opt(k, METRICS[k].label));
+    });
+    sel.value = chosen;
+  }
+
+  /**
+   * Turn the daily rows into curves.
+   *
+   * One series per ad when ads are selected, otherwise one for the account —
+   * the same rule the 2D chart follows, so the two views never disagree about
+   * what is being compared.
+   */
+  function v3dBuildSeries(daily, keys){
+    var pal = seriesPalette();
+    var byAd = {};
+    var order = [];
+
+    (daily || []).forEach(function(row){
+      var id = row.adId || '__all';
+      if(!byAd[id]){
+        byAd[id] = { name: row.adName || 'All selected', rows: [] };
+        order.push(id);
+      }
+      byAd[id].rows.push(row);
+    });
+
+    return order.map(function(id, i){
+      var st = pal[i % pal.length];
+      var g = byAd[id];
+      // Time order, because the line between two points is a passage of time.
+      // Drawn in response order it would be a scribble.
+      g.rows.sort(function(a,b){
+        if(a.dateStart && b.dateStart) return a.dateStart < b.dateStart ? -1 : 1;
+        return (a.hour||0) - (b.hour||0);
+      });
+      return {
+        name: g.name,
+        colour: st.line,
+        dash: st.dash,
+        point: st.point,
+        hidden: !!v3d.hidden[g.name],
+        points: g.rows.map(function(r){
+          return {
+            label: r.dateStart || (fmtHour(r.hour)),
+            vx: r[keys.x], vy: r[keys.y], vz: r[keys.z],
+            raw: r
+          };
+        })
+      };
+    });
+  }
+
+  /* Values to cube coordinates. A point missing ANY of the three is dropped
+     rather than placed at zero — a day with no CPC did not have a CPC of zero,
+     and planting it on the floor of the box invents a reading. */
+  function v3dPosition(series, axes){
+    series.forEach(function(s){
+      s.points.forEach(function(p){
+        var px = Scatter3D.norm(p.vx, axes.x.min, axes.x.max);
+        var py = Scatter3D.norm(p.vy, axes.y.min, axes.y.max);
+        var pz = Scatter3D.norm(p.vz, axes.z.min, axes.z.max);
+        var ok = px != null && py != null && pz != null;
+        p.px = ok ? px : null;
+        p.py = ok ? py : null;
+        p.pz = ok ? pz : null;
+      });
+    });
+  }
+
+  function v3dTheme(){
+    var dark = state.view === 'dave';
+    return {
+      bg: 'transparent',
+      gridNear: dark ? 'rgba(246,242,232,.22)' : 'rgba(15,20,25,.20)',
+      gridFar:  dark ? 'rgba(246,242,232,.07)' : 'rgba(15,20,25,.07)',
+      tick:     dark ? 'rgba(246,242,232,.45)' : 'rgba(15,20,25,.45)',
+      axis:     dark ? 'rgba(246,242,232,.75)' : 'rgba(15,20,25,.70)',
+      pointFill: dark ? '#16151A' : '#ffffff'
+    };
+  }
+
+  function v3dRender(){
+    var keys = { x: $('v3d-x').value, y: $('v3d-y').value, z: $('v3d-z').value };
+    var daily = v3d.daily || [];
+
+    var series = v3dBuildSeries(daily, keys);
+    var visible = series.filter(function(s){ return !s.hidden; });
+
+    var axes = {
+      x: Object.assign(Scatter3D.extent(visible, 'vx'), { label: METRICS[keys.x].short, format: METRICS[keys.x].fmt }),
+      y: Object.assign(Scatter3D.extent(visible, 'vy'), { label: METRICS[keys.y].short, format: METRICS[keys.y].fmt }),
+      z: Object.assign(Scatter3D.extent(visible, 'vz'), { label: METRICS[keys.z].short, format: METRICS[keys.z].fmt })
+    };
+
+    v3dPosition(series, axes);
+    v3d.series = series;
+    v3d.axes = axes;
+    v3d.keys = keys;
+
+    var plotted = 0;
+    visible.forEach(function(s){
+      s.points.forEach(function(p){ if(p.px != null) plotted++; });
+    });
+
+    $('v3d-empty').hidden = plotted > 0;
+    if(plotted === 0){
+      $('v3d-empty').textContent = daily.length
+        ? 'No period has all three of these metrics. Try axes the account actually reports.'
+        : 'Nothing has delivered in this range yet.';
+    }
+
+    if(v3d.plot){
+      v3d.plot.theme = v3dTheme();
+      v3d.plot.setData(series, axes);
+    }
+    v3dRenderLegend();
+    v3dRenderTable();
+  }
+
+  function v3dRenderLegend(){
+    var wrap = $('v3d-legend');
+    wrap.innerHTML = '';
+    // One series and no ads selected: the legend would just name the account
+    // back to itself.
+    if(v3d.series.length < 2){ wrap.hidden = true; return; }
+    wrap.hidden = false;
+
+    v3d.series.forEach(function(s){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'v3d-key' + (s.hidden ? ' is-off' : '');
+      b.setAttribute('aria-pressed', s.hidden ? 'false' : 'true');
+      // The swatch draws this series' actual dash and marker, so the key is the
+      // thing it identifies rather than a description of it.
+      b.innerHTML =
+        '<svg viewBox="0 0 26 12" aria-hidden="true">' +
+          '<path d="M1 6h24" fill="none" stroke="' + s.colour + '" stroke-width="2"' +
+          (s.dash && s.dash.length ? ' stroke-dasharray="' + s.dash.join(' ') + '"' : '') + '/>' +
+          '<circle cx="13" cy="6" r="3.2" fill="var(--surface-solid)" stroke="' + s.colour + '" stroke-width="2"/>' +
+        '</svg><span>' + esc(s.name) + '</span>';
+      b.addEventListener('click', function(){
+        v3d.hidden[s.name] = !v3d.hidden[s.name];
+        v3dRender();
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  /* The same numbers as a table. Every other chart on this page has one and a
+     canvas is opaque to a screen reader; a 3D canvas doubly so. */
+  function v3dRenderTable(){
+    var k = v3d.keys;
+    var rows = [];
+    v3d.series.forEach(function(s){
+      if(s.hidden) return;
+      s.points.forEach(function(p){
+        rows.push([
+          esc(s.name), esc(p.label),
+          METRICS[k.x].fmt(p.vx), METRICS[k.y].fmt(p.vy), METRICS[k.z].fmt(p.vz)
+        ]);
+      });
+    });
+    buildRichTable($('v3d-table'),
+      ['Series', 'Period', METRICS[k.x].label, METRICS[k.y].label, METRICS[k.z].label],
+      rows, []);
+  }
+
+  /* --------------------------------------------------------- open/close -- */
+
+  function v3dOpen(){
+
+    // Sensible starting axes: the money, the volume and the efficiency. Three
+    // metrics that are actually independent, so the first thing shown has a
+    // shape rather than a diagonal line.
+    if(!$('v3d-x').options.length){
+      v3dFillSelect('v3d-x', 'spend');
+      v3dFillSelect('v3d-y', 'registrations');
+      v3dFillSelect('v3d-z', 'ctr');
+    }
+
+    v3d.lastFocus = document.activeElement;
+    $('v3d').classList.add('is-open');
+    $('v3d').setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    v3d.open = true;
+
+    if(!v3d.plot){
+      v3d.plot = new Scatter3D.Plot($('v3d-canvas'), { autoRotate: !prefersReducedMotion() });
+      v3d.plot.theme = v3dTheme();
+      $('v3d-canvas').addEventListener('pointermove', v3dHover);
+      $('v3d-canvas').addEventListener('pointerleave', function(){ v3dSetReadout(null); });
+    }
+
+    /* The same request the 2D panel already made, so the response cache
+       answers it and the two views can never show different days. */
+    $('v3d-empty').hidden = false;
+    $('v3d-empty').textContent = 'Loading…';
+    loadPanel({ mode:'global' }, 'day').then(function(d){
+      v3d.daily = d.daily || [];
+      v3dRender();
+      v3d.plot.resize();
+    }).catch(function(){
+      $('v3d-empty').hidden = false;
+      $('v3d-empty').textContent = 'Could not load the data for this range.';
+    });
+
+    v3d.plot.start();
+    // Reduced motion still gets the plot, just already assembled and still.
+    if(prefersReducedMotion()){ v3d.plot.reveal = 1; v3d.plot.spin = false; }
+    $('v3d-close').focus();
+  }
+
+  function v3dClose(){
+    if(!v3d.open) return;
+    v3d.open = false;
+    if(v3d.plot) v3d.plot.stop();
+    $('v3d').classList.remove('is-open');
+    $('v3d').setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if(v3d.lastFocus && v3d.lastFocus.focus) v3d.lastFocus.focus();
+  }
+
+  function prefersReducedMotion(){
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /* ------------------------------------------------------------ hover ---- */
+
+  function v3dHover(e){
+    if(!v3d.plot) return;
+    var rect = $('v3d-canvas').getBoundingClientRect();
+    var hit = v3d.plot.hitTest(e.clientX - rect.left, e.clientY - rect.top, 16);
+    v3dSetReadout(hit);
+  }
+
+  function v3dSetReadout(hit){
+    var el = $('v3d-readout');
+    if(!hit){ el.classList.remove('is-on'); return; }
+    var k = v3d.keys;
+    el.innerHTML =
+      '<b>' + esc(hit.point.label) + '</b>' +
+      (v3d.series.length > 1 ? '<div class="k">' + esc(hit.series.name) + '</div>' : '') +
+      '<div><span class="k">' + esc(METRICS[k.x].short) + '</span> ' + esc(METRICS[k.x].fmt(hit.point.vx)) + '</div>' +
+      '<div><span class="k">' + esc(METRICS[k.y].short) + '</span> ' + esc(METRICS[k.y].fmt(hit.point.vy)) + '</div>' +
+      '<div><span class="k">' + esc(METRICS[k.z].short) + '</span> ' + esc(METRICS[k.z].fmt(hit.point.vz)) + '</div>';
+    el.classList.add('is-on');
+  }
+
+  /* ------------------------------------------------------------- boot ---- */
+
+  function bootV3d(){
+    $('ts-3d').addEventListener('click', v3dOpen);
+    $('v3d-close').addEventListener('click', v3dClose);
+    $('v3d-scrim').addEventListener('click', v3dClose);
+
+    ['v3d-x','v3d-y','v3d-z'].forEach(function(id){
+      $(id).addEventListener('change', v3dRender);
+    });
+
+    $('v3d-spin').addEventListener('click', function(){
+      v3d.plot.spin = !v3d.plot.spin;
+      this.setAttribute('aria-pressed', v3d.plot.spin ? 'true' : 'false');
+      this.querySelector('span').textContent = v3d.plot.spin ? 'Freeze' : 'Rotate';
+    });
+
+    $('v3d-reset').addEventListener('click', function(){
+      v3d.plot.setAngles(-0.62, 0.42);
+      v3d.plot.cam.targetDistance = 3.1;
+    });
+
+    // Escape closes, and Tab is kept inside — an overlay you can Tab out of
+    // leaves the keyboard somewhere the eye is not.
+    $('v3d').addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); v3dClose(); return; }
+      if(e.key !== 'Tab') return;
+      var f = $('v3d').querySelectorAll('button, select, [tabindex]:not([tabindex="-1"]), summary');
+      if(!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    });
+
+    window.addEventListener('resize', function(){
+      if(v3d.open && v3d.plot) v3d.plot.resize();
+    }, { passive:true });
+  }
+
   /* ---------------------------------------------------------- ledger ------ */
   /* The spreadsheet panel. Sheet (assets/spreadsheet.js) owns the formulas and
      the model; everything here is selection, keyboard and paint.
@@ -5117,6 +5607,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) uploadVideo(e.dataTransfer.files[0]);
     });
 
+    bootV3d();
     $('fin-refresh').addEventListener('click', function(){ renderFinance(true); });
     $('sc-generate').addEventListener('click', generateCaptions);
     $('sp-post').addEventListener('click', postEverywhere);

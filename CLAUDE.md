@@ -365,6 +365,59 @@ icon on its own line, then label, then figure.
   fire immediately and cost a listener for nothing. Replaying it on every refresh would draw the
   eye to a change that did not happen.
 
+### The 3D model
+
+The "3D Model" button on the Over time panel opens a full-screen overlay: three metrics as
+three axes, one point per period, joined in time order. The 2D panel answers "what did this
+metric do"; this answers "how do three of them move together", which is a shape rather than a
+line. Both view tabs get it, because it is the same markup.
+
+| File | Role |
+|---|---|
+| `assets/scatter3d.js` | Rotation, projection, scales, hit testing, canvas painting. |
+| `test/scatter3d.test.mjs` | `node test/scatter3d.test.mjs` — the maths only. |
+
+**Hand-rolled, not Three.js.** What is needed is a perspective divide, a depth sort and a
+wireframe box. A library would arrive as a second module format with no bundler to reconcile
+it, and could not read the CSS custom properties that are this page's entire visual language —
+its palette would have to be duplicated and kept in step by hand.
+
+**The design is ported from a canvas "helix" component; the code is not.** What transferred is
+the feel: perspective projection with depth-faded strata, everything easing toward a target
+rather than snapping, monospaced micro-labels, and glass control chips floating over the canvas
+instead of docked beside it.
+
+Things that are easy to get wrong, all covered by tests:
+
+- **Yaw before pitch, always.** Composed the other way the horizontal drag axis changes meaning
+  with how far you have already tilted, and the model fights the hand holding it.
+- **Pitch is clamped short of vertical.** Past it the world flips and the drag direction
+  inverts, which reads as the control breaking.
+- **A point behind the camera is clamped, not skipped.** A negative denominator mirrors the
+  point to the far side of the canvas — it vanishes and reappears mid-drag.
+- **A period missing ANY of the three metrics is dropped, not placed at zero.** A day with no
+  CPC did not have a CPC of zero, and planting it on the floor of the box invents a reading.
+- **Ticks round the step UP to a nice number**, comparing smallest-first. Written largest-first
+  the rule inverts and every axis comes back too coarse — 0 to 100 in two steps — which still
+  looks like a plausible axis. Tick values are rounded to the step's own precision at source
+  rather than leaving every formatter to hide `0.6000000000000001`.
+- **Axis labels go on the OUTERMOST edge, not the deepest one.** Picked by depth they land on
+  the back edge, which at most angles runs through the middle of the box, and the ticks read as
+  floating among the data rather than bounding it.
+- **Segments and markers are depth-sorted together**, not drawn series by series. Per-series
+  drawing lets whichever is last sit on top regardless of where it is, which reads as flat.
+- **Series carry a marker SHAPE as well as a colour**, the same reason the 2D chart varies its
+  point styles: the plot has to survive a screenshot, a printout and a colour-blind reader.
+- **The overlay sits at z-index 200.** The sticky nav is 100 and was punching through it.
+
+**It has a table alternative like every other chart here**, and a canvas is opaque to a screen
+reader — a 3D one doubly so. Escape closes it and Tab is trapped inside.
+
+**Testing note:** Chrome throttles `requestAnimationFrame` entirely when its window is
+occluded, which is the normal state under browser automation. The plot then paints only when a
+screenshot forces a composite, so the entrance animation appears frozen part-way and auto-
+rotate appears dead. Neither is a fault. Force `reveal = 1` to inspect a finished frame.
+
 **KPI tiles are a fixed 5x2 grid.** `KPI_KEYS` has exactly ten entries and the order is the
 layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the
 second row ragged. Extra metrics belong in the chart pickers and the table.
