@@ -322,6 +322,26 @@ caption, and do not remove focus outlines.
 - Each series chip draws that series' exact `stroke-dasharray`, so the chips ARE the
   legend. There is deliberately no separate legend strip.
 
+**Where each account lands.** `VIEW_DEFAULTS` in `dashboard.html` names the campaign and ad
+set each view opens on, and the global range defaults to **Today** — this is a page someone
+opens to see what is happening now, so a 30-day window has to be asked for.
+
+- Defaults are written as **names, not ids**, and matched loosely: case and punctuation are
+  ignored, but the words must appear IN ORDER. That is what picks "Dave - Ad Set 1 (Paid)"
+  over "Dave - Ad Set 2 (Paid)" and "Dave - Ad Set 1 (Organic)". A set-based match would let
+  the "1" in "Campaign 1" satisfy the "1" in "Ad Set 1" and quietly select the wrong one.
+- A default that matches nothing falls back to **All campaigns**. Renaming a campaign in Ads
+  Manager costs a default, not a working dashboard.
+- They are applied **once per account**, on the first campaign load, guarded by `pristine`.
+  A deliberate "All campaigns" must survive a tab switch, so the default is never re-applied
+  over a real choice.
+
+**The impressions tile carries reach**: "Impressions / Reach", "41,200 / 30,100". The two are
+the same delivery seen from either side, and the ratio between them is the frequency — read
+from separate tiles that is a division someone has to do for themselves. Its `<dd>` takes
+`.is-pair`, which shrinks the type: the KPI row is a fixed 5-wide grid and a tile that
+outgrows its column drags the whole row out of alignment.
+
 **KPI tiles are a fixed 5x2 grid.** `KPI_KEYS` has exactly ten entries and the order is the
 layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the
 second row ragged. Extra metrics belong in the chart pickers and the table.
@@ -612,6 +632,44 @@ Things that are easy to get wrong, all covered by tests:
   and the error is invisible until someone reads a label.
 - **A formula copied down moves its relative references and not its anchored ones.** That
   distinction is the only reason `$` exists.
+
+**Closing an editor is a paint, not an edit.** `commitCell()` does nothing when the text is
+unchanged; `endEdit()` used to skip its repaint on that path, which left the `<input>` sitting
+in the cell — showing the formula instead of its value, with an outline that read as a selection
+nothing could clear, one per cell ever opened that way. **Never make the repaint conditional on
+the edit having happened.**
+
+**A line selection is just a range.** Clicking a row or column header selects from one end to
+the other, so colour, format, delete and copy all work on a whole line with no special case
+anywhere. Headers light up only when their entire line is covered.
+
+**Resize grips are absolutely positioned over the headers**, not children of them: a sticky
+`<th>` clips its overflow, so a handle inside one is only half grabbable at the boundary that
+matters. They are re-laid out on render, on scroll and on window resize, all from live
+geometry. A drag writes the size live but records **one** undo entry, at the end — otherwise a
+single drag buries the previous edit under sixty identical snapshots.
+
+**Row heights and column widths are keyed by POSITION** — a row index, a column letter — so
+every structural edit has to move them (`shiftSizes`). An edit that leaves them alone silently
+reassigns every size below the change to the wrong line: not a crash, just a layout that stops
+being the one that was laid out.
+
+**Background tints are NAMES, not colours.** This page has a light palette and a near-black
+one; a colour picked against either is often unreadable on the other. A name (`amber`,
+`green`, `red`, `blue`, `purple`, `grey`) resolves to a translucent tint in the stylesheet,
+so it reads on both grounds, cannot carry markup, and is trivial to validate server-side. Cell
+borders (`thin`/`medium`/`thick`) use `outline` rather than `border` so a weight change never
+moves anything and they compose with the selection's inset shadow. **`Sheet.TINTS` and
+`Sheet.BORDERS` must match the classes in the stylesheet** — a name with no class is a silent
+no-op that looks exactly like the click not registering.
+
+**`saveLedgerNow()` names every field it sends.** `version` and `updatedAt` are the server's
+to set, so the payload is built explicitly rather than sending the document whole. Anything
+that becomes part of the sheet must be added there too — omitting `rowHeights` once already
+cost a round of resizing that silently did not save.
+
+**A selection that has lost focus dims rather than disappearing.** It is still where you left
+it, and it is visibly no longer taking your keystrokes.
 
 **Storage is encrypted.** A Vercel Blob store is PUBLIC — every object is served at a URL with
 no authentication in front of it — and this document is a business's revenue and costs. So

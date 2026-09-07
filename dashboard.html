@@ -284,6 +284,7 @@ select:disabled { opacity:.55; }
 .ss-input:focus { outline:2px solid var(--accent); outline-offset:1px; }
 
 .ss-scroll {
+  position:relative;
   overflow:auto; max-height:min(64vh, 560px);
   border:1px solid var(--hairline); border-radius:10px; background:var(--surface-solid);
 }
@@ -346,6 +347,61 @@ table.ss-grid td input.ss-edit {
   table.ss-grid thead th { min-width:92px; }
   .ss-bar { gap:.3rem; }
   .ss-btn { font-size:.78rem; padding:.3rem .5rem; }
+}
+
+/* Row height is a custom property on the row, so the cell and its editor can
+   both follow it without the text losing its ellipsis to a flex container. */
+table.ss-grid tbody tr { --rh:30px; }
+table.ss-grid th, table.ss-grid td { height:var(--rh); }
+table.ss-grid thead tr { --rh:30px; }
+
+table.ss-grid td .ss-cell { height:var(--rh); line-height:var(--rh); }
+table.ss-grid td input.ss-edit { height:var(--rh); line-height:var(--rh); }
+
+/* Headers are buttons in all but name: click to take the whole line. */
+table.ss-grid thead th, table.ss-grid tbody th.ss-rowhead { cursor:pointer; user-select:none; position:sticky; }
+table.ss-grid thead th:hover, table.ss-grid tbody th.ss-rowhead:hover { color:var(--t1); }
+table.ss-grid th.is-headsel { color:var(--on-accent); background:var(--accent); }
+
+/* The drag target for resizing. Wider than it looks, because a 1px hit area is
+   a fight rather than a control. */
+.ss-grip { position:absolute; z-index:4; }
+.ss-grip-col { top:0; height:100%; width:9px; margin-left:-4px; cursor:col-resize; }
+.ss-grip-row { left:0; width:100%; height:9px; margin-top:-4px; cursor:row-resize; }
+.ss-grip:hover { background:rgba(var(--accent-rgb),.5); }
+body.ss-resizing { cursor:col-resize; user-select:none; }
+body.ss-resizing-row { cursor:row-resize; user-select:none; }
+
+/* Background tints. Translucent so they read on the light palette and the
+   near-black one alike — an opaque colour picked against one is unreadable on
+   the other, and this page has both. */
+table.ss-grid td.bg-amber  { background:rgba(232,176,74,.20); }
+table.ss-grid td.bg-green  { background:rgba(77,191,122,.20); }
+table.ss-grid td.bg-red    { background:rgba(224,90,90,.18); }
+table.ss-grid td.bg-blue   { background:rgba(90,150,224,.18); }
+table.ss-grid td.bg-purple { background:rgba(150,110,220,.18); }
+table.ss-grid td.bg-grey   { background:rgba(128,128,128,.18); }
+
+/* Cell borders use outline rather than border, so a weight change never moves
+   anything, and so they compose with the selection's inset shadow. */
+table.ss-grid td.bd-thin   { outline:1px solid var(--t3); outline-offset:-1px; }
+table.ss-grid td.bd-medium { outline:2px solid var(--t2); outline-offset:-2px; }
+table.ss-grid td.bd-thick  { outline:3px solid var(--t1); outline-offset:-3px; }
+
+/* A selection that has lost focus stays visible but stops shouting — it is
+   still where you left it, and it is no longer taking your keystrokes. */
+table.ss-grid:not(:focus-within) td.is-sel { box-shadow:inset 0 0 0 2px rgba(var(--accent-rgb),.35); }
+table.ss-grid:not(:focus-within) td.in-range { background:rgba(var(--accent-rgb),.06); }
+
+.ss-swatch {
+  width:26px; min-width:26px; height:26px; padding:0; border-radius:6px;
+  border:1px solid var(--hairline); cursor:pointer;
+}
+.ss-swatch:hover { border-color:var(--accent); }
+.ss-swatch-none { position:relative; background:var(--surface-solid); }
+.ss-swatch-none::after {
+  content:''; position:absolute; inset:5px; border-top:1px solid var(--neg);
+  transform:rotate(-45deg); transform-origin:center;
 }
 
 /* The embedded sheet. Tall enough to work in without scrolling the page to
@@ -560,6 +616,9 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 .kpi-ico svg { width:15px; height:15px; }
 .kpi dt { font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
 .kpi dd { font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.4rem; font-variant-numeric:tabular-nums; }
+/* Two figures in the space built for one. The KPI row is a fixed 5-wide grid,
+   so a tile that outgrows its column drags the whole row out of alignment. */
+.kpi dd.is-pair { font-size:clamp(.95rem, 1.5vw, 1.3rem); letter-spacing:-.02em; }
 .kpi.is-muted dd { color:var(--t3); }
 
 .panel { border-radius:var(--r-lg); padding:1.25rem 1.35rem 1.35rem; margin-bottom:1.35rem; }
@@ -761,6 +820,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   .add-series { width:100%; }
   .kpi { padding:.8rem .85rem; }
   .kpi dd { font-size:1.28rem; }
+  .kpi dd.is-pair { font-size:1.02rem; }
   .panel { padding:1rem; border-radius:var(--r-md); }
   .panel-ctl { width:100%; }
   .panel-ctl .field { flex:1 1 46%; min-width:0; }
@@ -863,10 +923,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <div class="field" id="range-field" style="flex:0 0 auto;">
         <span class="lbl" id="range-lbl">Date range</span>
         <div class="seg" role="group" aria-labelledby="range-lbl" id="range-seg">
-          <button type="button" data-days="0"  aria-pressed="false">Today</button>
+          <button type="button" data-days="0"  aria-pressed="true">Today</button>
           <button type="button" data-days="7"  aria-pressed="false">7d</button>
           <button type="button" data-days="14" aria-pressed="false">14d</button>
-          <button type="button" data-days="30" aria-pressed="true">30d</button>
+          <button type="button" data-days="30" aria-pressed="false">30d</button>
           <button type="button" data-days="90" aria-pressed="false">90d</button>
           <button type="button" data-days="custom" aria-pressed="false">Custom</button>
         </div>
@@ -1174,6 +1234,26 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
             <button type="button" class="ss-btn" id="ss-undo" title="Undo (Ctrl+Z)">Undo</button>
             <button type="button" class="ss-btn" id="ss-redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
             <span class="sep" aria-hidden="true"></span>
+            <button type="button" class="ss-swatch" id="ss-bg-amber" style="background:rgba(232,176,74,.55)"
+                    title="Fill the selection amber" aria-label="Fill amber"></button>
+            <button type="button" class="ss-swatch" id="ss-bg-green" style="background:rgba(77,191,122,.55)"
+                    title="Fill the selection green" aria-label="Fill green"></button>
+            <button type="button" class="ss-swatch" id="ss-bg-red" style="background:rgba(224,90,90,.5)"
+                    title="Fill the selection red" aria-label="Fill red"></button>
+            <button type="button" class="ss-swatch" id="ss-bg-blue" style="background:rgba(90,150,224,.5)"
+                    title="Fill the selection blue" aria-label="Fill blue"></button>
+            <button type="button" class="ss-swatch" id="ss-bg-purple" style="background:rgba(150,110,220,.5)"
+                    title="Fill the selection purple" aria-label="Fill purple"></button>
+            <button type="button" class="ss-swatch" id="ss-bg-grey" style="background:rgba(128,128,128,.5)"
+                    title="Fill the selection grey" aria-label="Fill grey"></button>
+            <button type="button" class="ss-swatch ss-swatch-none" id="ss-bg-none"
+                    title="Remove the fill" aria-label="No fill"></button>
+            <span class="sep" aria-hidden="true"></span>
+            <button type="button" class="ss-btn" id="ss-bd-thin" title="Thin border around the selection">Border</button>
+            <button type="button" class="ss-btn" id="ss-bd-medium" title="Medium border around the selection" style="font-weight:800">Border</button>
+            <button type="button" class="ss-btn" id="ss-bd-thick" title="Thick border around the selection" style="font-weight:900;text-decoration:underline">Border</button>
+            <button type="button" class="ss-btn" id="ss-bd-none" title="Remove the border">No border</button>
+            <span class="sep" aria-hidden="true"></span>
             <label class="sr-only" for="ss-meta">Insert a live Meta figure</label>
             <select id="ss-meta" class="ss-btn" style="min-width:180px">
               <option value="">Insert a live figure…</option>
@@ -1188,7 +1268,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
                    placeholder="Type a value, or a formula starting with =">
           </div>
 
-          <div class="ss-scroll">
+          <div class="ss-scroll" id="ss-scroll">
             <table class="ss-grid" id="ss-grid" role="grid" tabindex="0"
                    aria-label="Revenue and expenses spreadsheet"></table>
           </div>
@@ -1196,6 +1276,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           <div class="ss-foot">
             <span class="ss-sum" id="ss-summary" role="status" aria-live="polite"></span>
             <span class="ss-save" id="ss-save" role="status" aria-live="polite">Loading…</span>
+            <button type="button" class="ss-btn" id="ss-save-now" title="Save now (Ctrl+S)">Save now</button>
           </div>
         </div>
 
@@ -1301,7 +1382,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var iso = function (d) { return d.toISOString().slice(0,10); };
   var daysAgo = function (n) { return iso(new Date(Date.now() - n*86400000)); };
 
-  var globalRange = { mode:'preset', days:30 };
+  /* Today by default. This is a page someone opens to see what is happening
+     now; a 30-day window answers a different question and has to be asked for.
+     Meta lags real time by up to about an hour, so an empty Today shortly after
+     midnight in the ad account's timezone is normal rather than a fault. */
+  var globalRange = { mode:'preset', days:0 };
 
   function resolveRange(r) {
     if (!r || r.mode === 'global') return resolveRange(globalRange);
@@ -1483,11 +1568,80 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
      It also has to be readable BEFORE the selects are repopulated, since the
      first request after a switch is sent while they are still empty. */
+  /**
+   * Where each account lands before anyone touches a control.
+   *
+   * The names are matched LOOSELY: case, punctuation and any extra words
+   * between the ones given are all ignored, but the given words must appear IN
+   * ORDER. That is what lets "Dave Ad Set 1 Paid" find "Dave - Ad Set 1 (Paid)"
+   * while still refusing to match "Dave - Ad Set 2 - Paid".
+   *
+   * Nothing here is load-bearing: a default that matches no campaign in the
+   * account falls back to "All campaigns" rather than filtering the page to
+   * nothing. Renaming a campaign in Ads Manager therefore costs a default, not
+   * a working dashboard.
+   */
+  var VIEW_DEFAULTS = {
+    dave: {
+      campaign: 'Dave Campaign 1 September 2026 Sales Campaign',
+      adset: 'Dave Ad Set 1 Paid'
+    },
+    sybago: {
+      campaign: 'Montara Forge Driveways campaign August 2026',
+      adset: 'Lead Montara Forge Ad Set 1'
+    }
+  };
+
+  /** Reduce a name to the words that carry meaning. */
+  function nameWords(x){
+    return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  }
+
+  /* Every word of the pattern, in order. In-order rather than set-based
+     because a set match lets the "1" in "Campaign 1" satisfy the "1" in
+     "Ad Set 1", which quietly selects the wrong ad set. */
+  function looseMatch(name, pattern){
+    var hay = nameWords(name), need = nameWords(pattern);
+    if(!need.length) return false;
+    var i = 0;
+    for(var j = 0; j < hay.length; j++) if(hay[j] === need[i] && ++i === need.length) return true;
+    return false;
+  }
+
+  function findByName(list, pattern){
+    if(!pattern || !list) return null;
+    for(var i = 0; i < list.length; i++) if(looseMatch(list[i].name, pattern)) return list[i];
+    return null;
+  }
+
   var scopeByView = {};
 
   function currentScope(){
-    if(!scopeByView[state.view]) scopeByView[state.view] = { campaignId:'', adsetId:'', ads:[] };
+    if(!scopeByView[state.view]) {
+      // pristine marks a scope nobody has chosen yet. The defaults are applied
+      // once, when the campaign list first arrives; after that a deliberate
+      // "All campaigns" must survive a tab switch, so it is never re-applied.
+      scopeByView[state.view] = { campaignId:'', adsetId:'', ads:[], pristine:true };
+    }
     return scopeByView[state.view];
+  }
+
+  /* Applied when the account's campaigns first load, because the ids are not
+     known until then — the defaults are written as names, not ids, so they
+     survive an account being rebuilt. */
+  function applyViewDefaults(sc, campaigns){
+    if(!sc.pristine) return;
+    sc.pristine = false;
+
+    var want = VIEW_DEFAULTS[state.view];
+    if(!want) return;
+
+    var camp = findByName(campaigns, want.campaign);
+    if(!camp) return;                       // no match: stay on All campaigns
+    sc.campaignId = camp.id;
+
+    var set = findByName(camp.adsets || [], want.adset);
+    if(set) sc.adsetId = set.id;
   }
 
   // Kept as a live alias so the existing ad-picker code reads the right list.
@@ -1913,10 +2067,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var t=d.totals||{};
     var keys=KPI_KEYS;
     $('kpis').innerHTML = keys.map(function(k){
-      var m=METRICS[k], v=t[k], muted=(v==null||v===0);
+      var m=METRICS[k], v=t[k], muted=(v==null||v===0), pair=(k==='impressions');
+      var label = m.label, shown = m.fmt(v);
+
+      /* Impressions carries reach alongside it. The two are the same delivery
+         seen from either side — how often it was shown, and how many people saw
+         it — and the ratio between them is the frequency. Read from separate
+         tiles that is a division someone has to do for themselves. */
+      if(pair){
+        label = m.label + ' / ' + METRICS.reach.label;
+        shown = m.fmt(v) + ' / ' + METRICS.reach.fmt(t.reach);
+        muted = (v==null||v===0) && (t.reach==null||t.reach===0);
+      }
+
       return '<div class="kpi glass'+(muted?' is-muted':'')+'">'+
         '<div class="kpi-top"><span class="kpi-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+ICON[m.icon]+'</svg></span>'+
-        '<dt>'+esc(m.label)+'</dt></div><dd>'+esc(m.fmt(v))+'</dd></div>';
+        '<dt>'+esc(label)+'</dt></div><dd'+(pair?' class="is-pair"':'')+'>'+esc(shown)+'</dd></div>';
     }).join('');
   }
 
@@ -2734,6 +2900,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       .then(function(d){
         state.campaigns=d.campaigns||[];
         var sc = currentScope();
+        applyViewDefaults(sc, state.campaigns);
 
         // A remembered id is only honoured if this account actually has it.
         // That is what makes per-account memory safe: a stale or deleted
@@ -3271,6 +3438,25 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if (td && td.scrollIntoView) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
+  /* Selecting a whole line is a range from one end to the other, so every
+     operation that works on a selection — colour, format, delete, copy — works
+     on a row or a column with no special case anywhere else. */
+  function selectRow(row, extend){
+    if (!extend) ledger.anchor = { col: 0, row: row };
+    ledger.sel = { col: ledger.doc.cols - 1, row: row };
+    if (extend && !ledger.anchor) ledger.anchor = { col: 0, row: row };
+    paintSelection();
+    syncFormulaBar();
+  }
+
+  function selectCol(col, extend){
+    if (!extend) ledger.anchor = { col: col, row: 0 };
+    ledger.sel = { col: col, row: ledger.doc.rows - 1 };
+    if (extend && !ledger.anchor) ledger.anchor = { col: col, row: 0 };
+    paintSelection();
+    syncFormulaBar();
+  }
+
   function ledgerTd(col, row){
     return $('ss-grid').querySelector('td[data-col="' + col + '"][data-row="' + row + '"]');
   }
@@ -3290,6 +3476,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       td.classList.toggle('is-sel', isSel);
       if (isSel) td.setAttribute('aria-selected', 'true'); else td.removeAttribute('aria-selected');
     }
+
+    // A header is highlighted only when its whole line is covered, so a partial
+    // selection does not claim to be a column.
+    var wholeCols = b.r1 === 0 && b.r2 === ledger.doc.rows - 1;
+    var wholeRows = b.c1 === 0 && b.c2 === ledger.doc.cols - 1;
+    var heads = $('ss-grid').querySelectorAll('thead th[data-col]');
+    for (var h = 0; h < heads.length; h++) {
+      var hc = +heads[h].dataset.col;
+      heads[h].classList.toggle('is-headsel', wholeCols && hc >= b.c1 && hc <= b.c2);
+    }
+    var rheads = $('ss-grid').querySelectorAll('th.ss-rowhead[data-row]');
+    for (var q = 0; q < rheads.length; q++) {
+      var qr = +rheads[q].dataset.row;
+      rheads[q].classList.toggle('is-headsel', wholeRows && qr >= b.r1 && qr <= b.r2);
+    }
+
     updateSelectionSummary();
   }
 
@@ -3329,8 +3531,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* ---------------------------------------------------------- editing ----- */
 
   function commitCell(ref, text){
-    if (Sheet.editText(ledger.doc, ref) === text) return;   // nothing changed
+    if (Sheet.editText(ledger.doc, ref) === text) return false;   // nothing changed
     ledgerEdit(function(){ Sheet.setCell(ledger.doc, ref, text); });
+    return true;
   }
 
   function beginEdit(seed){
@@ -3366,8 +3569,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if (!ledger.editing) return;
     var ref = ledger.editing.ref, text = ledger.editing.input.value;
     ledger.editing = null;
-    if (keep) commitCell(ref, text);
-    else renderLedger();
+
+    /* Always repaint. commitCell does nothing when the text is unchanged, and
+       skipping the repaint on that path left the <input> in the cell — showing
+       the formula instead of its value, with an outline that looked like a
+       selection nothing could clear. Closing an editor is a paint, not an edit,
+       so it cannot be conditional on the edit having happened. */
+    var changed = keep ? commitCell(ref, text) : false;
+    if (!changed) renderLedger();
     syncFormulaBar();
   }
 
@@ -3393,7 +3602,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     for (var c = 0; c < doc.cols; c++) {
       var th = document.createElement('th');
       th.scope = 'col';
+      th.dataset.col = c;
       th.textContent = Sheet.indexToCol(c);
+      th.title = 'Click to select the column · drag the edge to resize';
       var w = doc.colWidths[Sheet.indexToCol(c)];
       if (w) th.style.width = w + 'px';
       hr.appendChild(th);
@@ -3404,10 +3615,14 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var tb = document.createElement('tbody');
     for (var r = 0; r < doc.rows; r++) {
       var tr = document.createElement('tr');
+      var h = doc.rowHeights && doc.rowHeights[String(r)];
+      if (h) tr.style.setProperty('--rh', h + 'px');
       var rh = document.createElement('th');
       rh.className = 'ss-rowhead';
       rh.scope = 'row';
+      rh.dataset.row = r;
       rh.textContent = String(r + 1);
+      rh.title = 'Click to select the row · drag the edge to resize';
       tr.appendChild(rh);
 
       for (var c2 = 0; c2 < doc.cols; c2++) {
@@ -3422,6 +3637,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         if (typeof v === 'number') td.className = 'is-num';
         if (Sheet.isErr(v)) td.className = 'is-err';
         if (cell && cell.f != null) td.classList.add('is-formula');
+        if (cell && cell.bg) td.classList.add('bg-' + cell.bg);
+        if (cell && cell.border) td.classList.add('bd-' + cell.border);
 
         var span = document.createElement('span');
         span.className = 'ss-cell';
@@ -3439,6 +3656,92 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     paintSelection();
     syncFormulaBar();
     paintSaveState();
+    layoutGrips();
+  }
+
+  /* --------------------------------------------------------- resizing ----- */
+  /* Grips are absolutely positioned over the header edges rather than being
+     children of the header cells: a sticky <th> clips its overflow, so a handle
+     living inside one is only half grabbable at the boundary that matters. */
+  function layoutGrips(){
+    var scroll = $('ss-scroll');
+    Array.prototype.forEach.call(scroll.querySelectorAll('.ss-grip'), function(g){ g.remove(); });
+
+    var table = $('ss-grid');
+    var base = table.getBoundingClientRect();
+
+    Array.prototype.forEach.call(table.querySelectorAll('thead th[data-col]'), function(th){
+      var r = th.getBoundingClientRect();
+      var g = document.createElement('span');
+      g.className = 'ss-grip ss-grip-col';
+      g.dataset.col = th.dataset.col;
+      g.style.left = (r.right - base.left) + 'px';
+      g.style.height = r.height + 'px';
+      g.title = 'Drag to resize column ' + Sheet.indexToCol(+th.dataset.col);
+      scroll.appendChild(g);
+    });
+
+    Array.prototype.forEach.call(table.querySelectorAll('th.ss-rowhead[data-row]'), function(th){
+      var r = th.getBoundingClientRect();
+      var g = document.createElement('span');
+      g.className = 'ss-grip ss-grip-row';
+      g.dataset.row = th.dataset.row;
+      g.style.top = (r.bottom - base.top) + 'px';
+      g.style.width = r.width + 'px';
+      g.title = 'Drag to resize row ' + (+th.dataset.row + 1);
+      scroll.appendChild(g);
+    });
+  }
+
+  function beginResize(e, grip){
+    e.preventDefault();
+    var isCol = grip.classList.contains('ss-grip-col');
+    var startX = e.clientX, startY = e.clientY;
+
+    var col = isCol ? Sheet.indexToCol(+grip.dataset.col) : null;
+    var row = isCol ? null : String(grip.dataset.row);
+    var from = isCol
+      ? (ledger.doc.colWidths[col] || ledgerTd(+grip.dataset.col, 0).getBoundingClientRect().width)
+      : (ledger.doc.rowHeights[row] || 30);
+
+    document.body.classList.add(isCol ? 'ss-resizing' : 'ss-resizing-row');
+
+    /* The size is written live so the drag is visible, but only ONE undo entry
+       is recorded, at the end. Otherwise a single drag buries the previous edit
+       under sixty identical snapshots. */
+    function move(ev){
+      var next = isCol
+        ? Math.max(48, Math.min(600, Math.round(from + ev.clientX - startX)))
+        : Math.max(22, Math.min(300, Math.round(from + ev.clientY - startY)));
+      if (isCol) ledger.doc.colWidths[col] = next;
+      else ledger.doc.rowHeights[row] = next;
+      applySizesLive(isCol, isCol ? +grip.dataset.col : +row, next);
+    }
+
+    function up(){
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.classList.remove('ss-resizing', 'ss-resizing-row');
+      ledger.dirty = true;
+      renderLedger();
+      scheduleLedgerSave();
+    }
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  }
+
+  /* Repainting the whole grid on every mousemove is what makes a resize feel
+     like it is fighting back. Only the one line being dragged is touched. */
+  function applySizesLive(isCol, index, px){
+    if (isCol) {
+      var th = $('ss-grid').querySelector('thead th[data-col="' + index + '"]');
+      if (th) th.style.width = px + 'px';
+    } else {
+      var head = $('ss-grid').querySelector('th.ss-rowhead[data-row="' + index + '"]');
+      if (head && head.parentNode) head.parentNode.style.setProperty('--rh', px + 'px');
+    }
+    layoutGrips();
   }
 
   function paintSaveState(){
@@ -3455,6 +3758,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     el.textContent = ledger.doc && ledger.doc.updatedAt
       ? 'Saved ' + new Date(ledger.doc.updatedAt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
       : 'Saved';
+  }
+
+  /* ---------------------------------------------------------- styling ----- */
+  /* Applied to every cell in the selection, which is why selecting a row or a
+     column needed no special case: a line IS a selection. */
+  function styleSelection(patch){
+    var b = selBounds();
+    ledgerEdit(function(){
+      for (var r = b.r1; r <= b.r2; r++) for (var c = b.c1; c <= b.c2; c++) {
+        Sheet.setStyle(ledger.doc, ledgerRef(c, r), patch);
+      }
+    });
   }
 
   /* -------------------------------------------------------- persistence --- */
@@ -3476,9 +3791,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     paintSaveState();
 
     var payload = {
+      /* Every part of the document, named explicitly rather than sent whole:
+         version and updatedAt are the SERVER's to set, and echoing them back
+         would let a stale tab claim to be current. Anything else that becomes
+         part of the sheet has to be added here too — omitting rowHeights once
+         already cost a round of resizing that silently did not save. */
       doc: {
-        rows: ledger.doc.rows, cols: ledger.doc.cols,
-        cells: ledger.doc.cells, colWidths: ledger.doc.colWidths
+        rows: ledger.doc.rows,
+        cols: ledger.doc.cols,
+        cells: ledger.doc.cells,
+        colWidths: ledger.doc.colWidths,
+        rowHeights: ledger.doc.rowHeights
       },
       baseVersion: ledger.doc.version
     };
@@ -3726,8 +4049,35 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       }
     });
 
+    Sheet.TINTS.concat(['none']).forEach(function(tint){
+      var b = $('ss-bg-' + tint);
+      if (b) b.addEventListener('click', function(){ styleSelection({ bg: tint === 'none' ? null : tint }); });
+    });
+    Sheet.BORDERS.concat(['none']).forEach(function(w){
+      var b = $('ss-bd-' + w);
+      if (b) b.addEventListener('click', function(){ styleSelection({ border: w === 'none' ? null : w }); });
+    });
+
+    $('ss-save-now').addEventListener('click', function(){ saveLedgerNow(); });
+
+    var scroll = $('ss-scroll');
+    scroll.addEventListener('mousedown', function(e){
+      var grip = e.target.closest('.ss-grip');
+      if (grip) beginResize(e, grip);
+    });
+
     var grid = $('ss-grid');
     grid.addEventListener('keydown', ledgerKeydown);
+
+    // Clicking a header takes the whole line.
+    grid.addEventListener('mousedown', function(e){
+      var th = e.target.closest('th');
+      if (!th) return;
+      if (ledger.editing) endEdit(true);
+      if (th.dataset.col !== undefined) { e.preventDefault(); selectCol(+th.dataset.col, e.shiftKey); focusGrid(); }
+      else if (th.dataset.row !== undefined) { e.preventDefault(); selectRow(+th.dataset.row, e.shiftKey); focusGrid(); }
+    });
+
     grid.addEventListener('mousedown', function(e){
       var td = e.target.closest('td');
       if (!td) return;
@@ -3739,6 +4089,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     grid.addEventListener('dblclick', function(e){
       if (e.target.closest('td')) beginEdit();
     });
+
+    // The grips are positioned from live geometry, so anything that moves the
+    // table has to move them: scrolling it, and resizing the window.
+    var reflow = null;
+    function scheduleGripLayout(){
+      if (reflow) return;
+      reflow = requestAnimationFrame(function(){ reflow = null; layoutGrips(); });
+    }
+    scroll.addEventListener('scroll', scheduleGripLayout, { passive:true });
+    window.addEventListener('resize', scheduleGripLayout, { passive:true });
 
     grid.addEventListener('copy', copySelection);
     grid.addEventListener('cut', function(e){ copySelection(e); clearSelection(); });
@@ -3790,6 +4150,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       .then(function(j){
         ledger.doc = j.doc;
         ledger.doc.colWidths = ledger.doc.colWidths || {};
+        ledger.doc.rowHeights = ledger.doc.rowHeights || {};
         ledger.store = j.store;
         ledger.loaded = true;
         bootLedger();

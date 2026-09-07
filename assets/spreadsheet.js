@@ -564,6 +564,17 @@
 
   /* ====================================================== the model ====== */
 
+  /**
+   * Background tints are NAMED, not arbitrary hex.
+   *
+   * This page has a light palette and a near-black one, and a colour picked
+   * against one is often unreadable on the other. A name resolves to a
+   * translucent tint of a theme token, so a row someone highlights amber stays
+   * legible in both — and a name is trivial to validate on the way in.
+   */
+  var TINTS = ['amber', 'green', 'red', 'blue', 'purple', 'grey'];
+  var BORDERS = ['thin', 'medium', 'thick'];
+
   function createModel(opts) {
     opts = opts || {};
     return {
@@ -572,8 +583,24 @@
       cols: opts.cols || 8,
       cells: {},
       colWidths: {},
+      rowHeights: {},
       updatedAt: null,
     };
+  }
+
+  /** Presentation lives on the cell, alongside its format. */
+  function setStyle(model, ref, patch) {
+    var cell = model.cells[ref] || {};
+    Object.keys(patch).forEach(function (k) {
+      if (patch[k] == null) delete cell[k];
+      else cell[k] = patch[k];
+    });
+    // A cell with nothing in it and nothing on it is not a cell.
+    if (cell.f == null && cell.v === undefined && !cell.fmt && !cell.bg && !cell.border) {
+      delete model.cells[ref];
+    } else {
+      model.cells[ref] = cell;
+    }
   }
 
   /**
@@ -746,7 +773,11 @@
       var copy = {};
       if (cell.f != null) copy.f = '=' + shiftRefInFormula(cell.f.slice(1), shifters);
       else if (cell.v !== undefined) copy.v = cell.v;
+      // Presentation travels with the cell. A row someone coloured should stay
+      // coloured when a row is inserted above it.
       if (cell.fmt) copy.fmt = cell.fmt;
+      if (cell.bg) copy.bg = cell.bg;
+      if (cell.border) copy.border = cell.border;
       cells[refKey(moved)] = copy;
     }
     model.cells = cells;
@@ -754,6 +785,29 @@
 
   function withRow(r, row) { return { col: r.col, row: row, absCol: r.absCol, absRow: r.absRow }; }
   function withCol(r, col) { return { col: col, row: r.row, absCol: r.absCol, absRow: r.absRow }; }
+
+  /**
+   * Row heights and column widths have to move with the lines they size.
+   *
+   * These are keyed by position — a row index, a column letter — so a structural
+   * edit that leaves them alone silently reassigns every size below the change
+   * to the wrong line. It is not a crash, just a sheet that slowly stops looking
+   * like the one that was laid out.
+   */
+  function shiftSizes(map, at, delta, decode, encode) {
+    var out = {};
+    Object.keys(map || {}).forEach(function (k) {
+      var i = decode(k);
+      if (!isFinite(i)) return;
+      if (delta < 0 && i === at) return;                 // that line is gone
+      var moved = (delta > 0 ? i >= at : i > at) ? i + delta : i;
+      out[encode(moved)] = map[k];
+    });
+    return out;
+  }
+
+  var rowKey = function (n) { return String(n); };
+  var rowIndex = function (k) { return parseInt(k, 10); };
 
   function insertRow(model, at) {
     rewriteAll(model, {
@@ -763,6 +817,7 @@
         return [withRow(a, p[0]), withRow(b, p[1])];
       },
     });
+    model.rowHeights = shiftSizes(model.rowHeights, at, 1, rowIndex, rowKey);
     model.rows += 1;
   }
 
@@ -777,6 +832,7 @@
         return p === null ? null : [withRow(a, p[0]), withRow(b, p[1])];
       },
     });
+    model.rowHeights = shiftSizes(model.rowHeights, at, -1, rowIndex, rowKey);
     model.rows = Math.max(1, model.rows - 1);
   }
 
@@ -788,6 +844,7 @@
         return [withCol(a, p[0]), withCol(b, p[1])];
       },
     });
+    model.colWidths = shiftSizes(model.colWidths, at, 1, colToIndex, indexToCol);
     model.cols += 1;
   }
 
@@ -802,6 +859,7 @@
         return p === null ? null : [withCol(a, p[0]), withCol(b, p[1])];
       },
     });
+    model.colWidths = shiftSizes(model.colWidths, at, -1, colToIndex, indexToCol);
     model.cols = Math.max(1, model.cols - 1);
   }
 
@@ -915,6 +973,9 @@
     parseInput: parseInput,
     setCell: setCell,
     setFormat: setFormat,
+    setStyle: setStyle,
+    TINTS: TINTS,
+    BORDERS: BORDERS,
     recalc: recalc,
     editText: editText,
     // structure

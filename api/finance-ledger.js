@@ -11,6 +11,14 @@ import { requireSession, noStore } from '../lib/auth.js';
 import { loadLedger, saveLedger, storeStatus } from '../lib/finance/store.js';
 import { RECURRING_COSTS } from '../lib/finance/config.js';
 
+/* Presentation is an allow-list of NAMES, never colours from the browser. A
+   name resolves to a theme-aware tint in the page's stylesheet, so it cannot
+   carry markup, cannot be unreadable on one of the two palettes, and is trivial
+   to validate here. */
+const TINTS = ['amber', 'green', 'red', 'blue', 'purple', 'grey'];
+const BORDERS = ['thin', 'medium', 'thick'];
+const FORMATS = ['currency', 'percent', 'number', 'integer', 'text'];
+
 /**
  * The sheet someone sees the first time.
  *
@@ -26,7 +34,8 @@ export function seedDocument() {
   put('A1', { v: 'Peps by Dave — monthly cash flow' });
   put('A2', { v: 'Type a figure in column C. Rows marked live are read from Meta on every refresh.' });
 
-  put('A4', { v: 'REVENUE' });
+  ['A4', 'B4', 'C4', 'D4'].forEach((r) => put(r, { bg: 'green' }));
+  put('A4', { v: 'REVENUE', bg: 'green' });
   put('A5', { v: 'Line' }); put('B5', { v: 'Source' }); put('C5', { v: 'Monthly' }); put('D5', { v: 'Note' });
   put('A6', { v: 'Skool community' }); put('B6', { v: 'entered' });
   money('C6', { v: 0 });
@@ -35,7 +44,8 @@ export function seedDocument() {
   put('A9', { v: 'Total revenue' });
   money('C9', { f: '=SUM(C6:C8)' });
 
-  put('A11', { v: 'EXPENSES' });
+  ['A11', 'B11', 'C11', 'D11'].forEach((r) => put(r, { bg: 'red' }));
+  put('A11', { v: 'EXPENSES', bg: 'red' });
   put('A12', { v: 'Line' }); put('B12', { v: 'Source' }); put('C12', { v: 'Monthly' }); put('D12', { v: 'Note' });
 
   put('A13', { v: 'Meta ad spend — already spent' }); put('B13', { v: 'live' });
@@ -53,8 +63,9 @@ export function seedDocument() {
   put('A18', { v: 'Total expenses' });
   money('C18', { f: '=SUM(C13:C17)' });
 
-  put('A20', { v: 'NET THIS MONTH' });
-  money('C20', { f: '=C9-C18' });
+  ['A20', 'B20', 'D20'].forEach((r) => put(r, { bg: 'amber', border: 'medium' }));
+  put('A20', { v: 'NET THIS MONTH', bg: 'amber', border: 'medium' });
+  money('C20', { f: '=C9-C18', bg: 'amber', border: 'medium' });
   put('A21', { v: 'Margin' });
   put('C21', { f: '=IFERROR(C20/C9, "")', fmt: 'percent' });
 
@@ -64,6 +75,7 @@ export function seedDocument() {
     cols: 6,
     cells,
     colWidths: { A: 260, B: 96, C: 130, D: 380 },
+    rowHeights: {},
     updatedAt: null,
   };
 }
@@ -95,11 +107,11 @@ export function sanitise(input) {
       if (cell.v.length > 5000) throw new Error(`The text in ${k} is too long.`);
       out.v = cell.v;
     }
-    if (typeof cell.fmt === 'string'
-      && ['currency', 'percent', 'number', 'integer', 'text'].includes(cell.fmt)) {
-      out.fmt = cell.fmt;
-    }
-    if (out.f !== undefined || out.v !== undefined || out.fmt !== undefined) cells[k] = out;
+    if (typeof cell.fmt === 'string' && FORMATS.includes(cell.fmt)) out.fmt = cell.fmt;
+    if (typeof cell.bg === 'string' && TINTS.includes(cell.bg)) out.bg = cell.bg;
+    if (typeof cell.border === 'string' && BORDERS.includes(cell.border)) out.border = cell.border;
+
+    if (Object.keys(out).length) cells[k] = out;
   }
 
   const colWidths = {};
@@ -110,7 +122,18 @@ export function sanitise(input) {
     if (Number.isFinite(w)) colWidths[c] = Math.min(600, Math.max(48, Math.round(w)));
   }
 
-  return { version: Number(input.version) || 0, rows, cols, cells, colWidths };
+  /* Row heights are keyed by row index, column widths by column letter. Both
+     are clamped: a stored size is applied straight to the page, so an
+     unbounded one is a way to make the grid unusable for the next person. */
+  const rowHeights = {};
+  const heights = input.rowHeights && typeof input.rowHeights === 'object' ? input.rowHeights : {};
+  for (const r of Object.keys(heights)) {
+    if (!/^[0-9]{1,7}$/.test(r)) continue;
+    const h = Number(heights[r]);
+    if (Number.isFinite(h)) rowHeights[r] = Math.min(300, Math.max(22, Math.round(h)));
+  }
+
+  return { version: Number(input.version) || 0, rows, cols, cells, colWidths, rowHeights };
 }
 
 export default async function handler(req, res) {

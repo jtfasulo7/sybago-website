@@ -434,4 +434,101 @@ t('CSV export does not pad the file with empty rows', () => {
 });
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
+
+/* --------------------------------------------------- presentation -------- */
+console.log('\nColour and borders');
+
+t('a tint and a border sit on the cell alongside its content', () => {
+  const m = sheet({ A1: '5' });
+  Sheet.setStyle(m, 'A1', { bg: 'amber', border: 'thick' });
+  assert.deepEqual(m.cells.A1, { v: 5, bg: 'amber', border: 'thick' });
+});
+t('styling an empty cell creates one, so a blank row can be coloured', () => {
+  const m = Sheet.createModel();
+  Sheet.setStyle(m, 'B2', { bg: 'green' });
+  assert.deepEqual(m.cells.B2, { bg: 'green' });
+});
+t('removing the last style removes the cell rather than leaving a husk', () => {
+  const m = Sheet.createModel();
+  Sheet.setStyle(m, 'B2', { bg: 'green' });
+  Sheet.setStyle(m, 'B2', { bg: null });
+  assert.equal(m.cells.B2, undefined);
+});
+t('removing a style leaves a cell that still has content', () => {
+  const m = sheet({ A1: '5' });
+  Sheet.setStyle(m, 'A1', { bg: 'red' });
+  Sheet.setStyle(m, 'A1', { bg: null });
+  assert.deepEqual(m.cells.A1, { v: 5 });
+});
+t('styling never touches the value or the formula', () => {
+  const m = sheet({ A1: '2', A2: '=A1*21' });
+  Sheet.setStyle(m, 'A2', { bg: 'blue' });
+  assert.equal(m.cells.A2.f, '=A1*21');
+  assert.equal(valuesOf(m).A2, 42);
+});
+t('the tint and border names are exactly the ones the page can render', () => {
+  // The stylesheet has one class per name. A name with no matching class is a
+  // silent no-op, which looks identical to the click not registering.
+  assert.deepEqual(Sheet.TINTS, ['amber', 'green', 'red', 'blue', 'purple', 'grey']);
+  assert.deepEqual(Sheet.BORDERS, ['thin', 'medium', 'thick']);
+});
+
+{
+  // THE BUG THIS GUARDS: presentation dropped by a structural edit. A row
+  // coloured to mark a section would quietly lose its colour the next time a
+  // row was inserted above it, with nothing to say why.
+  const m = sheet({ A5: 'Total' });
+  Sheet.setStyle(m, 'A5', { bg: 'amber', border: 'medium' });
+  Sheet.insertRow(m, 0);
+  t('colour and border travel with a cell when rows move', () =>
+    assert.deepEqual(m.cells.A6, { v: 'Total', bg: 'amber', border: 'medium' }));
+}
+
+/* ------------------------------------------------------------ sizing ----- */
+console.log('\nRow heights and column widths follow their lines');
+
+{
+  /* Sizes are keyed by POSITION — a row index, a column letter — so a
+     structural edit that leaves them alone silently reassigns every size below
+     the change to the wrong line. Not a crash; a layout that quietly stops
+     being the one that was laid out. */
+  const m = Sheet.createModel({ rows: 10, cols: 6 });
+  m.rowHeights = { '2': 60, '5': 44 };
+  m.colWidths = { B: 200, D: 300 };
+
+  Sheet.insertRow(m, 0);
+  t('inserting a row pushes the heights below it down', () =>
+    assert.deepEqual(m.rowHeights, { '3': 60, '6': 44 }));
+
+  Sheet.insertCol(m, 0);
+  t('inserting a column shifts the widths along', () =>
+    assert.deepEqual(m.colWidths, { C: 200, E: 300 }));
+}
+
+{
+  const m = Sheet.createModel({ rows: 10, cols: 6 });
+  m.rowHeights = { '2': 60, '5': 44 };
+  Sheet.deleteRow(m, 2);
+  t('deleting a row takes its height with it and pulls the rest up', () =>
+    assert.deepEqual(m.rowHeights, { '4': 44 }));
+}
+
+{
+  const m = Sheet.createModel({ rows: 10, cols: 6 });
+  m.colWidths = { B: 200, D: 300 };
+  Sheet.deleteCol(m, 1);
+  t('deleting a column takes its width with it', () =>
+    assert.deepEqual(m.colWidths, { C: 300 }));
+}
+
+t('a size on a line nothing touched stays where it was', () => {
+  const m = Sheet.createModel({ rows: 10, cols: 6 });
+  m.rowHeights = { '1': 50 };
+  Sheet.insertRow(m, 5);
+  assert.deepEqual(m.rowHeights, { '1': 50 });
+});
+
+t('a new model carries a row height map, so nothing has to guard for it', () =>
+  assert.deepEqual(Sheet.createModel().rowHeights, {}));
+
 process.exit(fail ? 1 : 0);
