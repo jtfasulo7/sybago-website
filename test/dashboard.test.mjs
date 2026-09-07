@@ -599,5 +599,76 @@ t('campaigns are sorted by name', () => {
   });
 }
 
+
+/* ------------------------------------------------ reach is not a sum ----- */
+console.log('\nReach is deduplicated, never summed');
+
+{
+  /* Three days, each reaching 4,000 people. Summing gives 12,000 — more than
+     the 9,000 impressions that delivered them, which is impossible: a person
+     cannot be reached without being shown the ad at least once. Meta's own
+     deduplicated answer for the window is 5,000, and that is the only figure
+     that can be correct. */
+  const threeDays = [0, 1, 2].map((i) => ({
+    date_start: `2026-09-0${i + 1}`, date_stop: `2026-09-0${i + 1}`,
+    spend: '10.00', impressions: '3000', reach: '4000', frequency: '0.75',
+    clicks: '10', inline_link_clicks: '8', ctr: '0.33', cpc: '1.00', cpm: '3.33',
+  }));
+
+  let dedupAsked = null;
+  globalThis.fetch = async (u) => {
+    const url = String(u);
+    if (/\/campaigns\b/.test(url)) {
+      return { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) };
+    }
+    // The deduplicated request is the one asking for reach WITHOUT a daily
+    // increment. That absence is the whole mechanism.
+    if (url.includes('fields=reach') && !url.includes('time_increment')) {
+      dedupAsked = url;
+      return {
+        ok: true,
+        headers: { get: () => null },
+        json: async () => ({ data: [{ reach: '5000', frequency: '1.8', impressions: '9000' }] }),
+      };
+    }
+    return { ok: true, headers: { get: () => null }, json: async () => ({ data: threeDays }) };
+  };
+
+  const r = mockRes();
+  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+
+  t('reach is asked for separately, over the whole window', () =>
+    assert.ok(dedupAsked, 'no deduplicated reach request was made'));
+
+  t('reach is Meta\'s deduplicated figure, not the sum of the days', () => {
+    assert.equal(r.body.totals.reach, 5000);
+    assert.notEqual(r.body.totals.reach, 12000);
+  });
+
+  t('reach never exceeds impressions', () =>
+    assert.ok(r.body.totals.reach <= r.body.totals.impressions,
+      `reach ${r.body.totals.reach} > impressions ${r.body.totals.impressions}`));
+
+  t('frequency is impressions over people, from the same two figures', () =>
+    assert.equal(r.body.totals.frequency, 9000 / 5000));
+}
+
+{
+  // No delivery in the window: Meta returns no row at all. That is a real zero,
+  // not a fault, and the tile must read 0 rather than blank.
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) };
+
+  const r = mockRes();
+  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+
+  t('no delivery reports reach as zero, not undefined', () => {
+    assert.equal(r.body.totals.reach, 0);
+    assert.equal(r.body.totals.frequency, 0);
+  });
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

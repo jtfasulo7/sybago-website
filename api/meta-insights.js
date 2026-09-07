@@ -741,7 +741,7 @@ export default async function handler(req, res) {
     // A third request fetches the campaign/ad set list for the picker. It is
     // unscoped on purpose — the dropdown must still offer every option even
     // when the view is filtered down to one of them.
-    const [breakdown, series, picker] = await Promise.all([
+    const [breakdown, series, deduped, picker] = await Promise.all([
       fetchWithBackoff(
         buildUrl(accountId, {
           level,
@@ -767,6 +767,26 @@ export default async function handler(req, res) {
           limit: '500',
           ...attribution,
           ...hourlyParams,
+          ...filterParam,
+        }, token),
+        { env: envNames },
+      ),
+      fetchWithBackoff(
+        /* Reach and frequency for the WHOLE window, deduplicated.
+           These two cannot be derived from anything else already fetched.
+           Reach counts PEOPLE, so summing the daily series counts somebody
+           reached on Monday and again on Tuesday twice, and the total climbs
+           past impressions — impossible, and completely plausible-looking on a
+           tile. Summing the per-entity breakdown double-counts the same way,
+           across ad sets instead of across days.
+           Only Meta can deduplicate, and it only does so for the period it is
+           asked about: one row, no time_increment, no level breakdown. */
+        buildUrl(accountId, {
+          level: 'account',
+          fields: 'reach,frequency,impressions',
+          ...period,
+          limit: '1',
+          ...attribution,
           ...filterParam,
         }, token),
         { env: envNames },
@@ -857,6 +877,16 @@ export default async function handler(req, res) {
         registrations: 0, registrationValue: 0, landingPageViews: 0,
       },
     );
+    /* Deduplicated, from its own request — never summed. A missing row means
+       no delivery in the window, which is a real zero rather than a fault. */
+    const dedupRow = (deduped.json.data || [])[0] || null;
+    totals.reach = dedupRow ? num(dedupRow.reach) : 0;
+    /* Frequency is impressions per person. Meta returns it, but recomputing it
+       from two figures already on the tile keeps it consistent with them: a
+       returned frequency answers for its own row, and the impressions here are
+       summed from the daily series. */
+    totals.frequency = totals.reach ? totals.impressions / totals.reach : 0;
+
     totals.ctr = totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0;
     totals.cpc = totals.clicks ? totals.spend / totals.clicks : 0;
     totals.cpm = totals.impressions ? (totals.spend / totals.impressions) * 1000 : 0;

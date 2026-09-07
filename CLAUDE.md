@@ -337,6 +337,15 @@ open reads as broken rather than as early.
   A deliberate "All campaigns" must survive a tab switch, so the default is never re-applied
   over a real choice.
 
+**Reach comes from its own request and is NEVER summed.** It counts PEOPLE, so adding up a
+month of daily reach counts somebody reached on Monday again on Tuesday, and the total climbs
+past impressions — arithmetically impossible, and entirely plausible-looking on a tile. Summing
+the per-entity breakdown double-counts the same way, across ad sets instead of across days. Only
+Meta can deduplicate, and only for the window it is asked about, so there is a fourth request:
+same filters, same period, no `time_increment`, no level breakdown. That absence IS the
+mechanism. Frequency is then impressions over reach, recomputed from the two figures on the tile
+so it agrees with them. No row back means no delivery, which is a real zero rather than a fault.
+
 **The impressions tile carries reach**: "Impressions / Reach", "41,200 / 30,100". The two are
 the same delivery seen from either side, and the ratio between them is the frequency — read
 from separate tiles that is a division someone has to do for themselves. Its `<dd>` takes
