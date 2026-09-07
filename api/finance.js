@@ -1,22 +1,34 @@
 // Cash flow for the Peps by Dave business.
 //
-// GET -> { revenue, expenses, totals, adSpend, warnings }
+// GET  -> the figures.
+// POST -> the same figures, having first pushed them into the Google Sheet.
 //
-// The ad spend half is LIVE. It is projected from the budgets currently set on
-// the campaigns and ad sets in Meta, which is what makes changing a budget in
-// Ads Manager change this page. It is deliberately not "last month's spend" —
-// the question this page answers is what the business is committed to spending
-// now, not what it already spent.
+// The ad spend half is LIVE and has two parts, because the question "what does
+// this month cost" has two: what has already gone out, and what the budgets
+// currently set in Ads Manager will spend over the days that are left. Adding a
+// new ad set therefore shows up immediately in the forward half and then moves
+// into the spent half as it delivers.
 //
-// Month-to-date actual spend is fetched alongside it, because a projection with
-// nothing to check it against is a guess with a decimal point.
+// The revenue half cannot be fetched — Skool has no public API — so it is typed
+// into the sheet and every line carries whether it was read or entered.
 
 import { requireSession, noStore } from '../lib/auth.js';
 import {
-  daysInCurrentMonth,
+  daysInMonthOf,
+  isIncluded,
+  includeList,
   manualFigures,
   sumAmounts,
+  todayIn,
 } from '../lib/finance/config.js';
+import {
+  embedUrl,
+  missingSheetEnv,
+  openUrl,
+  readEntered,
+  sheetsConfig,
+  syncSheet,
+} from '../lib/finance/sheets.js';
 
 const API_VERSION = process.env.META_API_VERSION || 'v23.0';
 const GRAPH = 'https://graph.facebook.com';
@@ -40,6 +52,15 @@ function scrubSecrets(text) {
     const v = String(process.env[n] || '').trim();
     if (v.length > 8) out = out.split(v).join('REDACTED');
   }
+  // The service-account key must never reach a browser either. Google echoes
+  // credential fragments back in its error text, so this scrubs the key LINE BY
+  // LINE rather than as one blob: a message quoting a single line of the PEM
+  // would sail straight past a whole-value match.
+  const key = String(process.env.GOOGLE_SHEETS_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  for (const line of key.split(/\r?\n/)) {
+    const chunk = line.trim();
+    if (chunk.length >= 12 && !chunk.startsWith('---')) out = out.split(chunk).join('REDACTED');
+  }
   return out;
 }
 
@@ -59,13 +80,16 @@ function isLive(status) {
   return status === 'ACTIVE';
 }
 
+const round2 = (n) => Math.round(n * 100) / 100;
+
 export default async function handler(req, res) {
   noStore(res);
   const session = requireSession(req, res);
   if (!session) return;
 
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
+  const method = req.method === 'POST' ? 'POST' : 'GET';
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
@@ -80,13 +104,21 @@ export default async function handler(req, res) {
   const accountId = account.value.startsWith('act_') ? account.value : `act_${account.value}`;
 
   const warnings = [];
-  const manual = manualFigures();
-  const days = daysInCurrentMonth();
+  let manual = manualFigures();
 
   try {
-    // The budget tree. Budgets can sit on the campaign (campaign budget
-    // optimisation) OR on each ad set, never meaningfully on both, so both
-    // levels are read and the campaign wins where it has one.
+    /* ------------------------------------------------------------- meta ---- */
+
+    // The account itself, for its timezone and currency. Meta reports on the
+    // account's timezone, so counting the days left in the month from this
+    // server's clock would be wrong for most of every day.
+    const acctUrl = new URL(`${GRAPH}/${API_VERSION}/${accountId}`);
+    acctUrl.searchParams.set('fields', 'timezone_name,currency');
+    acctUrl.searchParams.set('access_token', token.value);
+
+    // The budget tree, with no date range: a brand new ad set has never
+    // delivered, and asking Insights for it would leave it invisible on exactly
+    // the day someone wants to watch it start.
     const treeUrl = new URL(`${GRAPH}/${API_VERSION}/${accountId}/campaigns`);
     treeUrl.searchParams.set(
       'fields',
@@ -96,18 +128,21 @@ export default async function handler(req, res) {
     treeUrl.searchParams.set('limit', '200');
     treeUrl.searchParams.set('access_token', token.value);
 
-    // Month to date actual, as a sanity check against the projection.
-    const now = new Date();
-    const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;
-    const today = now.toISOString().slice(0, 10);
-
+    // Spend so far, per ad set, so it can be attributed to the same lines the
+    // budgets came from. `this_month` is resolved by Meta in the account's
+    // timezone, which is the same basis Ads Manager reports on.
     const spendUrl = new URL(`${GRAPH}/${API_VERSION}/${accountId}/insights`);
-    spendUrl.searchParams.set('fields', 'spend');
-    spendUrl.searchParams.set('level', 'account');
-    spendUrl.searchParams.set('time_range', JSON.stringify({ since: monthStart, until: today }));
+    spendUrl.searchParams.set('fields', 'spend,campaign_id,adset_id');
+    spendUrl.searchParams.set('level', 'adset');
+    spendUrl.searchParams.set('date_preset', 'this_month');
+    spendUrl.searchParams.set('limit', '500');
+    spendUrl.searchParams.set('use_unified_attribution_setting', 'true');
     spendUrl.searchParams.set('access_token', token.value);
 
-    const [treeResp, spendResp] = await Promise.all([fetch(treeUrl), fetch(spendUrl)]);
+    const [acctResp, treeResp, spendResp] = await Promise.all([
+      fetch(acctUrl), fetch(treeUrl), fetch(spendUrl),
+    ]);
+    const acct = await acctResp.json().catch(() => ({}));
     const tree = await treeResp.json().catch(() => ({}));
     const spendJson = await spendResp.json().catch(() => ({}));
 
@@ -116,13 +151,29 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'meta_error', message: scrubSecrets(msg) });
     }
 
-    const monthToDate = Number(spendJson?.data?.[0]?.spend) || 0;
+    const timeZone = acct?.timezone_name || 'UTC';
+    const currency = acct?.currency || 'USD';
 
-    // Walk the tree once, collecting every budget that can actually spend.
-    const lines = [];
-    let dailyTotal = 0;
-    let lifetimeTotal = 0;
+    const today = todayIn(timeZone);
+    const daysInMonth = daysInMonthOf(today);
+    // Whole days still to come. Today is excluded because month-to-date spend
+    // already covers the part of it that has happened; the rest of today is the
+    // small, deliberate understatement noted in the UI.
+    const daysRemaining = Math.max(0, daysInMonth - today.day);
 
+    // Spend indexed by ad set, and rolled up per campaign for CBO lines.
+    const spentByAdset = new Map();
+    const spentByCampaign = new Map();
+    for (const row of spendJson?.data || []) {
+      const amt = Number(row.spend) || 0;
+      if (row.adset_id) spentByAdset.set(row.adset_id, (spentByAdset.get(row.adset_id) || 0) + amt);
+      if (row.campaign_id) {
+        spentByCampaign.set(row.campaign_id, (spentByCampaign.get(row.campaign_id) || 0) + amt);
+      }
+    }
+
+    /* ------------------------------------------------- walk the budget tree */
+    const all = [];
     for (const c of tree.data || []) {
       const campaignLive = isLive(c.effective_status || c.status);
       const campaignDaily = minorToMajor(c.daily_budget);
@@ -130,12 +181,8 @@ export default async function handler(req, res) {
 
       if (campaignDaily > 0 || campaignLifetime > 0) {
         // Campaign budget optimisation: the campaign holds the budget and its
-        // ad sets do not, so counting both would double the figure.
-        if (campaignLive) {
-          dailyTotal += campaignDaily;
-          lifetimeTotal += campaignLifetime;
-        }
-        lines.push({
+        // ad sets hold none, so counting both levels would double the figure.
+        all.push({
           level: 'campaign',
           id: c.id,
           name: c.name,
@@ -143,98 +190,181 @@ export default async function handler(req, res) {
           live: campaignLive,
           daily: campaignDaily,
           lifetime: campaignLifetime,
-          monthly: campaignLive ? campaignDaily * days : 0,
+          spent: round2(spentByCampaign.get(c.id) || 0),
         });
         continue;
       }
 
       for (const a of c.adsets?.data || []) {
         const adsetLive = campaignLive && isLive(a.effective_status || a.status);
-        const d = minorToMajor(a.daily_budget);
-        const l = minorToMajor(a.lifetime_budget);
-        if (d === 0 && l === 0) continue;
-        if (adsetLive) {
-          dailyTotal += d;
-          lifetimeTotal += l;
-        }
-        lines.push({
+        const daily = minorToMajor(a.daily_budget);
+        const lifetime = minorToMajor(a.lifetime_budget);
+        const spent = round2(spentByAdset.get(a.id) || 0);
+        // A line with no budget and no spend is noise, not information.
+        if (daily === 0 && lifetime === 0 && spent === 0) continue;
+        all.push({
           level: 'adset',
           id: a.id,
           name: `${c.name} / ${a.name}`,
           status: adsetLive ? 'ACTIVE' : a.effective_status || a.status,
           live: adsetLive,
-          daily: d,
-          lifetime: l,
-          monthly: adsetLive ? d * days : 0,
+          daily,
+          lifetime,
+          spent,
         });
       }
     }
 
-    const projectedAdSpend = dailyTotal * days;
+    /* --------------------------------------------------- apply the filter */
+    // A list that matches nothing is a typo, not an instruction to show an
+    // empty page — so it is reported with the real names instead of obeyed.
+    const include = includeList();
+    let lines = all.filter((l) => isIncluded(l.name, include));
+    const filterActive = include.length > 0;
+    if (filterActive && lines.length === 0 && all.length > 0) {
+      lines = all;
+      warnings.push(
+        'The AD_SPEND_INCLUDE filter matched nothing, so every line is shown. ' +
+          'Meta returned: ' + all.map((l) => l.name).join('; ') + '.',
+      );
+    } else if (filterActive && all.length > lines.length) {
+      const hidden = all.filter((l) => !isIncluded(l.name, include));
+      const hiddenSpend = round2(hidden.reduce((s, l) => s + l.spent, 0));
+      const hiddenDaily = round2(hidden.filter((l) => l.live).reduce((s, l) => s + l.daily, 0));
+      // Excluded work is named rather than silently dropped: a hidden line that
+      // is still spending would otherwise make this page disagree with the bill.
+      warnings.push(
+        `${hidden.length} campaign/ad set(s) are excluded by AD_SPEND_INCLUDE` +
+          (hiddenSpend || hiddenDaily
+            ? ` and are still spending (${hiddenSpend.toFixed(2)} so far this month, ` +
+              `${hiddenDaily.toFixed(2)} a day active). They are NOT in the totals below.`
+            : ' and none of them are spending.'),
+      );
+    }
+
+    /* ------------------------------------------------------------- totals */
+    let dailyTotal = 0;
+    let lifetimeTotal = 0;
+    let monthToDate = 0;
+
+    for (const l of lines) {
+      monthToDate += l.spent;
+      if (l.live) {
+        dailyTotal += l.daily;
+        lifetimeTotal += l.lifetime;
+      }
+      l.projected = l.live ? round2(l.daily * daysRemaining) : 0;
+      l.expected = round2(l.spent + l.projected);
+    }
+    monthToDate = round2(monthToDate);
+    dailyTotal = round2(dailyTotal);
+    lifetimeTotal = round2(lifetimeTotal);
+
+    const projectedRemainder = round2(dailyTotal * daysRemaining);
+    const expectedMonthTotal = round2(monthToDate + projectedRemainder);
 
     if (lifetimeTotal > 0) {
       warnings.push(
-        `${lines.filter((l) => l.lifetime > 0 && l.live).length} active item(s) use a lifetime budget ` +
-          `totalling ${lifetimeTotal.toFixed(2)}. A lifetime budget is a total, not a monthly rate, ` +
-          'so it is listed but not included in the monthly projection.',
-      );
-    }
-    if (dailyTotal === 0) {
-      warnings.push(
-        'No active daily budgets were found, so the projected monthly ad spend is zero. ' +
-          'That is correct if everything is paused.',
+        `Active items carry ${lifetimeTotal.toFixed(2)} of lifetime budget. A lifetime budget ` +
+          'is a total for the whole run rather than a monthly rate, so it is listed but not ' +
+          'projected into the rest of the month.',
       );
     }
 
-    /* ------------------------------------------------------------ assemble */
-    const revenue = [
-      {
-        id: 'skool',
-        label: 'Skool community',
-        amount: manual.skoolMrr,
-        source: 'manual',
-        note:
-          'Skool has no public API — no REST, no webhooks, no analytics export — so this figure ' +
-          `is entered rather than fetched. Set in ${manual.skoolMrrSource}.`,
-      },
-      ...manual.otherRevenue.map((r) => ({ ...r, source: 'manual' })),
-    ];
+    lines.sort((a, b) => b.expected - a.expected || a.name.localeCompare(b.name));
 
-    const expenses = [
-      {
-        id: 'meta-ads',
-        label: 'Meta ad spend (projected)',
-        amount: projectedAdSpend,
-        source: 'live',
-        note:
-          `${dailyTotal.toFixed(2)} a day across ${lines.filter((l) => l.live).length} active ` +
-          `item(s), over ${days} days this month. Changing a budget in Ads Manager changes this.`,
-      },
-      ...manual.recurringCosts.map((c) => ({ ...c, source: 'manual' })),
-    ];
+    const adSpend = {
+      dailyTotal,
+      monthToDate,
+      projectedRemainder,
+      expectedMonthTotal,
+      lifetimeTotal,
+      daysInMonth,
+      daysRemaining,
+      daysElapsed: today.day,
+      timeZone,
+      filtered: filterActive,
+      totalLines: all.length,
+      lines,
+    };
 
-    const revenueTotal = sumAmounts(revenue);
-    const expenseTotal = sumAmounts(expenses);
+    /* -------------------------------------------------------- the sheet ---- */
+    const cfg = sheetsConfig();
+    const sheet = {
+      configured: !!cfg,
+      missing: cfg ? [] : missingSheetEnv(),
+      embedUrl: cfg ? embedUrl(cfg.spreadsheetId) : null,
+      openUrl: cfg ? openUrl(cfg.spreadsheetId) : null,
+      synced: false,
+      error: null,
+    };
+
+    let revenue;
+    let expenses;
+
+    const adSpendLine = {
+      id: 'meta-ads',
+      label: 'Meta ad spend',
+      amount: expectedMonthTotal,
+      source: 'live',
+      note:
+        `${monthToDate.toFixed(2)} already spent, plus ${projectedRemainder.toFixed(2)} projected ` +
+        `from ${dailyTotal.toFixed(2)} a day over the ${daysRemaining} day(s) left in the month ` +
+        `(${timeZone}). Changing a budget in Ads Manager changes this.`,
+    };
+
+    if (cfg) {
+      try {
+        // POST syncs and reads back; GET only reads, so opening the page never
+        // writes to the user's sheet as a side effect of looking at it.
+        const entered = method === 'POST'
+          ? await syncSheet(cfg, { adSpend, fetchedAt: new Date().toISOString() }, manual)
+          : await readEntered(cfg);
+        sheet.synced = method === 'POST';
+        revenue = entered.revenue;
+        expenses = [adSpendLine, ...entered.expenses];
+      } catch (e) {
+        // A sheet that cannot be reached must not take the whole page down —
+        // the live half is still worth showing, clearly labelled as incomplete.
+        sheet.error = scrubSecrets(e.message || 'Could not reach the Google Sheet.');
+        warnings.push('The Google Sheet could not be read, so the entered figures below are the ' +
+          'fallback values from lib/finance/config.js, not the sheet.');
+      }
+    }
+
+    if (!revenue) {
+      revenue = [
+        {
+          id: 'skool',
+          label: 'Skool community',
+          amount: manual.skoolMrr,
+          source: 'manual',
+          note: cfg
+            ? 'Fallback value — the sheet could not be read.'
+            : `Skool has no public API, so this is entered. Currently from ${manual.skoolMrrSource}.`,
+        },
+        ...manual.otherRevenue.map((r) => ({ ...r, source: 'manual' })),
+      ];
+      expenses = [adSpendLine, ...manual.recurringCosts.map((c) => ({ ...c, source: 'manual' }))];
+    }
+
+    const revenueTotal = round2(sumAmounts(revenue));
+    const expenseTotal = round2(sumAmounts(expenses));
 
     return res.status(200).json({
-      currency: 'USD',
-      daysInMonth: days,
+      currency,
+      daysInMonth,
       revenue,
       expenses,
       totals: {
         revenue: revenueTotal,
         expenses: expenseTotal,
-        net: revenueTotal - expenseTotal,
+        net: round2(revenueTotal - expenseTotal),
         // Margin is undefined rather than zero when nothing is coming in.
         margin: revenueTotal > 0 ? ((revenueTotal - expenseTotal) / revenueTotal) * 100 : null,
       },
-      adSpend: {
-        dailyTotal,
-        projectedMonthly: projectedAdSpend,
-        monthToDate,
-        lifetimeTotal,
-        lines: lines.sort((a, b) => b.monthly - a.monthly || a.name.localeCompare(b.name)),
-      },
+      adSpend,
+      sheet,
       warnings,
       fetchedAt: new Date().toISOString(),
     });

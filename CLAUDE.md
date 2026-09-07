@@ -497,18 +497,31 @@ entirely on Montara Forge.
 
 | File | Role |
 |---|---|
-| `api/finance.js` | Reads current budgets from Meta, projects the month, merges the entered figures. |
-| `lib/finance/config.js` | The entered figures: Skool MRR, fixed recurring costs. |
+| `api/finance.js` | Reads Meta, projects the month, syncs and reads the sheet. |
+| `lib/finance/config.js` | Fallback figures, the include filter, month/day arithmetic. |
+| `lib/finance/sheets.js` | Google Sheets: JWT auth, read, write, first-run setup. |
 | `test/finance.test.mjs` | `node test/finance.test.mjs` — no creds, no network. |
 
 **Two kinds of figure, kept visibly apart.** Every row carries a `live` or `entered` tag.
 That is not decoration — a stale number nobody can tell is stale is worse than a blank. Do
 not remove the tags or merge the two kinds into one undifferentiated table.
 
-**Ad spend is a PROJECTION from the budgets set right now**, not last month's spend. That is
-what makes changing a budget in Ads Manager change this page, which was the requirement.
-Month-to-date actual spend is fetched alongside it and shown under the budget table, because
-a projection with nothing to check it against is a guess with a decimal point.
+### Ad spend = already spent + still to come
+
+The month's cost has two halves and the page shows both, because the decision usually turns
+on which half is moving:
+
+- **Already spent** — real spend, per ad set, `date_preset=this_month`, so Meta resolves the
+  month in the ad account's timezone exactly as Ads Manager does.
+- **Still to come** — the daily budgets currently set, times the whole days left in the month.
+  This is what makes a new ad set appear in the forecast the moment it is created, before it
+  has delivered anything, and what makes editing a budget in Ads Manager move this page.
+
+Today is deliberately excluded from "days left": month-to-date already covers the part of
+today that has happened. The rest of today is a small, known understatement.
+
+The day is read in the **ad account's timezone** (`todayIn()`), never the server's. Off by one
+for most of every day is bad enough; on the 1st or the 31st it is the whole figure.
 
 Things that are easy to get wrong here, all covered by tests:
 
@@ -517,26 +530,64 @@ Things that are easy to get wrong here, all covered by tests:
   normal. `minorToMajor()` is the only place that conversion happens.
 - **Campaign budget optimisation vs ad set budgets.** A CBO campaign holds the budget and its
   ad sets hold none, but Meta returns both objects. Summing both levels doubles the total, so
-  a campaign with a budget short-circuits its ad sets.
-- **A lifetime budget is a total, not a monthly rate.** It is listed and warned about, never
-  multiplied by the days in the month.
-- **The month is the real number of days in the current month**, not a flat 30.4. A page whose
-  job is cash flow should agree with the bank statement, and February does not cost the same
-  as March.
-- **Only entities whose effective status is ACTIVE count.** An active ad set under a paused
-  campaign spends nothing. Paused work is still listed — the page shows what exists — but it
-  contributes zero.
+  a campaign with a budget short-circuits its ad sets and its ad sets' spend rolls up to it.
+- **A lifetime budget is a total, not a monthly rate.** Listed and warned about, never
+  projected across the days left.
+- **Only ACTIVE entities project forward.** An active ad set under a paused campaign spends
+  nothing. But **spend already incurred by a paused line still counts** — the money is gone
+  whether or not it is configured to spend more.
 - **Margin on zero revenue is `null`, not zero.** The UI renders it as an em dash.
 
-**Skool has no public API.** No REST, no webhooks, no analytics export. Stripe is the only
-programmatic surface, via Skool's payment flow. Until that is wired, MRR is entered:
-`SKOOL_MRR` as an environment variable, falling back to `SKOOL_MRR_DEFAULT` in
-`lib/finance/config.js`. The response reports `skoolMrrSource` so the page can never imply a
-typed figure was fetched. Do not go looking for a Skool API — there isn't one.
+### The include filter
 
-**Recurring costs live in `RECURRING_COSTS`.** Monthly, whole currency units. The `note` field
-is load-bearing: six months from now it is the only thing that explains why a line exists.
-Higgsfield is seeded at `amount: 0` pending a confirmed figure.
+`AD_SPEND_INCLUDE` names which campaigns and ad sets count. Set it in the environment (one
+pattern per line, or semicolon separated) or leave it unset to use the list in
+`lib/finance/config.js`; an explicitly empty value means count everything.
+
+Matching is loose on case and punctuation but the words must appear **IN ORDER**. That
+ordering is what keeps `Dave Campaign 1 Ad Set 1` from also matching `… Ad Set - Paid` — a
+set-based match would let the `1` from "Campaign 1" stand in for the missing one.
+
+Two failure modes are handled rather than left to surprise someone:
+
+- A filter that **matches nothing** is treated as a typo. Every line is shown and the warning
+  lists the names Meta actually returned, so the fix is obvious. Obeying it would look
+  identical to an account with no spend.
+- An **excluded line that is still spending** is named in a warning with its figures. Silently
+  dropping it would make this page disagree with the bill.
+
+### The Google Sheet
+
+The middle panel is a real spreadsheet, embedded and editable in place, and it is where the
+manual figures live. Two tabs, and the split is the whole contract:
+
+- **`Entered`** — yours. Columns: Type (`Revenue`/`Expense`), Line, Monthly, Note. Created and
+  seeded once, then never written to again. Rows are classified by the Type column rather than
+  by position, so reordering rows cannot move a figure to the other side of the ledger.
+- **`Live`** — the dashboard's. Cleared and rewritten on every sync; anything typed there is
+  lost. Carries the spend figures and the per-line breakdown.
+
+Setup is three environment variables: `FINANCE_SHEET_ID`, `GOOGLE_SHEETS_CLIENT_EMAIL`,
+`GOOGLE_SHEETS_PRIVATE_KEY` (a service account with Editor access to the sheet). Both tabs are
+created on first sync, so a blank spreadsheet is enough to start.
+
+- **No SDK.** Minting the JWT is one `crypto.sign` call and the REST API is three endpoints —
+  a smaller surface than a dependency to pin and audit. The access token is cached in module
+  scope, keyed by the account email so a rotation cannot serve the old one.
+- **A PEM pasted into a dashboard env var arrives with escaped newlines**, sometimes wrapped in
+  quotes. `sheetsConfig()` handles both; without that, setup fails with an opaque OpenSSL
+  decoder error that points nowhere.
+- **GET reads, POST syncs.** Opening the page never writes to the sheet as a side effect of
+  being looked at; pressing Refresh does what it says.
+- **`src` is set once.** Reassigning it on every refresh would reload the iframe and discard
+  whatever cell was being typed into.
+- **The table is the fallback, not dead code.** If the sheet is unconfigured or unreachable the
+  panel reverts to it and says which. A finance page showing nothing because a third party is
+  down is worse than one showing the figures it already has, clearly labelled.
+
+**Skool has no public API** — no REST, no webhooks, no analytics export. Stripe is the only
+programmatic surface, via Skool's payment flow. Until that is wired, MRR is typed into the
+sheet. Do not go looking for a Skool API; there isn't one.
 
 **`buildRichTable()` exists because these rows carry markup** — source tags and signed,
 coloured figures — which `buildTable()`'s `textContent` cannot express. Its cell strings are

@@ -237,6 +237,13 @@ select:disabled { opacity:.55; }
 
 /* The sampled frames, shown so the captions can be judged against what the
    model actually saw rather than taken on trust. */
+/* The embedded sheet. Tall enough to work in without scrolling the page to
+   reach the rows, and it keeps its own scrollbars. */
+.sheet-wrap { border:1px solid var(--hairline); border-radius:10px; overflow:hidden;
+  background:var(--surface-solid); }
+.sheet-wrap iframe { display:block; width:100%; height:min(70vh, 620px); border:0; }
+@media (max-width:720px){ .sheet-wrap iframe { height:min(64vh, 460px); } }
+
 /* Where a figure came from matters as much as the figure. A number read from
    Meta a second ago and a number someone typed in March must not look alike. */
 .src { font-size:.64rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
@@ -1032,10 +1039,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <div class="panel-head">
           <div class="panel-title">
             <span class="panel-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16.5h14M6 13V7M10 13V4M14 13v-4"/></svg></span>
-            <div><h3 id="fin-table-h" style="font-size:1.05rem;font-weight:700">Revenue and expenses</h3><p class="sub">Every line, and whether it is read live or entered by hand.</p></div>
+            <div><h3 id="fin-table-h" style="font-size:1.05rem;font-weight:700">Revenue and expenses</h3><p class="sub" id="fin-table-sub">Every line, and whether it is read live or entered by hand.</p></div>
           </div>
+          <a class="btn btn-ghost" id="fin-sheet-open" href="#" target="_blank" rel="noopener"
+             style="min-height:34px;padding:.35rem .8rem;font-size:.84rem" hidden>Open in Google Sheets ↗</a>
         </div>
-        <div class="table-scroll"><table id="fin-table"><caption>Monthly revenue and expense lines with their source.</caption></table></div>
+
+        <!-- The sheet itself. Editing happens in here; the dashboard reads the
+             Entered tab back on every refresh. -->
+        <div class="sheet-wrap" id="fin-sheet-wrap" hidden>
+          <iframe id="fin-sheet" title="Finances spreadsheet" loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+
+        <!-- Shown until the sheet is connected, and if it ever cannot be read.
+             Losing the sheet must not mean losing the figures. -->
+        <div class="table-scroll" id="fin-table-wrap"><table id="fin-table"><caption>Monthly revenue and expense lines with their source.</caption></table></div>
       </section>
 
       <section class="panel glass" aria-labelledby="fin-budget-h">
@@ -2844,15 +2863,25 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
      Live and entered are labelled on every row rather than explained once at the
      top, because a table gets read a row at a time. */
+  /* Expenses read as negatives on this table. The sign goes BEFORE the whole
+     formatted figure — slicing the currency symbol off to make room for it is
+     how "-903.20" ends up sitting in a column of dollar amounts. */
+  function negative(v){ return '−' + money(v); }
+
   function srcTag(source){
     var live = source === 'live';
     return '<span class="src ' + (live ? 'src-live' : 'src-manual') + '">' +
       (live ? 'live' : 'entered') + '</span>';
   }
 
-  function renderFinance(){
-    $('fin-status').textContent = 'Loading…';
-    return fetch('/api/finance')
+  /* A plain load only reads. Pressing Refresh also pushes the live figures
+     into the sheet, so looking at the page never writes to it as a side effect
+     while an explicit action still does what it says. */
+  function renderFinance(push){
+    $('fin-status').textContent = push ? 'Refreshing and updating the sheet…' : 'Loading…';
+    return fetch('/api/finance', push
+        ? { method:'POST', headers:{ 'Content-Type':'application/json' }, body:'{}' }
+        : undefined)
       .then(function(r){
         return r.json().then(function(j){
           if(!r.ok) throw new Error(j.message || 'Could not load the finances.');
@@ -2862,12 +2891,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       .then(function(d){
         var t = d.totals;
 
+        /* Spent and projected are separate tiles rather than one number: the
+           first is a fact and the second is an estimate, and a month's decision
+           usually turns on which half is moving. */
+        var a = d.adSpend;
         var tiles = [
           { label:'Revenue', v:money(t.revenue), cls:'fin-in', icon:'coin' },
           { label:'Expenses', v:money(t.expenses), cls:'fin-out', icon:'tag' },
           { label:'Net', v:money(t.net), cls:(t.net >= 0 ? 'fin-in' : 'fin-out'), icon:'trend' },
-          { label:'Margin', v:(t.margin == null ? '—' : t.margin.toFixed(1) + '%'), cls:'', icon:'percent' },
-          { label:'Ad spend / day', v:money(d.adSpend.dailyTotal), cls:'', icon:'repeat' }
+          { label:'Ad spend so far', v:money(a.monthToDate), cls:'', icon:'coin' },
+          { label:'Ad spend left', v:money(a.projectedRemainder), cls:'', icon:'repeat' }
         ];
         $('fin-kpis').innerHTML = tiles.map(function(x){
           return '<div class="kpi glass' + (x.v === '—' ? ' is-muted' : '') + '">' +
@@ -2892,36 +2925,43 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         (d.expenses || []).forEach(function(x){
           rows.push([esc(x.label), srcTag(x.source),
-            '<span class="fin-out">−' + money(x.amount).slice(1) + '</span>',
+            '<span class="fin-out">' + negative(x.amount) + '</span>',
             '<span class="fin-note">' + esc(x.note || '') + '</span>']);
         });
         totals.push(rows.length);
         rows.push(['<strong>Total expenses</strong>', '',
-          '<strong class="fin-out">−' + money(t.expenses).slice(1) + '</strong>', '']);
+          '<strong class="fin-out">' + negative(t.expenses) + '</strong>', '']);
         totals.push(rows.length);
         rows.push(['<strong>Net this month</strong>', '',
           '<strong class="' + (t.net >= 0 ? 'fin-in' : 'fin-out') + '">' + money(t.net) + '</strong>', '']);
 
         buildRichTable($('fin-table'), ['Line', 'Source', 'Monthly', 'Detail'], rows, totals);
+        showSheet(d.sheet);
 
         // The budgets the projection is built from, so the figure can be checked
         // against Ads Manager rather than taken on trust.
-        var budgets = (d.adSpend.lines || []).map(function(l){
+        var budgets = (a.lines || []).map(function(l){
           return [
             esc(l.name),
             esc(l.level),
             l.live ? '<span class="src src-live">active</span>'
                    : '<span class="src src-manual">' + esc(String(l.status || '').toLowerCase().replace(/_/g, ' ')) + '</span>',
             l.daily ? money(l.daily) + ' / day' : (l.lifetime ? money(l.lifetime) + ' lifetime' : '—'),
-            l.monthly ? money(l.monthly) : '—'
+            money(l.spent),
+            l.expected ? money(l.expected) : '—'
           ];
         });
         buildRichTable($('fin-budget-table'),
-          ['Campaign / ad set', 'Level', 'Status', 'Budget', 'Projected month'], budgets, []);
+          ['Campaign / ad set', 'Level', 'Status', 'Budget', 'Spent so far', 'Expected month'],
+          budgets, []);
 
         $('fin-budget-sub').textContent =
-          money(d.adSpend.dailyTotal) + ' a day over ' + d.daysInMonth + ' days · ' +
-          money(d.adSpend.monthToDate) + ' actually spent so far this month.';
+          money(a.monthToDate) + ' spent so far, plus ' + money(a.projectedRemainder) +
+          ' projected from ' + money(a.dailyTotal) + ' a day over the ' + a.daysRemaining +
+          ' day' + (a.daysRemaining === 1 ? '' : 's') + ' left in the month (' + a.timeZone + ')' +
+          (a.filtered && a.totalLines > a.lines.length
+            ? ' · ' + (a.totalLines - a.lines.length) + ' other campaign/ad set(s) not counted'
+            : '') + '.';
 
         if((d.warnings || []).length){
           $('fin-notice').innerHTML = '<span aria-hidden="true">⚠</span><span>' +
@@ -2933,11 +2973,48 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         $('fin-status').textContent = 'Updated ' +
           new Date(d.fetchedAt).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }) +
-          '. Ad spend is read live from Meta; entered figures are marked.';
+          (d.sheet && d.sheet.synced ? ', and pushed into the sheet' : '') +
+          '. Ad spend is read live from Meta; entered figures come from the sheet.';
       })
       .catch(function(e){
         $('fin-status').textContent = (e && e.message) || 'Could not load the finances.';
       });
+  }
+
+  /* The sheet replaces the table when it is connected, and the table comes
+     back if it ever cannot be read. Keeping both is not indecision: a finance
+     page that shows nothing because a third party is down is worse than one
+     that shows the figures it already has, clearly labelled. */
+  function showSheet(sheet){
+    var wrap = $('fin-sheet-wrap'), frame = $('fin-sheet'),
+        open = $('fin-sheet-open'), table = $('fin-table-wrap'), sub = $('fin-table-sub');
+
+    var usable = sheet && sheet.configured && sheet.embedUrl && !sheet.error;
+
+    if(usable){
+      // Only assign once. Re-setting src on every refresh would reload the
+      // iframe and throw away whatever cell was being typed into.
+      if(frame.getAttribute('src') !== sheet.embedUrl) frame.setAttribute('src', sheet.embedUrl);
+      open.href = sheet.openUrl;
+      open.hidden = false;
+      wrap.hidden = false;
+      table.hidden = true;
+      sub.textContent = 'Type revenue and expenses in the Entered tab. The Live tab is written ' +
+        'by this dashboard on every refresh — anything typed there is overwritten.';
+      return;
+    }
+
+    wrap.hidden = true;
+    open.hidden = true;
+    table.hidden = false;
+
+    if(sheet && sheet.error){
+      sub.textContent = 'The Google Sheet could not be read (' + sheet.error +
+        '), so these are the fallback figures from the code, not the sheet.';
+    } else if(sheet && !sheet.configured){
+      sub.textContent = 'Not connected to a Google Sheet yet — set ' +
+        (sheet.missing || []).join(', ') + ' to edit these figures in a spreadsheet instead.';
+    }
   }
 
   /* buildTable sets textContent, which is right everywhere else on this page.
@@ -3696,7 +3773,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) uploadVideo(e.dataTransfer.files[0]);
     });
 
-    $('fin-refresh').addEventListener('click', renderFinance);
+    $('fin-refresh').addEventListener('click', function(){ renderFinance(true); });
     $('sc-generate').addEventListener('click', generateCaptions);
     $('sp-post').addEventListener('click', postEverywhere);
   }
