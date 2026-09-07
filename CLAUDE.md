@@ -80,8 +80,8 @@ stays open to any trade.
 | `/about` | `about.html` | JT's story, why the whole system, risk reversal, values |
 | `/contact-us` | `contact-us.html` | Form + SMS consent. Different (older, simpler) style block than the rest — leave its design alone |
 | `/leave-a-review` | `leave-a-review.html` | **Do not modify** |
-| `/privacy-policy` | `privacy-policy.html` | **Do not modify** |
-| `/terms` | `terms.html` | **Do not modify** |
+| `/privacy-policy` | `privacy-policy.html` | Carries the social-publishing disclosure — read the section below before editing |
+| `/terms` | `terms.html` | Carries the social-publishing disclosure — read the section below before editing |
 | `/dashboard` | `dashboard.html` | **Internal ads dashboard.** Password-gated, `noindex`. Deliberately breaks several site conventions — see below. Also hosts the Social post tab |
 
 **FAQ lives inside `index.html` at `#faq`.** There is no separate FAQ page.
@@ -799,6 +799,36 @@ on any other pane its rect is all zeros, which reads as "scrolled past" and floa
 picker over a page it does not drive. `evaluate()` therefore tests
 `social.pane === 'performance'` first, and `showPane()` re-runs it — no scroll event fires on
 a tab click.
+
+---
+
+---
+
+## THE LEGAL PAGES AND THE TIKTOK SUBMISSION
+
+`/terms` and `/privacy-policy` were marked do-not-modify. That no longer holds: both now carry a
+**Social Media Publishing** section describing the posting tool, and **they are the URLs on the
+TikTok app submission**. TikTok rejected a `*.vercel.app` hostname as not a real domain, and
+sybago.ai is a domain the same legal entity owns — Sybago LLC operates Peps by Dave, so this is
+the right company's policy rather than a convenient stand-in.
+
+- Terms §9 and Privacy §6, both anchored `#social-publishing` so they can be linked directly.
+- **If the tool changes what it stores or who it sends data to, these change with it.** A privacy
+  policy describing last month's behaviour is worse than none, and this one is under review by a
+  platform that can revoke posting access.
+- The disclosure says the tool posts **only to accounts Sybago owns or operates** and is **not
+  offered to anyone as a service**. That is true today. If it is ever pointed at a client's
+  account that is a materially different claim — TikTok treats posting on behalf of third parties
+  differently — and both documents must be rewritten before it happens.
+
+**Sections are numbered in the heading text**, with no table of contents and no anchors on the
+other headings. Inserting a section means renumbering every heading below it AND repairing the
+cross-references in the prose — adding §9 to the terms silently broke "in accordance with
+Section 13", which had pointed at Governing Law and afterwards pointed at Termination. Grep for
+`Section [0-9]` after any insertion.
+
+`peps-by-dave.vercel.app` still exists and is still Dave's public site. It simply is not what
+TikTok is pointed at.
 
 ---
 
