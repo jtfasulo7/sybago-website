@@ -342,6 +342,29 @@ from separate tiles that is a division someone has to do for themselves. Its `<d
 `.is-pair`, which shrinks the type: the KPI row is a fixed 5-wide grid and a tile that
 outgrows its column drags the whole row out of alignment.
 
+**The KPI row is one dashed grid, not ten cards.** The design is ported from a React/Tailwind
+"grid feature cards" component; the CODE is not, because this site has no bundler. What
+transferred is the look: a continuous dashed grid, a faded blueprint pattern behind each cell,
+icon on its own line, then label, then figure.
+
+- **The grid closes itself at any column count.** The container draws the top and left edges and
+  every cell draws its own right and bottom. Chasing `:nth-child` for the last row and column
+  would need re-deriving at 5, 2 and 1 columns, and would be wrong the first time a breakpoint
+  moved.
+- **`--t1-rgb` exists for the same reason `--accent-rgb` does** — the pattern needs the
+  foreground at 5% and 25%, and a triplet keeps a palette swap to one line.
+- **Pattern squares are seeded from the metric name, not `Math.random()`.** The original
+  component randomises on every render, which is fine for a page that renders once and wrong
+  here: these tiles repaint every three minutes on auto-refresh, and a pattern that reshuffles
+  reads as the tile having changed when only the clock did.
+- **Every `<pattern>` needs a document-unique id.** With a shared id the last definition wins
+  for all of them and the grid lines vanish from every tile but one. The id is derived from the
+  same seed.
+- **The entrance animation runs once per row**, guarded by `data-entered`. The reference plays
+  it on scroll into view; this row is always in view on load, so an IntersectionObserver would
+  fire immediately and cost a listener for nothing. Replaying it on every refresh would draw the
+  eye to a change that did not happen.
+
 **KPI tiles are a fixed 5x2 grid.** `KPI_KEYS` has exactly ten entries and the order is the
 layout. Do not append a metric conditionally (ROAS used to be) — an eleventh tile leaves the
 second row ragged. Extra metrics belong in the chart pickers and the table.

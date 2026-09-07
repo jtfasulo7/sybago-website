@@ -46,7 +46,8 @@
   --accent:#2F6779; --accent-b:#3a7d93; --accent-d:#1d4b59;
   --accent-rgb:47,103,121; --accent-b-rgb:58,125,147;
   --neg-rgb:163,58,38; --warn-rgb:138,90,0;
-  --t1:#0f1419; --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
+  --t1:#0f1419; --t1-rgb:15,20,25;
+  --t2:rgba(15,20,25,.70); --t3:rgba(15,20,25,.46); --t4:rgba(15,20,25,.07);
   --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --eo:cubic-bezier(.16,1,.3,1);
 
@@ -95,7 +96,8 @@
   --neg-rgb:224,110,86; --warn-rgb:214,175,82;
 
   /* Warm white, not #fff — pure white on near-black glares. */
-  --t1:#F6F2E8; --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
+  --t1:#F6F2E8; --t1-rgb:246,242,232;
+  --t2:rgba(246,242,232,.72); --t3:rgba(246,242,232,.50); --t4:rgba(246,242,232,.09);
 
   --ground:#0B0B0C; --ground-2:#141317;
   --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-hover:#1E1C23;
@@ -610,15 +612,53 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 
 /* Exactly five per row. auto-fit was letting the count drift with viewport
    width, which left the second row ragged. */
-.kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.9rem; margin-bottom:1.75rem; }
-.kpi { position:relative; overflow:hidden; border-radius:var(--r-md); padding:1rem 1.05rem; transition:transform .25s var(--eo), box-shadow .25s var(--eo); }
-.kpi:hover { transform:translateY(-2px); box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2); }
-.kpi::after { content:''; position:absolute; inset:0 0 auto 0; height:1px; background:linear-gradient(90deg, transparent, rgba(var(--accent-rgb),.45), transparent); }
-.kpi-top { display:flex; align-items:center; gap:.5rem; }
-.kpi-ico { width:26px; height:26px; flex:0 0 26px; display:grid; place-items:center; border-radius:8px; background:rgba(var(--accent-rgb),.10); color:var(--accent); }
-.kpi-ico svg { width:15px; height:15px; }
-.kpi dt { font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
-.kpi dd { font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.4rem; font-variant-numeric:tabular-nums; }
+/* One continuous dashed grid rather than ten floating cards.
+   The container draws the top and left edges and every cell draws its own
+   right and bottom, so the grid closes itself at ANY column count — which
+   matters because this drops from five columns to two to one. Chasing
+   :nth-child on the last row and column would need re-deriving per
+   breakpoint, and would be wrong the first time a breakpoint moved. */
+.kpis {
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
+  margin-bottom:1.75rem;
+  border-top:1px dashed var(--hairline); border-left:1px dashed var(--hairline);
+  border-radius:var(--r-md); overflow:hidden;
+}
+.kpi {
+  position:relative; overflow:hidden; padding:1.15rem 1.15rem 1.25rem;
+  border-right:1px dashed var(--hairline); border-bottom:1px dashed var(--hairline);
+  transition:background .25s var(--eo);
+}
+.kpi:hover { background:rgba(var(--accent-rgb),.035); }
+
+/* The blueprint pattern. Twice-masked, as in the reference: a radial fade so
+   it dies away from the top-left corner, and a linear one so it never reaches
+   the figure underneath. mix-blend-mode keeps it honest against both palettes
+   instead of needing a second colour for the dark one. */
+.kpi-pattern {
+  pointer-events:none; position:absolute; top:0; left:50%;
+  width:100%; height:100%; margin-top:-.5rem; margin-left:-5rem;
+  -webkit-mask-image:linear-gradient(#fff, transparent);
+  mask-image:linear-gradient(#fff, transparent);
+}
+.kpi-pattern-inner {
+  position:absolute; inset:0;
+  background:linear-gradient(to right, rgba(var(--t1-rgb),.05), rgba(var(--t1-rgb),.01));
+  -webkit-mask-image:radial-gradient(farthest-side at top, #fff, transparent);
+  mask-image:radial-gradient(farthest-side at top, #fff, transparent);
+}
+.kpi-pattern svg {
+  position:absolute; inset:0; width:100%; height:100%;
+  mix-blend-mode:overlay;
+  fill:rgba(var(--t1-rgb),.05); stroke:rgba(var(--t1-rgb),.25);
+}
+
+/* Icon alone on its line, then a deliberate gap before the words. The gap is
+   the design: it is what stops a dense grid of figures reading as a table. */
+.kpi-ico { display:block; color:var(--t1); opacity:.75; }
+.kpi-ico svg { width:22px; height:22px; stroke-width:1; }
+.kpi dt { margin-top:2.25rem; font-size:.68rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); }
+.kpi dd { position:relative; z-index:2; font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin-top:.35rem; font-variant-numeric:tabular-nums; }
 /* Two figures in the space built for one. The KPI row is a fixed 5-wide grid,
    so a tile that outgrows its column drags the whole row out of alignment. */
 .kpi dd.is-pair { font-size:clamp(.95rem, 1.5vw, 1.3rem); letter-spacing:-.02em; }
@@ -777,6 +817,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 .rise { animation:rise .5s var(--eo) both; }
 
+/* The reference animates each card in on scroll into view. This row is at the
+   top of the page and always in view, so it runs once on first paint instead —
+   an IntersectionObserver here would fire immediately and cost a listener. */
+.kpis.is-entering .kpi { animation:kpi-in .55s var(--eo) both; }
+@keyframes kpi-in {
+  from { opacity:0; transform:translateY(-8px); filter:blur(4px); }
+  to   { opacity:1; transform:none; filter:blur(0); }
+}
+
 .login-wrap { max-width:400px; margin:12vh auto; }
 .login-card { border-radius:var(--r-xl); padding:2.1rem; }
 
@@ -821,7 +870,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   .series-row { width:100%; }
   .series-row select { flex:1 1 auto; width:100%; }
   .add-series { width:100%; }
-  .kpi { padding:.8rem .85rem; }
+  .kpi { padding:.85rem .9rem 1rem; }
+  .kpi dt { margin-top:1.4rem; }
+  .kpi-ico svg { width:19px; height:19px; }
   .kpi dd { font-size:1.28rem; }
   .kpi dd.is-pair { font-size:1.02rem; }
   .panel { padding:1rem; border-radius:var(--r-md); }
@@ -2104,10 +2155,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         muted = (v==null||v===0) && (t.reach==null||t.reach===0);
       }
 
-      return '<div class="kpi glass'+(muted?' is-muted':'')+'">'+
-        '<div class="kpi-top"><span class="kpi-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+ICON[m.icon]+'</svg></span>'+
-        '<dt>'+esc(label)+'</dt></div><dd'+(pair?' class="is-pair"':'')+'>'+esc(shown)+'</dd></div>';
+      return '<div class="kpi'+(muted?' is-muted':'')+'">'+
+        kpiPattern(k)+
+        '<span class="kpi-ico" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'+ICON[m.icon]+'</svg></span>'+
+        '<dt>'+esc(label)+'</dt>'+
+        '<dd'+(pair?' class="is-pair"':'')+'>'+esc(shown)+'</dd></div>';
     }).join('');
+    playKpiEntrance($('kpis'));
   }
 
   /* --------------------------------------------------- over time (series) ---- */
@@ -3259,13 +3313,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           { label:'Ad spend left', v:money(a.projectedRemainder), cls:'', icon:'repeat' }
         ];
         $('fin-kpis').innerHTML = tiles.map(function(x){
-          return '<div class="kpi glass' + (x.v === '—' ? ' is-muted' : '') + '">' +
-            '<div class="kpi-top"><span class="kpi-ico" aria-hidden="true">' +
-            '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+          return '<div class="kpi' + (x.v === '—' ? ' is-muted' : '') + '">' +
+            kpiPattern(x.label) +
+            '<span class="kpi-ico" aria-hidden="true">' +
+            '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" ' +
             'stroke-linecap="round" stroke-linejoin="round">' + ICON[x.icon] + '</svg></span>' +
-            '<dt>' + esc(x.label) + '</dt></div>' +
+            '<dt>' + esc(x.label) + '</dt>' +
             '<dd class="' + x.cls + '">' + esc(x.v) + '</dd></div>';
         }).join('');
+        playKpiEntrance($('fin-kpis'));
 
         /* Revenue and expenses share one table: the point of this page is the
            relationship between them, not either list on its own. */
@@ -3394,6 +3450,68 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     $('fin-table-wrap').hidden = false;
     $('fin-table-sub').textContent = message +
       ' Showing the computed figures instead — read-only, and nothing typed here is saved.';
+  }
+
+  /* ------------------------------------------------------- kpi pattern ---- */
+  /* The blueprint square behind each tile: a 20x20 grid with a handful of
+     filled cells scattered through it.
+
+     The reference generates those cells with Math.random() on every render.
+     That is fine for a page that renders once and wrong here — these tiles
+     repaint every three minutes on auto-refresh, and a pattern that reshuffles
+     itself each time reads as the tile having changed when only the clock did.
+     So the positions are derived from the metric's own name: stable for the
+     life of the tile, still different between neighbours. */
+  function patternSquares(seed, count){
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    var out = [];
+    for (var n = 0; n < (count || 5); n++) {
+      h = Math.imul(h ^ (h >>> 15), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      var v = (h >>> 0) / 4294967296;
+      var w = ((h >>> 8) & 0xffff) / 65536;
+      out.push([Math.floor(v * 4) + 7, Math.floor(w * 6) + 1]);   // x 7..10, y 1..6
+    }
+    return out;
+  }
+
+  var PATTERN_W = 20, PATTERN_H = 20, PATTERN_X = -12, PATTERN_Y = 4;
+
+  function kpiPattern(seed){
+    // Every <pattern> needs an id unique in the document, or the last one
+    // defined wins for all of them and the grid lines vanish from the rest.
+    var id = 'kp-' + String(seed).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    var squares = patternSquares(String(seed)).map(function(sq){
+      return '<rect stroke-width="0" width="' + (PATTERN_W + 1) + '" height="' + (PATTERN_H + 1) +
+        '" x="' + (sq[0] * PATTERN_W) + '" y="' + (sq[1] * PATTERN_H) + '"/>';
+    }).join('');
+
+    return '<div class="kpi-pattern" aria-hidden="true"><div class="kpi-pattern-inner">' +
+      '<svg aria-hidden="true"><defs>' +
+        '<pattern id="' + id + '" width="' + PATTERN_W + '" height="' + PATTERN_H +
+        '" patternUnits="userSpaceOnUse" x="' + PATTERN_X + '" y="' + PATTERN_Y + '">' +
+          '<path d="M.5 ' + PATTERN_H + 'V.5H' + PATTERN_W + '" fill="none"/>' +
+        '</pattern></defs>' +
+        '<rect width="100%" height="100%" stroke-width="0" fill="url(#' + id + ')"/>' +
+        '<svg x="' + PATTERN_X + '" y="' + PATTERN_Y + '" class="overflow-visible" overflow="visible">' +
+          squares +
+        '</svg>' +
+      '</svg></div></div>';
+  }
+
+  /* The entrance runs on first paint only. Re-running it every three minutes
+     would draw the eye to a refresh that changed nothing. */
+  function playKpiEntrance(el){
+    if (el.dataset.entered) return;
+    el.dataset.entered = '1';
+    el.classList.add('is-entering');
+    Array.prototype.forEach.call(el.children, function(c, i){
+      c.style.animationDelay = (i * 45) + 'ms';
+    });
   }
 
   /* ---------------------------------------------------------- ledger ------ */
