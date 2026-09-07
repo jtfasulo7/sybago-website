@@ -608,8 +608,23 @@ Instagram ids and check which scopes a token actually holds.
   - **The visibility is stated in the panel**, leading the line, because "posted" for a video
     only the account holder can see is the half-truth that costs weeks of waiting on engagement
     that cannot arrive.
-- **YouTube** forces uploads to private until Google verifies the project, and an upload
+- **YouTube** forces uploads to private until the API project passes its audit, and an upload
   costs 1600 of the default 10,000 daily quota units, so about six uploads a day.
+
+  **A video uploaded by an unaudited project is locked private PERMANENTLY.** Not until the
+  audit — for good. There is no appeal, and YouTube Studio cannot change it; the only fix is
+  re-uploading by hand. This is strictly worse than the TikTok gate, where the post survives and
+  visibility lifts on approval. **Do not push real content through this pipeline before the
+  audit passes** — every video spent that way is spent for nothing.
+
+  The **YouTube Data API compliance audit is a THIRD approval**, distinct from both Google
+  verifications and very easy to conflate with them:
+
+  | Approval | What it lifts |
+  |---|---|
+  | OAuth branding verification | App name and logo on the consent screen. Cosmetic. Triggered by uploading a logo — remove the logo and the requirement disappears. |
+  | OAuth sensitive-scope verification | The "Google hasn't verified this app" interstitial. |
+  | **YouTube Data API audit** | **The permanent private lock. This is the one that matters.** |
 
   **YouTube is connected by OAuth too**, through `api/youtube-auth.js` and
   `lib/social/youtube-auth.js`, in the same shape as TikTok: app keys in the environment, the
