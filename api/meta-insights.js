@@ -108,12 +108,32 @@ const LEVEL_FIELDS = {
 // Registrations and landing page views are now separate figures throughout and
 // are never combined.
 
-// Meta reports the same registration under a pixel-specific alias and
-// sometimes a generic one. Take the FIRST that is present — never sum, or the
-// same conversion is counted twice.
+/**
+ * The conversion that matters, whatever the account calls it.
+ *
+ * Meta reports ONE conversion under several aliases: a pixel-specific name, a
+ * generic one, and sometimes an onsite or omni variant. Take the FIRST that is
+ * present — never sum, or the same conversion is counted once per alias.
+ * Montara Forge returns 'lead', 'offsite_conversion.fb_pixel_lead',
+ * 'onsite_web_lead' and 'offsite_lead_add_20_s_calls' all reading 2; summing
+ * would report 8 leads from 2.
+ *
+ * Registration and lead aliases share this ONE list because they are the same
+ * question asked of two businesses. Dave's Skool sign-up fires
+ * CompleteRegistration; Montara Forge's form fires Lead. An account fires one
+ * or the other, so first-match resolves each correctly, and 'registrationType'
+ * on the response names the alias that supplied the figure.
+ *
+ * ORDER IS THE CONTRACT: pixel-specific names first, because they are the ones
+ * tied to a conversion the advertiser deliberately configured. The generic
+ * rollups follow as a fallback for accounts with no pixel event of their own.
+ */
 const REGISTRATION_TYPES = [
   'offsite_conversion.fb_pixel_complete_registration',
   'complete_registration',
+  'offsite_conversion.fb_pixel_lead',
+  'lead',
+  'onsite_web_lead',
 ];
 
 const LANDING_PAGE_VIEW_TYPES = ['landing_page_view'];

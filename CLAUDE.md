@@ -389,6 +389,24 @@ second row ragged. Extra metrics belong in the chart pickers and the table.
   attribution, not extraction. Do not "fix" it by widening `REGISTRATION_TYPES`: those
   aliases are the same conversions counted again, and summing them double-counts.
 
+**The conversion metric is called Leads, and it is ONE metric across both accounts.**
+Meta fires a different event for each — Dave's Skool sign-up is a CompleteRegistration,
+Montara Forge's form is a Lead — so `REGISTRATION_TYPES` carries both families and takes the
+FIRST present. An account fires one or the other, so first-match resolves each correctly.
+
+- **Adding the lead aliases is what fixed Montara Forge reporting zero.** It was producing
+  leads the whole time; the extractor only knew registration names.
+- **The same double-counting trap applies, harder.** Montara Forge returns `lead`,
+  `offsite_conversion.fb_pixel_lead`, `onsite_web_lead` and `offsite_lead_add_20_s_calls`
+  all reading the SAME figure. Summing four aliases would report 8 leads from 2 — and it
+  would look entirely reasonable on the tile, which is what makes it dangerous. Tested.
+- **Order is the contract.** Pixel-specific names first, because they are the events an
+  advertiser deliberately configured; the generic rollups are the fallback.
+- **The KEYS are still `registrations` and `costPerRegistration`.** Only the labels changed.
+  Those keys are in the flat `=META("…")` namespace the finance spreadsheet reads, where a
+  rename turns a saved cell into `#NAME?` with nothing on screen to explain it. Renaming
+  them is a migration, not an edit.
+
 **KPI targets — researched per account, September 2026**
 
 Live in `KPI_TARGETS` in `dashboard.html`. The two accounts run in different markets

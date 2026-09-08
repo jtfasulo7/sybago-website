@@ -1199,8 +1199,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       </button>
     </div>
     <details class="attrib-note">
-      <summary>Why a sign-up count can look low</summary>
-      <p>Meta keeps attributing conversions for up to about three days, so today's and yesterday's sign-up counts rise after the fact. Meta also only counts a sign-up it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, joins on Skool without ever appearing here. Expect this figure to sit below Skool's own member count.</p>
+      <summary>Why a lead count can look low</summary>
+      <p>Meta keeps attributing conversions for up to about three days, so today's and yesterday's lead counts rise after the fact. Meta also only counts a lead it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, converts without ever appearing here. Expect this figure to sit below the count you keep yourself.</p>
     </details>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
@@ -1608,8 +1608,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     ctr:                    { label:'CTR', short:'CTR',                 fmt:pct,   icon:'percent' },
     cpc:                    { label:'CPC', short:'CPC',                 fmt:money, icon:'tag'     },
     cpm:                    { label:'CPM', short:'CPM',                 fmt:money, icon:'tag'     },
-    registrations:          { label:'Registrations', short:'Regs',       fmt:num,   icon:'check'   },
-    costPerRegistration:    { label:'Cost / registration', short:'$/Reg', fmt:money, icon:'tag'     },
+    /* Labelled "Leads" because that is what both accounts are buying, even
+       though Meta fires a different event for each: Dave's Skool sign-up is a
+       CompleteRegistration, Montara Forge's form is a Lead. The KEYS keep the
+       registration spelling — they are the =META() namespace the finance sheet
+       reads, where a rename silently breaks saved formulas. */
+    registrations:          { label:'Leads',          short:'Leads',      fmt:num,   icon:'check'   },
+    costPerRegistration:    { label:'Cost / lead',    short:'$/Lead',     fmt:money, icon:'tag'     },
     landingPageViews:       { label:'Landing page views', short:'LPV',  fmt:num,   icon:'page'    },
     costPerLandingPageView: { label:'Cost / LP view', short:'$/LPV',      fmt:money, icon:'tag'     },
     roas:                   { label:'ROAS', short:'ROAS',                fmt:mult,  icon:'trend'   }
