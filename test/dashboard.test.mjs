@@ -821,38 +821,47 @@ console.log('\nComparing several ad sets');
 /* ------------------------------------------------------------ leads ------ */
 console.log('\nLeads, whatever the account calls them');
 
-{
-  /* Montara Forge's real shape: ONE pair of conversions, reported under four
-     names. Summing the aliases would report 8 leads from 2 — and it would look
-     entirely plausible on the tile, which is what makes it dangerous. */
-  const leadRow = {
-    date_start: '2026-09-07', date_stop: '2026-09-07',
-    spend: '40.00', impressions: '500', reach: '400', frequency: '1.25',
-    clicks: '12', inline_link_clicks: '10', ctr: '2.4', cpc: '3.33', cpm: '80',
-    actions: [
-      { action_type: 'lead', value: '2' },
-      { action_type: 'offsite_conversion.fb_pixel_lead', value: '2' },
-      { action_type: 'onsite_web_lead', value: '2' },
-      { action_type: 'offsite_lead_add_20_s_calls', value: '2' },
-      { action_type: 'landing_page_view', value: '41' },
-    ],
-    cost_per_action_type: [{ action_type: 'offsite_conversion.fb_pixel_lead', value: '20.00' }],
-  };
+/* The conversion event is a property of the ACCOUNT. Montara Forge's form fires
+   Lead; Dave's Skool sign-up fires CompleteRegistration. */
 
-  globalThis.fetch = async (u) =>
-    /\/campaigns\b/.test(String(u))
-      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
-      : { ok: true, headers: { get: () => null }, json: async () => ({ data: [leadRow] }) };
+const leadActions = [
+  { action_type: 'lead', value: '2' },
+  { action_type: 'offsite_conversion.fb_pixel_lead', value: '2' },
+  { action_type: 'onsite_web_lead', value: '2' },
+  { action_type: 'offsite_lead_add_20_s_calls', value: '2' },
+  { action_type: 'landing_page_view', value: '41' },
+];
+
+const rowWith = (actions, costPer) => ({
+  date_start: '2026-09-07', date_stop: '2026-09-07',
+  spend: '40.00', impressions: '500', reach: '400', frequency: '1.25',
+  clicks: '12', inline_link_clicks: '10', ctr: '2.4', cpc: '3.33', cpm: '80',
+  actions,
+  cost_per_action_type: costPer || [],
+});
+
+const serve = (rows) => async (u) =>
+  /\/campaigns\b/.test(String(u))
+    ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+    : { ok: true, headers: { get: () => null }, json: async () => ({ data: rows }) };
+
+{
+  globalThis.fetch = serve([
+    rowWith(leadActions, [{ action_type: 'offsite_conversion.fb_pixel_lead', value: '20.00' }]),
+  ]);
 
   const r = mockRes();
-  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+  await insights(
+    { method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } },
+    r,
+  );
 
   t('a lead-optimised account reports its leads', () =>
-    // This is the bug: before lead aliases were known, this read 0 while the
-    // account was demonstrably producing leads.
+    // The bug: this read 0 while the account was demonstrably producing leads.
     assert.equal(r.body.totals.registrations, 2));
 
   t('four aliases for the same conversion count once, not four times', () => {
+    // Summing them would report 8 from 2, and look entirely plausible.
     assert.notEqual(r.body.totals.registrations, 8);
     assert.equal(r.body.totals.registrations, 2);
   });
@@ -867,32 +876,61 @@ console.log('\nLeads, whatever the account calls them');
 }
 
 {
-  // The registration account must not change behaviour: its pixel event still
-  // wins, and adding lead aliases below it must not disturb that.
-  const regRow = {
-    date_start: '2026-09-07', date_stop: '2026-09-07',
-    spend: '10.00', impressions: '100', reach: '90', frequency: '1.1',
-    clicks: '5', inline_link_clicks: '4', ctr: '5', cpc: '2', cpm: '100',
-    actions: [
-      { action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '6' },
-      { action_type: 'complete_registration', value: '6' },
-    ],
-    cost_per_action_type: [
-      { action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '1.67' },
-    ],
-  };
-
-  globalThis.fetch = async (u) =>
-    /\/campaigns\b/.test(String(u))
-      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
-      : { ok: true, headers: { get: () => null }, json: async () => ({ data: [regRow] }) };
+  /* THE BUG THIS GUARDS, and the reason the families are not one list.
+     Dave's account really does carry both: 17 complete_registration from Skool
+     and 16 lead left over from unrelated older campaigns. A shared list
+     resolves per row and totals 33 — two different conversions added together,
+     which is a number that means nothing and looks entirely reasonable. */
+  globalThis.fetch = serve([
+    rowWith([{ action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '17' }]),
+    rowWith([{ action_type: 'lead', value: '16' }]),
+  ]);
 
   const r = mockRes();
-  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'dave' }, headers: { cookie: masterCookie } }, r);
 
-  t('a registration account is unchanged by the lead aliases', () => {
-    assert.equal(r.body.totals.registrations, 6);
-    assert.equal(r.body.rows[0].registrationType, 'offsite_conversion.fb_pixel_complete_registration');
+  t('an account carrying both families counts only the one it converts on', () => {
+    assert.equal(r.body.totals.registrations, 17);
+    assert.notEqual(r.body.totals.registrations, 33);
+  });
+
+  t('the family is fixed by the account and reported back', () =>
+    assert.equal(r.body.conversionFamily, 'registration'));
+}
+
+{
+  // And the mirror: a lead account ignores stray registration events.
+  globalThis.fetch = serve([
+    rowWith([{ action_type: 'complete_registration', value: '99' }]),
+    rowWith([{ action_type: 'lead', value: '2' }]),
+  ]);
+
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+
+  t('a lead account ignores stray registration events', () => {
+    assert.equal(r.body.totals.registrations, 2);
+    assert.notEqual(r.body.totals.registrations, 101);
+  });
+
+  t('the lead account reports its family', () =>
+    assert.equal(r.body.conversionFamily, 'lead'));
+}
+
+{
+  // The family must not be selectable from the query string — that would let a
+  // caller relabel one account's conversions as another's.
+  globalThis.fetch = serve([rowWith(leadActions)]);
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'dave', conversion: 'lead', conversionFamily: 'lead' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('the conversion family cannot be chosen by the caller', () => {
+    assert.equal(r.body.conversionFamily, 'registration');
+    assert.equal(r.body.totals.registrations, 0);
   });
 }
 

@@ -38,12 +38,18 @@ const VIEWS = {
     env: ['META_AD_ACCOUNT_ID', 'META_ADS_ACCOUNT_ID'],
     tokenEnv: ['META_ADS_TOKEN_DAVE', 'META_ADS_TOKEN'],
     masterOnly: false,
+    /* Skool sign-ups fire CompleteRegistration. This account ALSO carries lead
+       events from unrelated older campaigns, so naming the family is what stops
+       those being added to the Skool figure. */
+    conversion: 'registration',
   },
   sybago: {
     label: 'Montara Forge',
     env: ['META_ADS_ACCOUNT_ID_SYBAGO', 'META_AD_ACCOUNT_ID_SYBAGO'],
     tokenEnv: ['META_ADS_TOKEN_SYBAGO', 'META_ADS_TOKEN'],
     masterOnly: true,
+    // The contact form fires Lead. There is no registration event here at all.
+    conversion: 'lead',
   },
 };
 const DEFAULT_VIEW = 'dave';
@@ -131,10 +137,27 @@ const LEVEL_FIELDS = {
 const REGISTRATION_TYPES = [
   'offsite_conversion.fb_pixel_complete_registration',
   'complete_registration',
+];
+
+const LEAD_TYPES = [
   'offsite_conversion.fb_pixel_lead',
   'lead',
   'onsite_web_lead',
 ];
+
+/**
+ * Which family an account's conversions belong to.
+ *
+ * NOT a merged list. Dave's account contains BOTH — 17 complete_registration
+ * from Skool and 16 lead from old unrelated lawyer campaigns — so a shared list
+ * resolves per row and totals 33, a number that is two different conversions
+ * added together and means nothing. Naming the family per view is what keeps
+ * the wrong kind of row from ever contributing.
+ */
+const CONVERSION_TYPES = {
+  registration: REGISTRATION_TYPES,
+  lead: LEAD_TYPES,
+};
 
 const LANDING_PAGE_VIEW_TYPES = ['landing_page_view'];
 
@@ -316,19 +339,20 @@ function pull(types, byType, costByType, valueByType) {
   return { actionType: null, count: null, costPer: null, value: null };
 }
 
-function extractMetrics(actions, costPer, actionValues) {
+function extractMetrics(actions, costPer, actionValues, family = 'registration') {
   const byType = new Map((actions || []).map((a) => [a.action_type, num(a.value)]));
   const costByType = new Map((costPer || []).map((a) => [a.action_type, num(a.value)]));
   const valueByType = new Map((actionValues || []).map((a) => [a.action_type, num(a.value)]));
 
+  const types = CONVERSION_TYPES[family] || REGISTRATION_TYPES;
   return {
-    registration: pull(REGISTRATION_TYPES, byType, costByType, valueByType),
+    registration: pull(types, byType, costByType, valueByType),
     landingPageView: pull(LANDING_PAGE_VIEW_TYPES, byType, costByType, valueByType),
   };
 }
 
-function shapeRow(r, level) {
-  const m = extractMetrics(r.actions, r.cost_per_action_type, r.action_values);
+function shapeRow(r, level, family) {
+  const m = extractMetrics(r.actions, r.cost_per_action_type, r.action_values, family);
   const spend = num(r.spend);
   return {
     id: r.ad_id || r.adset_id || r.campaign_id || 'account',
@@ -405,6 +429,9 @@ export default async function handler(req, res) {
   // An unknown view name falls back to the default rather than erroring: it is
   // a stale bookmark, not an attack, and the fallback is the narrower account.
   const view = Object.prototype.hasOwnProperty.call(VIEWS, req.query.view) ? req.query.view : DEFAULT_VIEW;
+  // Which conversion this account actually fires. Fixed by the account, never
+  // by the request: a caller cannot ask to have leads counted as sign-ups.
+  const conversionFamily = VIEWS[view].conversion || 'registration';
 
   // THE authorisation check. A standard-password session asking for the agency
   // view is refused here, before any account id is resolved and long before
@@ -744,7 +771,7 @@ export default async function handler(req, res) {
       );
 
       const rows = (json.data || []).map((r) => {
-        const shaped = shapeRow(r, 'account');
+        const shaped = shapeRow(r, 'account', conversionFamily);
         const country = r.country || null;
         const region = r.region || null;
         return {
@@ -874,16 +901,17 @@ export default async function handler(req, res) {
       add(series.json.data, 'daily');
       return res.status(200).json({
         range: time_range,
-        knownRegistrationTypes: REGISTRATION_TYPES,
+        conversionFamily,
+      knownRegistrationTypes: CONVERSION_TYPES[conversionFamily] || REGISTRATION_TYPES,
         knownLandingPageViewTypes: LANDING_PAGE_VIEW_TYPES,
         unifiedAttribution: true,
         actionTypes: [...tally.values()].sort((a, b) => b.daily - a.daily || b.breakdown - a.breakdown),
       });
     }
 
-    const rows = (breakdown.json.data || []).map((r) => shapeRow(r, level));
+    const rows = (breakdown.json.data || []).map((r) => shapeRow(r, level, conversionFamily));
     const daily = (series.json.data || [])
-      .map((r) => shapeRow(r, 'account'))
+      .map((r) => shapeRow(r, 'account', conversionFamily))
       .sort((a, b) => {
         // With several ads there are multiple rows per period, so the ad is the
         // primary key and time is the secondary one.
@@ -997,6 +1025,9 @@ export default async function handler(req, res) {
       // split the rows. Naming which split happened keeps that decision in one
       // place instead of being re-derived from the request.
       seriesLevel: scope.adIds ? 'ad' : splitByAdset ? 'adset' : 'aggregate',
+      // Which conversion event this account is scored on. Fixed by the account,
+      // reported so the figure can never be read as the other kind.
+      conversionFamily,
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,
