@@ -755,16 +755,6 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 @media (max-width:880px) {
   .ad-legend .lg { flex:1 1 100%; }
   .ad-legend .lg-name { max-width:none; flex:1 1 auto; }
-
-  /* A phone chart is ~260px tall and three stacked pills would cover most of
-     it. Below this width the legend stops floating and goes back to a row
-     above the plot, where it costs height instead of hiding data. */
-  .ad-legend.is-overlay {
-    position:static; max-width:none; flex-direction:row; align-items:stretch;
-    margin-bottom:.7rem; pointer-events:auto;
-  }
-  .ad-legend.is-overlay .lg { background:var(--surface-solid); backdrop-filter:none; }
-  .ad-legend.is-overlay .lg-name { max-width:none; font-size:.82rem; }
 }
 
 .metric-note { flex:1 1 100%; font-size:.78rem; line-height:1.45; max-width:62ch; }
@@ -791,6 +781,21 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 }
 .ad-legend.is-overlay .lg-name { font-size:.78rem; max-width:170px; }
 .ad-legend.is-overlay .lg-val { font-size:.78rem; padding-left:.4rem; }
+
+/* AFTER the overlay rules on purpose: these have the same specificity, so the
+   one declared later wins. Placed above them, the media query silently lost and
+   the legend floated over the plot on a phone anyway. */
+@media (max-width:880px) {
+  /* A phone chart is ~260px tall and three stacked pills would cover most of
+     it. Below this width the legend stops floating and goes back to a row
+     above the plot, where it costs height instead of hiding data. */
+  .ad-legend.is-overlay {
+    position:static; max-width:none; flex-direction:row; align-items:stretch;
+    margin-bottom:.7rem; pointer-events:auto;
+  }
+  .ad-legend.is-overlay .lg { background:var(--surface-solid); backdrop-filter:none; }
+  .ad-legend.is-overlay .lg-name { max-width:none; font-size:.82rem; }
+}
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
