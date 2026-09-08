@@ -58,6 +58,9 @@
   --surface:rgba(255,255,255,.72); --surface-solid:#ffffff; --surface-rgb:255,255,255; --surface-hover:#ffffff;
   --hairline:rgba(15,20,25,.08); --hairline-2:rgba(255,255,255,.85);
   --nav-bg:rgba(238,242,244,.78);
+  /* The legend floats over the plot, so it needs a ground of its own: opaque
+     enough to read a label against a line, sheer enough not to hide one. */
+  --legend-bg:rgba(255,255,255,.86);
   --thead-bg:rgba(255,255,255,.94);
   --on-accent:#ffffff;
   --seg-track:rgba(15,20,25,.05);
@@ -102,6 +105,8 @@
   --surface:rgba(255,255,255,.045); --surface-solid:#16151A; --surface-rgb:22,21,26; --surface-hover:#1E1C23;
   --hairline:rgba(246,242,232,.11); --hairline-2:rgba(255,255,255,.06);
   --nav-bg:rgba(11,11,12,.82);
+  /* Dave's near-black ground: same idea, inverted. */
+  --legend-bg:rgba(22,21,26,.88);
   --thead-bg:rgba(22,21,26,.94);
   /* Text ON the gold accent must be dark — warm white on gold fails contrast. */
   --on-accent:#14120C;
@@ -750,9 +755,42 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 @media (max-width:880px) {
   .ad-legend .lg { flex:1 1 100%; }
   .ad-legend .lg-name { max-width:none; flex:1 1 auto; }
+
+  /* A phone chart is ~260px tall and three stacked pills would cover most of
+     it. Below this width the legend stops floating and goes back to a row
+     above the plot, where it costs height instead of hiding data. */
+  .ad-legend.is-overlay {
+    position:static; max-width:none; flex-direction:row; align-items:stretch;
+    margin-bottom:.7rem; pointer-events:auto;
+  }
+  .ad-legend.is-overlay .lg { background:var(--surface-solid); backdrop-filter:none; }
+  .ad-legend.is-overlay .lg-name { max-width:none; font-size:.82rem; }
 }
 
 .metric-note { flex:1 1 100%; font-size:.78rem; line-height:1.45; max-width:62ch; }
+
+.chart-wrap { position:relative; }
+
+/* Over the plot's top-right corner, where the eye already is. Charts here run
+   left-to-right and rise, so the top-right is the emptiest region far more
+   often than not — and on the occasions it is not, the panel is translucent
+   and the table below carries the same numbers exactly. */
+.ad-legend.is-overlay {
+  position:absolute; top:.5rem; right:.5rem; z-index:2;
+  margin:0; flex-direction:column; align-items:flex-end; gap:.3rem;
+  max-width:min(62%, 320px);
+  /* The chart owns the pointer: hover and drag-to-read must pass straight
+     through, or the legend would punch a dead rectangle in the plot. */
+  pointer-events:none;
+}
+.ad-legend.is-overlay .lg {
+  max-width:100%;
+  padding:.26rem .55rem .26rem .4rem;
+  background:var(--legend-bg); backdrop-filter:blur(6px);
+  box-shadow:var(--lift-1), inset 0 1px 0 var(--hairline-2);
+}
+.ad-legend.is-overlay .lg-name { font-size:.78rem; max-width:170px; }
+.ad-legend.is-overlay .lg-val { font-size:.78rem; padding-left:.4rem; }
 
 .chart-box { position:relative; height:clamp(260px,38vh,380px); }
 .chart-box canvas { touch-action:pan-y; }
@@ -1230,8 +1268,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           3D Model
         </button>
       </div>
-      <div class="ad-legend" id="ts-legend" hidden></div>
-      <div class="chart-box" id="ts-box"><canvas id="ts-chart" role="img" aria-labelledby="ts-h" aria-describedby="ts-desc ts-summary"></canvas></div>
+      <!-- The wrapper is what the legend positions against. It cannot live
+           inside #ts-box: ensureCanvas() and the empty state both rewrite that
+           element's innerHTML, which would delete the legend on redraw. -->
+      <div class="chart-wrap">
+        <div class="ad-legend is-overlay" id="ts-legend" hidden></div>
+        <div class="chart-box" id="ts-box"><canvas id="ts-chart" role="img" aria-labelledby="ts-h" aria-describedby="ts-desc ts-summary"></canvas></div>
+      </div>
       <p class="readout" id="ts-readout" data-hint="Drag across the chart to read every metric at a point in time."></p>
       <p id="ts-summary" class="sr-only"></p>
       <details class="alt"><summary>View as table</summary><div class="table-scroll"><table id="ts-table"><caption>The same values as the chart above, one row per day.</caption></table></div></details>
@@ -2763,15 +2806,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }
   }
 
-  function renderAdLegend(byAd, metricKey){
+  /* Names every line on the chart. Takes the compared list explicitly rather
+     than reading selectedAds: comparing AD SETS drew coloured lines with
+     nothing saying which was which, because that list is empty then. */
+  function renderAdLegend(byAd, metricKey, compared){
     var el = $('ts-legend');
     if(!el) return;
     var m = METRICS[metricKey];
+    var list = compared || selectedAds;
 
     el.hidden = false;
     el.innerHTML = '';
 
-    selectedAds.forEach(function(ad, i){
+    list.forEach(function(ad, i){
       var st = styleFor(i);
       var rows = Object.keys(byAd[ad.id] || {}).map(function(k){ return byAd[ad.id][k]; });
       var total = aggregateMetric(rows, metricKey);
@@ -2792,7 +2839,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       var name = document.createElement('span');
       name.className = 'lg-name';
-      name.textContent = adLabel(ad);
+      name.textContent = adLabel(ad, list);
       name.title = ad.name + ' (id ' + ad.id + ')';
 
       var val = document.createElement('span');
@@ -2802,7 +2849,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
       item.appendChild(mark); item.appendChild(name); item.appendChild(val);
       // Read as one unit rather than three fragments.
-      item.setAttribute('aria-label', adLabel(ad) + ': ' + m.label + ' ' + (total == null ? 'no data' : m.fmt(total)));
+      item.setAttribute('aria-label', adLabel(ad, list) + ': ' + m.label + ' ' + (total == null ? 'no data' : m.fmt(total)));
       el.appendChild(item);
     });
   }
@@ -2966,7 +3013,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           })
         });
 
-        renderAdLegend(byAd, metricKey);
+        renderAdLegend(byAd, metricKey, compared);
 
         $('ts-summary').textContent =
           mo.label + ' for ' + listSentence(compared.map(function(a){ return adLabel(a, compared); })) +
