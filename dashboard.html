@@ -2062,10 +2062,44 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      on its own is not always an identifier. Where a name is shared, the last
      four of the id are appended — enough to tell two apart without turning the
      label into an id. */
+  /* Split on the separators these names actually use, so a shared prefix is
+     measured in name PARTS rather than characters — trimming by character
+     would happily cut "Dave Im" out of the middle of a word. */
+  function nameParts(name){
+    return String(name || '').split(/\s*[-–—·|:]\s*/).map(function(p){ return p.trim(); }).filter(Boolean);
+  }
+
+  /* How many leading parts every one of these names has in common. */
+  function sharedPrefixLength(list){
+    if(list.length < 2) return 0;
+    var parts = list.map(function(a){ return nameParts(a.name); });
+    var shortest = Math.min.apply(null, parts.map(function(p){ return p.length; }));
+    var i = 0;
+    while(i < shortest){
+      var here = parts[0][i].toLowerCase();
+      if(!parts.every(function(p){ return p[i].toLowerCase() === here; })) break;
+      i++;
+    }
+    /* Never consume the whole of the shortest name: if one entity is exactly
+       the prefix of another, dropping everything would leave it blank. */
+    return Math.min(i, shortest - 1);
+  }
+
+  /* What to call this entity ON A CHART, where the shared half of the name is
+     noise. "Dave - Ad Set 1 - Paid - Vile Image" becomes "Vile Image" once
+     every compared name starts the same way — the legend was otherwise three
+     pills reading "Dave - Ad Set 1 - Paid - Da…", ellipsised on the only part
+     that told them apart. The full name stays on the title attribute. */
   function adLabel(ad, among){
     var list = among || selectedAds;
     var shared = list.filter(function(a){ return a.name === ad.name; }).length > 1;
-    return shared ? ad.name + ' · …' + String(ad.id).slice(-4) : ad.name;
+    // Genuinely identical names still need the id to be told apart at all.
+    if(shared) return ad.name + ' · …' + String(ad.id).slice(-4);
+
+    var drop = sharedPrefixLength(list);
+    if(!drop) return ad.name;
+    var rest = nameParts(ad.name).slice(drop).join(' · ');
+    return rest || ad.name;
   }
 
   function renderAdPicker(){
@@ -2732,7 +2766,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     if(why){
       why.hidden = !adMode();
       why.textContent = adMode()
-        ? 'One metric while ads are selected — the chart is already using a line per ad. Remove the ads to compare several metrics again.'
+        ? 'One metric while ' + comparedNoun(true) + ' are selected — the chart is already using a line per ' +
+          comparedNoun(false) + '. Remove the ' + comparedNoun(true) + ' to compare several metrics again.'
         : '';
     }
   }
