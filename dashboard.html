@@ -577,7 +577,10 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
   /* The account name is already in the heading above; the width is worth more. */
   .stickybar .sb-label { display:none; }
 
-  .stickybar .seg { flex:1 1 0; display:grid; grid-template-columns:repeat(5,1fr); min-width:0; }
+  /* SIX here — the sticky bar has no Custom button. Three columns splits them
+     evenly across two rows; six across the bar's remaining width would leave
+     "Lifetime" as an ellipsis. */
+  .stickybar .seg { flex:1 1 0; display:grid; grid-template-columns:repeat(3,1fr); min-width:0; }
   .stickybar .seg button {
     padding:.45rem .05rem; font-size:.74rem; min-height:38px;
     min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -855,12 +858,29 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* Range spans the row; the paired date and scope fields sit side by side;
      Refresh spans again so it keeps a comfortable tap target. Hidden fields
      are display:none, so the custom date row collapses out of the grid. */
-  #range-field, #refresh, #ad-field { grid-column:1 / -1; }
-  #ad-add { max-width:none; flex:1 1 auto; }
-  .ad-chip { max-width:100%; }
+  #range-field, #refresh, #ad-field, #adset-field { grid-column:1 / -1; }
+  #ad-add, #adset-add { max-width:none; flex:1 1 auto; }
+
+  /* A flex item's default min-width is its CONTENT, so a long ad set name
+     pushed the chip wider than the column and carried its own close button off
+     the screen. Every level from the row down to the label has to be allowed
+     to shrink, or the ellipsis never gets the chance to apply. */
+  .adpick, .ad-chips { min-width:0; max-width:100%; }
+  .ad-chips { flex:1 1 100%; }
+  .ad-chip { max-width:100%; min-width:0; }
+  .ad-chip span { min-width:0; }
   .toolbar select, .toolbar input[type=date] { min-height:42px; padding-top:.45rem; padding-bottom:.45rem; }
-  .seg { display:grid; grid-template-columns:repeat(6,1fr); width:100%; padding:2px; }
-  .seg button { padding:.5rem .2rem; font-size:.78rem; min-height:40px; }
+  /* SEVEN buttons: Today, 7d, 14d, 30d, 90d, Lifetime, Custom.
+     Four columns splits them 4 + 3, and the last one spans the spare column so
+     the second row is flush instead of leaving a hole. Seven across a phone
+     would crush "Lifetime" and "Custom" into ellipses.
+     If a range is ever added or removed, this split has to be recounted — a
+     grid whose column count does not divide the buttons leaves the remainder
+     stranded on its own row, which is what it looked like before. */
+  .seg { display:grid; grid-template-columns:repeat(4,1fr); width:100%; padding:2px; gap:2px; }
+  .seg button { padding:.5rem .2rem; font-size:.78rem; min-height:40px; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .seg button:last-child { grid-column:span 2; }
   #refresh { min-height:46px; margin-top:.15rem; }
   /* KPI tiles stay FIRST on mobile — the numbers are what you check at a
      glance on a phone; the charts are for when you sit down with it. */
