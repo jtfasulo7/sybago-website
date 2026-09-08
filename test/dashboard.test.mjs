@@ -670,5 +670,152 @@ console.log('\nReach is deduplicated, never summed');
   });
 }
 
+
+/* --------------------------------------------- comparing ad sets --------- */
+console.log('\nComparing several ad sets');
+
+{
+  const seen = [];
+  const dayRow = (adsetId, name, date, spend) => ({
+    adset_id: adsetId, adset_name: name,
+    date_start: date, date_stop: date,
+    spend: String(spend), impressions: '100', reach: '80', frequency: '1.25',
+    clicks: '5', inline_link_clicks: '4', ctr: '5', cpc: '1', cpm: '10',
+  });
+
+  globalThis.fetch = async (u) => {
+    const url = String(u);
+    seen.push(url);
+    if (/\/campaigns\b/.test(url)) {
+      return { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) };
+    }
+    if (url.includes('fields=reach') && !url.includes('time_increment')) {
+      return { ok: true, headers: { get: () => null }, json: async () => ({ data: [{ reach: '150', frequency: '1.3' }] }) };
+    }
+    return {
+      ok: true, headers: { get: () => null },
+      json: async () => ({ data: [
+        dayRow('111', 'Dave Image', '2026-09-01', 10),
+        dayRow('222', 'Vile Image', '2026-09-01', 20),
+        dayRow('111', 'Dave Image', '2026-09-02', 11),
+        dayRow('222', 'Vile Image', '2026-09-02', 21),
+      ] }),
+    };
+  };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { adsetIds: '111,222' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('several ad sets split the series, so a line can be drawn for each', () =>
+    assert.equal(r.body.seriesLevel, 'adset'));
+
+  t('every daily row carries the ad set it belongs to', () => {
+    const ids = new Set((r.body.daily || []).map((x) => x.adsetId));
+    assert.deepEqual([...ids].sort(), ['111', '222']);
+  });
+
+  t('the series is requested at ad set level with the name attached', () => {
+    // Without adset_name the chart has ids and no labels; without the level it
+    // gets one merged row per day and every line would be identical.
+    const series = seen.find((u) => u.includes('time_increment=1'));
+    assert.ok(series, 'no daily series request');
+    assert.match(decodeURIComponent(series), /level=adset/);
+    assert.match(decodeURIComponent(series), /adset_name/);
+  });
+
+  t('both ad sets reach Meta as one filter, not two requests', () => {
+    const series = seen.find((u) => u.includes('time_increment=1'));
+    const f = decodeURIComponent(series);
+    assert.match(f, /adset\.id/);
+    assert.match(f, /111/);
+    assert.match(f, /222/);
+  });
+}
+
+{
+  // ONE ad set is a scope, not a comparison: splitting would cost more and
+  // return the same numbers, and the single-line path is what the metric
+  // overlay expects.
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { adsetIds: '111' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('one ad set is a scope, not a split', () => {
+    assert.equal(r.body.seriesLevel, 'aggregate');
+    assert.equal(r.body.scope.adsetId, '111');
+  });
+}
+
+{
+  // The older single-value parameter still has to work: a bookmarked link, or
+  // a client that has not reloaded, still sends it.
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { adsetId: '999' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('the older single adsetId parameter still scopes', () => {
+    assert.equal(r.body.scope.adsetId, '999');
+    assert.deepEqual(r.body.scope.adsetIds, ['999']);
+  });
+}
+
+{
+  // Ads are the narrower scope and win, exactly as they do in the filter.
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { adsetIds: '111,222', adIds: '777' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('selecting an ad beats comparing ad sets', () => {
+    assert.equal(r.body.seriesLevel, 'ad');
+    const series = seen.find((u) => u.includes('time_increment=1'));
+    assert.match(decodeURIComponent(series), /ad\.id/);
+  });
+}
+
+{
+  // An id from a query string reaches Meta's filter, so its shape is checked
+  // rather than trusted.
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { adsetIds: "111,DROP TABLE,222,'; --" }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('non-numeric ad set ids are dropped, not passed through', () =>
+    assert.deepEqual(r.body.scope.adsetIds, ['111', '222']));
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

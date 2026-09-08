@@ -1113,10 +1113,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <label for="campaign-pick">Campaign</label>
         <select id="campaign-pick"><option value="">All campaigns</option></select>
       </div>
-      <div class="field" id="adset-field" style="flex:1 1 190px;">
-        <label for="adset-pick">Ad set</label>
-        <select id="adset-pick" disabled aria-describedby="adset-hint"><option value="">All ad sets</option></select>
-        <span id="adset-hint" class="sr-only">Choose a campaign first to narrow by ad set.</span>
+      <div class="field" id="adset-field" style="flex:1 1 100%;">
+        <span class="lbl" id="adset-lbl">Ad sets</span>
+        <div class="adpick" role="group" aria-labelledby="adset-lbl">
+          <div id="adset-chips" class="ad-chips"></div>
+          <select id="adset-add" aria-label="Add an ad set to compare" disabled></select>
+          <button type="button" class="btn btn-ghost add-ad" id="adset-add-btn" aria-describedby="adset-hint" disabled>
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
+            Add ad set
+          </button>
+        </div>
+        <span id="adset-hint" class="sub" style="font-size:.78rem">With no ad sets added, figures are for the whole campaign.</span>
       </div>
 
       <div class="field" id="ad-field" style="flex:1 1 100%;">
@@ -1663,7 +1670,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   // adIds belongs in the key: two requests differing only by which ads are
   // selected are different data, and without it the second would be served the
   // first one's response.
-  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetId||'',p.adIds||''].join('|'); }
+  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetIds||'',p.adIds||''].join('|'); }
 
   /* Hourly only makes sense for one day. Asking for it across a month would
      return 24 rows of month totals, which reads as a plausible chart and is
@@ -1692,7 +1699,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // browser's — see the note in api/meta-insights.js.
     if (p.preset) qs.set('preset', p.preset);
     if (p.campaignId) qs.set('campaignId', p.campaignId);
-    if (p.adsetId) qs.set('adsetId', p.adsetId);
+    if (p.adsetIds) qs.set('adsetIds', p.adsetIds);
     if (p.adIds) qs.set('adIds', p.adIds);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
       if (r.status === 401) { showLogin('Your session expired. Sign in again.'); throw new Error('unauthenticated'); }
@@ -1855,9 +1862,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return false;
   }
 
+  /* An EXACT name wins over a loose one.
+     "Dave Ad Set 1 Paid" matches "Dave - Ad Set 1 - Paid" exactly, but it also
+     loose-matches "Dave - Ad Set 1 - Paid - Dave Image" — a different ad set
+     that merely starts with the same words. Loose-first would hand the default
+     to whichever of those the account happens to list first, which is how the
+     three new variant ad sets quietly stole the default from the ad set the
+     name actually describes. */
   function findByName(list, pattern){
     if(!pattern || !list) return null;
-    for(var i = 0; i < list.length; i++) if(looseMatch(list[i].name, pattern)) return list[i];
+    var want = nameWords(pattern).join(' ');
+    for(var i = 0; i < list.length; i++){
+      if(nameWords(list[i].name).join(' ') === want) return list[i];
+    }
+    for(var j = 0; j < list.length; j++){
+      if(looseMatch(list[j].name, pattern)) return list[j];
+    }
     return null;
   }
 
@@ -1868,7 +1888,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       // pristine marks a scope nobody has chosen yet. The defaults are applied
       // once, when the campaign list first arrives; after that a deliberate
       // "All campaigns" must survive a tab switch, so it is never re-applied.
-      scopeByView[state.view] = { campaignId:'', adsetId:'', ads:[], pristine:true };
+      scopeByView[state.view] = { campaignId:'', adsets:[], ads:[], pristine:true };
     }
     return scopeByView[state.view];
   }
@@ -1888,7 +1908,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     sc.campaignId = camp.id;
 
     var set = findByName(camp.adsets || [], want.adset);
-    if(set) sc.adsetId = set.id;
+    if(set) sc.adsets = [{ id: set.id, name: assetLabel(set) }];
   }
 
   // Kept as a live alias so the existing ad-picker code reads the right list.
@@ -1898,9 +1918,31 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var sc = currentScope();
     return {
       campaignId: sc.campaignId || '',
-      adsetId: sc.adsetId || '',
+      adsetIds: (sc.adsets || []).map(function(a){ return a.id; }).join(','),
       adIds: (sc.ads || []).map(function(a){ return a.id; }).join(','),
     };
+  }
+
+  /* Every ad set under the current campaign, for the picker. */
+  function adsetsInScope(){
+    var sc = currentScope();
+    var out = [];
+    (state.campaigns || []).forEach(function(c){
+      if(sc.campaignId && c.id !== sc.campaignId) return;
+      (c.adsets || []).forEach(function(a){
+        out.push({ id: a.id, name: assetLabel(a), campaignName: c.name });
+      });
+    });
+    return out;
+  }
+
+  /* What the chart is comparing, or an empty list when it is reporting one
+     merged total. Ads are the narrower scope and win, matching the server. */
+  function comparedEntities(){
+    var sc = currentScope();
+    if((sc.ads || []).length) return sc.ads;
+    if((sc.adsets || []).length > 1) return sc.adsets;
+    return [];
   }
 
   /* Every ad under the current campaign and ad set scope. Narrowing the
@@ -1908,12 +1950,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      that the current scope excludes. */
   function adsInScope(){
     var sc = currentScope();
-    var cid = sc.campaignId, aid = sc.adsetId;
+    var cid = sc.campaignId;
+    // A set of chosen ad set ids; empty means every ad set in the campaign.
+    var chosen = {};
+    (sc.adsets || []).forEach(function(a){ chosen[a.id] = true; });
+    var narrowed = (sc.adsets || []).length > 0;
     var out = [];
     (state.campaigns || []).forEach(function(c){
       if(cid && c.id !== cid) return;
       (c.adsets || []).forEach(function(a){
-        if(aid && a.id !== aid) return;
+        if(narrowed && !chosen[a.id]) return;
         (a.ads || []).forEach(function(ad){
           out.push({ id: ad.id, name: assetLabel(ad), adsetName: a.name });
         });
@@ -1988,6 +2034,87 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         : selectedAds.length === 1
           ? 'Scoped to one ad. Add another to compare them side by side.'
           : 'With no ads added, figures are for the whole ad set.';
+  }
+
+  /* ---------------------------------------------------- ad set picker ----
+     Same control as the ads below it, one level up: chips for what is being
+     compared, a dropdown of what else is available. Nothing selected means the
+     whole campaign; one means a scope; two or more means a comparison. */
+  function renderAdsetPicker(){
+    var chips = $('adset-chips'), sel = $('adset-add'), btn = $('adset-add-btn');
+    if(!chips) return;
+    chips.innerHTML = '';
+    var sc = currentScope();
+    var picked = sc.adsets || [];
+
+    picked.forEach(function(set, i){
+      var chip = document.createElement('span');
+      chip.className = 'ad-chip';
+      var label = document.createElement('span');
+      label.textContent = set.name;
+      label.title = set.name + ' (id ' + set.id + ')';
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Remove ' + set.name);
+      x.innerHTML = '<svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
+      x.addEventListener('click', function(){
+        sc.adsets.splice(i, 1);
+        // Ads belong to an ad set that is no longer in scope.
+        pruneAds();
+        renderAdsetPicker();
+        renderAdPicker();
+        renderSeriesRows();
+        refreshAll();
+      });
+      chip.appendChild(label); chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+
+    var chosen = {};
+    picked.forEach(function(a){ chosen[a.id] = true; });
+    var available = adsetsInScope().filter(function(a){ return !chosen[a.id]; });
+
+    sel.innerHTML = '';
+    if(!available.length){
+      sel.appendChild(opt('', picked.length ? 'No other ad sets in scope' : 'No ad sets'));
+      sel.disabled = true; btn.disabled = true;
+    } else {
+      sel.appendChild(opt('', 'Choose an ad set…'));
+      available.forEach(function(a){ sel.appendChild(opt(a.id, a.name)); });
+      sel.disabled = false; btn.disabled = false;
+    }
+
+    $('adset-hint').textContent =
+      picked.length > 1
+        ? picked.length + ' ad sets compared. The chart draws one line each for a single metric.'
+        : picked.length === 1
+          ? 'Scoped to one ad set. Add another to compare them side by side.'
+          : 'With no ad sets added, figures are for the whole campaign.';
+  }
+
+  function addSelectedAdset(){
+    var sel = $('adset-add'), id = sel.value;
+    if(!id) return;
+    var set = adsetsInScope().filter(function(a){ return a.id === id; })[0];
+    if(!set) return;
+    currentScope().adsets.push(set);
+    pruneAds();
+    renderAdsetPicker();
+    renderAdPicker();
+    // Comparing ad sets collapses the chart to one metric, so the metric chips
+    // have to be rebuilt as the count crosses that line.
+    renderSeriesRows();
+    refreshAll();
+  }
+
+  /* Drop any selected ad the current scope no longer contains. Leaving one in
+     would filter the figures to an ad outside the ad sets on screen. */
+  function pruneAds(){
+    var sc = currentScope();
+    var inScope = {};
+    adsInScope().forEach(function(a){ inScope[a.id] = true; });
+    sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
+    selectedAds = sc.ads;
   }
 
   function addSelectedAd(){
@@ -2248,19 +2375,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   $('campaign-pick').addEventListener('change', function(){
     var sc = currentScope();
     sc.campaignId = this.value;
-    sc.adsetId = '';
-    sc.ads = [];                  // ads belong to the campaign that just changed
-    fillAdsets(state.campaigns, sc.campaignId, '');
-    renderAdPicker();
-    refreshAll();
-  });
-  $('adset-pick').addEventListener('change', function(){
-    var sc = currentScope();
-    sc.adsetId = this.value;
+    // Both belong to the campaign that just changed.
+    sc.adsets = [];
     sc.ads = [];
+    renderAdsetPicker();
     renderAdPicker();
+    renderSeriesRows();
     refreshAll();
   });
+  $('adset-add-btn').addEventListener('click', addSelectedAdset);
+  $('adset-add').addEventListener('change', function(){ if(this.value) addSelectedAdset(); });
   $('ad-add-btn').addEventListener('click', addSelectedAd);
   $('ad-add').addEventListener('change', function(){ if(this.value) addSelectedAd(); });
 
@@ -2273,20 +2397,19 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return x.name + ' · ' + x.status.toLowerCase().replace(/_/g, ' ');
   }
 
-  function fillAdsets(camps, campaignId, want){
-    var a=$('adset-pick'); a.innerHTML=''; a.appendChild(opt('','All ad sets'));
-    var c=camps.filter(function(x){ return x.id===campaignId; })[0];
-    if(c) c.adsets.forEach(function(s){ a.appendChild(opt(s.id, assetLabel(s))); });
-    a.disabled=!c; a.value=want||'';
-  }
-
   /* ================================ panels ================================ */
   /* With ads selected the panels have to describe ads. Leaving the bar chart
      and the table grouped by campaign would show one row for the campaign the
      ads happen to sit in, which is not what was asked for and hides exactly the
      comparison the selection was made to see. */
   function effectiveDim(dim){
-    return selectedAds.length && dim !== 'day' ? 'ad' : dim;
+    if(dim === 'day') return dim;
+    // Whatever is being compared is what the panels have to break down by.
+    // Leaving them grouped by campaign would show one row for the campaign the
+    // selection happens to sit in, hiding the comparison it was made to see.
+    if(selectedAds.length) return 'ad';
+    if((currentScope().adsets || []).length > 1) return 'adset';
+    return dim;
   }
 
   function loadPanel(panelRange, dim){
@@ -2296,7 +2419,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var level = dim==='day' ? 'campaign' : effectiveDim(dim);
     return fetchInsights({
       level:level, since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
+      campaignId:sp.campaignId, adsetIds:sp.adsetIds, adIds:sp.adIds,
       hourly: isSingleDay(panelRange),
       preset: isToday(panelRange) ? 'today' : isLifetime(panelRange) ? 'maximum' : '',
     });
@@ -2432,7 +2555,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
      The wider metric list is put aside rather than discarded, so removing the
      ads restores exactly what was on screen before. */
-  function adMode(){ return selectedAds.length > 0; }
+  /* Comparison mode: the chart is answering "which of these is doing better",
+     not "how do these metrics move". True for one selected ad too — a single
+     line still carries that ad's name rather than a merged total. */
+  function adMode(){ return comparedEntities().length > 0; }
+
+  /* What the compared things are called, for the description and the hint. */
+  function comparedNoun(plural){
+    var sc = currentScope();
+    if((sc.ads || []).length) return plural ? 'ads' : 'ad';
+    return plural ? 'ad sets' : 'ad set';
+  }
 
   function syncMetricMode(){
     if(adMode()){
@@ -2644,22 +2777,28 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var ms = state.series.map(function(k){ return METRICS[k]; });
     $('ts-desc').textContent =
       (adMode()
-        ? METRICS[state.series[0]].label + (selectedAds.length > 1
-            ? ' per ad, comparing ' + selectedAds.length + ' ads'
-            : ' for one ad')
+        ? METRICS[state.series[0]].label + (comparedEntities().length > 1
+            ? ' per ' + comparedNoun(false) + ', comparing ' +
+              comparedEntities().length + ' ' + comparedNoun(true)
+            : ' for one ' + comparedNoun(false))
         : ms.map(function(m){ return m.label; }).join(', ')) +
       (isSingleDay({mode:'global'})
         ? (selectedDayIsToday() ? ' by hour, up to the current hour.' : ' by hour across the day.')
         : ' over the selected date range.');
 
     var range = resolveRange({ mode:'global' });
-    // Ads are only overlaid when the server actually split the series per ad.
-    // One selected ad is still a line per ad; it just happens to be one line.
-    // Keeping the same path means the line carries the ad's name either way.
-    var overlayAds = selectedAds.length > 0;
+    /* Only overlaid when the SERVER actually split the rows. Asking for the
+       split and drawing it are two different facts, and drawing lines the
+       response cannot fill would produce one flat series per entity — which
+       looks like data rather than like a mismatch. */
+    var compared = comparedEntities();
+    var overlayAds = compared.length > 0;
 
     return loadPanel({ mode:'global' }, 'day').then(function(d){
-      overlayAds = overlayAds && d.seriesLevel === 'ad';
+      // 'ad' or 'adset' — either is a split; 'aggregate' is not.
+      var splitKey = d.seriesLevel === 'ad' ? 'adId'
+        : d.seriesLevel === 'adset' ? 'adsetId' : null;
+      overlayAds = overlayAds && !!splitKey;
       /* Meta only returns rows for periods that had delivery, so the response
          alone would shrink the axis to whatever ran. The selected timeframe is
          the spine, and the response is mapped onto it.
@@ -2728,15 +2867,16 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         var byAd = {};
         (d.daily || []).forEach(function(r){
-          if(!r.adId) return;
-          (byAd[r.adId] = byAd[r.adId] || {})[isHourly ? r.hour : r.dateStart] = r;
+          var k = r[splitKey];
+          if(!k) return;
+          (byAd[k] = byAd[k] || {})[isHourly ? r.hour : r.dateStart] = r;
         });
 
-        var datasets = selectedAds.map(function(ad, i){
+        var datasets = compared.map(function(ad, i){
           var st = styleFor(i);
           var rowsForAd = byAd[ad.id] || {};
           return {
-            label: adLabel(ad), yAxisID:'y0',
+            label: adLabel(ad, compared), yAxisID:'y0',
             data: days.map(function(x){
               var r = rowsForAd[isHourly ? x.hour : x.dateStart];
               if(r && r[metricKey] != null) return r[metricKey];
@@ -2765,7 +2905,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
               var el = $('ts-readout'); if(!el) return;
               if(!active || !active.length){ el.textContent = ''; return; }
               var idx = active[0].index;
-              el.textContent = labels[idx] + ' — ' + selectedAds.map(function(a, i){
+              el.textContent = labels[idx] + ' — ' + compared.map(function(a, i){
                 var v = chart.data.datasets[i].data[idx];
                 return adLabel(a) + ' ' + (v == null ? '—' : mo.fmt(v));
               }).join('  ·  ');
@@ -2782,15 +2922,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         renderAdLegend(byAd, metricKey);
 
         $('ts-summary').textContent =
-          mo.label + ' for ' + listSentence(selectedAds.map(function(a){ return adLabel(a); })) +
+          mo.label + ' for ' + listSentence(compared.map(function(a){ return adLabel(a, compared); })) +
           ' across ' + days.length + (isHourly ? ' hour' : ' day') + (days.length === 1 ? '' : 's') +
           '. All lines share one scale, so they can be compared directly. Exact figures are in the table below.';
 
         buildTable($('ts-table'),
-          [isHourly ? 'Hour' : 'Date'].concat(selectedAds.map(function(a){ return adLabel(a); })),
+          [isHourly ? 'Hour' : 'Date'].concat(compared.map(function(a){ return adLabel(a, compared); })),
           days.map(function(x){
             return [isHourly ? fmtHour(x.hour) : fmtDate(x.dateStart)].concat(
-              selectedAds.map(function(a){
+              compared.map(function(a){
                 var r = (byAd[a.id] || {})[isHourly ? x.hour : x.dateStart];
                 return mo.fmt(r ? r[metricKey] : (RATE_METRICS[metricKey] ? null : 0));
               }));
@@ -3153,7 +3293,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var r=resolveRange(globalRange), sp=scopeParams();
     return fetchInsights({
       level:'campaign', since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetId:sp.adsetId, adIds:sp.adIds,
+      campaignId:sp.campaignId, adsetIds:sp.adsetIds, adIds:sp.adIds,
       preset: isToday(globalRange) ? 'today' : isLifetime(globalRange) ? 'maximum' : '',
     })
       .then(function(d){
@@ -3166,7 +3306,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         // campaign silently falls back to "all" rather than filtering to
         // nothing.
         if(sc.campaignId && !state.campaigns.some(function(c){ return c.id===sc.campaignId; })){
-          sc.campaignId = ''; sc.adsetId = ''; sc.ads = [];
+          sc.campaignId = ''; sc.adsets = []; sc.ads = [];
         }
 
         var cSel=$('campaign-pick');
@@ -3174,18 +3314,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id, assetLabel(c))); });
         cSel.value = sc.campaignId || '';
 
-        var camp = state.campaigns.filter(function(c){ return c.id===sc.campaignId; })[0];
-        if(sc.adsetId && !(camp && camp.adsets.some(function(a){ return a.id===sc.adsetId; }))){
-          sc.adsetId = ''; sc.ads = [];
-        }
-        fillAdsets(state.campaigns, sc.campaignId, sc.adsetId);
+        // An ad set this account no longer has must not stay selected, or the
+        // figures would silently filter to nothing.
+        var liveSets = {};
+        adsetsInScope().forEach(function(a){ liveSets[a.id] = true; });
+        sc.adsets = (sc.adsets || []).filter(function(a){ return liveSets[a.id]; });
+        renderAdsetPicker();
 
-        // An ad the current campaign or ad set no longer contains must not stay
-        // selected, or the figures would silently exclude everything.
-        var inScope = {};
-        adsInScope().forEach(function(a){ inScope[a.id] = true; });
-        sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
-        selectedAds = sc.ads;
+        // Same for an ad the remaining scope no longer contains.
+        pruneAds();
         renderAdPicker();
         // Dropping the last ad leaves ad mode, which restores the wider metric
         // list — so the chips have to be rebuilt, not just the picker.
@@ -3306,14 +3443,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // the campaign, ad set and ads that were chosen, while an id from one
     // account is never sent to the other.
     $('campaign-pick').value = '';
-    // Repopulated rather than emptied: a select with no options at all reads as
-    // a broken control, not as "nothing selected".
-    var as = $('adset-pick');
-    as.innerHTML = '';
-    as.appendChild(opt('', 'All ad sets'));
-    as.disabled = true;
     state.campaigns = [];
     selectedAds = currentScope().ads;
+    // The pickers list the previous account's assets until the new campaign
+    // tree arrives. Redrawn from the incoming scope, which is empty, rather
+    // than left showing chips for ad sets this account does not have.
+    renderAdsetPicker();
+    renderAdPicker();
 
     applyView();
     syncStickyBar();
@@ -3341,16 +3477,30 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
 
-    // Copy the option lists across so the sticky selects offer exactly what the
-    // real ones do, including whatever the current account returned.
-    ['campaign','adset'].forEach(function(which){
-      var src = $(which === 'campaign' ? 'campaign-pick' : 'adset-pick');
-      var dst = $('sb-' + which);
-      if(!src || !dst) return;
-      dst.innerHTML = src.innerHTML;
-      dst.value = src.value;
-      dst.disabled = src.disabled;
-    });
+    // The campaign is still one choice, so the sticky select mirrors it.
+    var csrc = $('campaign-pick'), cdst = $('sb-campaign');
+    if(csrc && cdst){
+      cdst.innerHTML = csrc.innerHTML;
+      cdst.value = csrc.value;
+      cdst.disabled = csrc.disabled;
+    }
+
+    /* Ad sets are a multi-selection now, which a <select> cannot represent.
+       Rather than offer a control that would silently collapse the comparison
+       to one, the bar states what is in scope and sends you up to change it. */
+    var adst = $('sb-adset');
+    if(adst){
+      var picked = (currentScope().adsets || []);
+      adst.innerHTML = '';
+      adst.appendChild(opt('',
+        picked.length === 0 ? 'All ad sets'
+        : picked.length === 1 ? picked[0].name
+        : picked.length + ' ad sets compared'));
+      adst.disabled = true;
+      adst.title = picked.length > 1
+        ? picked.map(function(a){ return a.name; }).join(', ')
+        : '';
+    }
   }
 
   /* Held so showPane can re-run it: switching pane changes whether the bar
@@ -3380,12 +3530,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       real.dispatchEvent(new Event('change'));
       closeScope();   // the choice is made; give the screen back
     });
-    $('sb-adset').addEventListener('change', function(){
-      var real = $('adset-pick');
-      real.value = this.value;
-      real.dispatchEvent(new Event('change'));
-      closeScope();
-    });
+
     $('sb-more').addEventListener('click', function(){
       var open = bar.classList.toggle('sb-open');
       this.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -4869,7 +5014,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       since:r.since, until:r.until, level:'account'
     });
     if(sp.campaignId) qs.set('campaignId', sp.campaignId);
-    if(sp.adsetId) qs.set('adsetId', sp.adsetId);
+    if(sp.adsetIds) qs.set('adsetIds', sp.adsetIds);
     if(sp.adIds) qs.set('adIds', sp.adIds);
     if(isToday({mode:'global'})) qs.set('preset','today');
     else if(isLifetime({mode:'global'})) qs.set('preset','maximum');

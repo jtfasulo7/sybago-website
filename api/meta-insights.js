@@ -336,6 +336,7 @@ function shapeRow(r, level) {
     costPerLandingPageView: m.landingPageView.costPer,
     adId: r.ad_id || null,
     adName: r.ad_name || null,
+    adsetId: r.adset_id || null,
     dateStart: r.date_start,
     dateStop: r.date_stop,
     // Present only on an hourly request. Meta returns a range like
@@ -639,26 +640,43 @@ export default async function handler(req, res) {
   // `filtering` parameter scopes both requests identically.
   const scope = {};
   if (/^\d+$/.test(req.query.campaignId || '')) scope.campaignId = req.query.campaignId;
-  if (/^\d+$/.test(req.query.adsetId || '')) scope.adsetId = req.query.adsetId;
-  // Comma separated ad ids. Anything non-numeric is dropped rather than passed
-  // through, same rule as the campaign and ad set ids.
-  const adIds = String(req.query.adIds || '')
-    .split(',')
-    .map((x) => x.trim())
-    .filter((x) => /^\d+$/.test(x))
-    .slice(0, 20);
+
+  // Comma separated ids. Anything non-numeric is dropped rather than passed
+  // through — an id from a query string reaches Meta's filter, so it is checked
+  // for shape here rather than trusted.
+  const idList = (raw) =>
+    String(raw || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => /^\d+$/.test(x))
+      .slice(0, 20);
+
+  /* `adsetIds` is the list; `adsetId` is the older single-value form, still
+     accepted so an existing link or a cached client keeps working. */
+  const adsetIds = idList(req.query.adsetIds);
+  if (adsetIds.length) scope.adsetIds = adsetIds;
+  else if (/^\d+$/.test(req.query.adsetId || '')) scope.adsetIds = [req.query.adsetId];
+  // The narrowest single ad set, for callers that still read one.
+  scope.adsetId = scope.adsetIds && scope.adsetIds.length === 1 ? scope.adsetIds[0] : null;
+
+  const adIds = idList(req.query.adIds);
   if (adIds.length) scope.adIds = adIds;
 
   const filtering = [];
   // Ads are the narrowest scope, so they win over the ad set and campaign.
   if (scope.adIds) {
     filtering.push({ field: 'ad.id', operator: 'IN', value: scope.adIds });
-  } else if (scope.adsetId) {
-    filtering.push({ field: 'adset.id', operator: 'IN', value: [scope.adsetId] });
+  } else if (scope.adsetIds) {
+    filtering.push({ field: 'adset.id', operator: 'IN', value: scope.adsetIds });
   } else if (scope.campaignId) {
     filtering.push({ field: 'campaign.id', operator: 'IN', value: [scope.campaignId] });
   }
   const filterParam = filtering.length ? { filtering } : {};
+
+  /* Comparing ad sets against each other, rather than reporting one total.
+     Only when there is more than one and no ad is selected — ads are the
+     narrower scope and win, exactly as they do in the filter above. */
+  const splitByAdset = !scope.adIds && !!(scope.adsetIds && scope.adsetIds.length > 1);
 
 
 
@@ -757,10 +775,18 @@ export default async function handler(req, res) {
         buildUrl(accountId, {
           // When scoped, the trend must be scoped too, so it is requested at
           // the scoped level rather than at account level.
-          level: scope.adIds ? 'ad' : scope.adsetId ? 'adset' : scope.campaignId ? 'campaign' : 'account',
+          /* Several ad sets means one row per ad set per day, which is what
+             lets the client draw a line each. ONE ad set is left aggregated:
+             the split would produce the same numbers at more cost, and the
+             single-line path is what the metric overlay expects. */
+          level: scope.adIds
+            ? 'ad'
+            : scope.adsetIds ? 'adset' : scope.campaignId ? 'campaign' : 'account',
           // Ad name comes along when the series is per-ad, so the client can
           // draw one line per ad rather than one merged line.
-          fields: (scope.adIds ? ['ad_id', 'ad_name', ...BASE_FIELDS] : BASE_FIELDS).join(','),
+          fields: (scope.adIds
+            ? ['ad_id', 'ad_name', ...BASE_FIELDS]
+            : splitByAdset ? ['adset_id', 'adset_name', ...BASE_FIELDS] : BASE_FIELDS).join(','),
           ...period,
           // Hourly replaces the daily increment; the two cannot be combined.
           ...(hourly ? {} : { time_increment: '1' }), // one row per day, for the trend charts
@@ -841,7 +867,11 @@ export default async function handler(req, res) {
       .sort((a, b) => {
         // With several ads there are multiple rows per period, so the ad is the
         // primary key and time is the secondary one.
-        if (a.adId !== b.adId) return String(a.adId).localeCompare(String(b.adId));
+        // Whichever id is splitting the rows is the primary key; time is
+        // secondary. Sorting by ad id alone would interleave ad set series.
+        const ka = splitByAdset ? a.adsetId : a.adId;
+        const kb = splitByAdset ? b.adsetId : b.adId;
+        if (ka !== kb) return String(ka).localeCompare(String(kb));
         return hourly ? (a.hour ?? 0) - (b.hour ?? 0) : a.dateStart < b.dateStart ? -1 : 1;
       });
 
@@ -943,7 +973,10 @@ export default async function handler(req, res) {
       viewLabel: VIEWS[view].label,
       granularity: hourly ? 'hour' : 'day',
       // Tells the client the daily series is split per ad rather than merged.
-      seriesLevel: scope.adIds ? 'ad' : 'aggregate',
+      // The client draws one line per entity only when the server actually
+      // split the rows. Naming which split happened keeps that decision in one
+      // place instead of being re-derived from the request.
+      seriesLevel: scope.adIds ? 'ad' : splitByAdset ? 'adset' : 'aggregate',
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,
@@ -962,6 +995,7 @@ export default async function handler(req, res) {
       scope: {
         campaignId: scope.campaignId || null,
         adsetId: scope.adsetId || null,
+        adsetIds: scope.adsetIds || null,
       },
       campaigns,
       fetchedAt: new Date().toISOString(),
