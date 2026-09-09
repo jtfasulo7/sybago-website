@@ -1913,15 +1913,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   var VIEW_DEFAULTS = {
     dave: {
       campaign: 'Dave Campaign 2 September 2026 Sales Campaign',
-      // The three creative variants, which differ only by the creative. Opening
-      // on all three is the point: a creative test is read by comparing them,
-      // and landing on one of the three would hide the comparison behind two
-      // more clicks every single time the page loads.
-      adsets: [
-        'Dave Ad Set 1 Paid Dave Image',
-        'Dave Ad Set 1 Paid Vile Image',
-        'Dave Ad Set 1 Paid Text Offer'
-      ]
+      /* One ad set, so the page opens SCOPED rather than comparing: the chart
+         goes back to several metrics on one line each, which is the right shape
+         for reading a single ad set. Add others from the picker to compare.
+         Matched exactly, so it cannot be stolen by a longer name that merely
+         starts the same way. */
+      adset: 'Dave Ad Set 1 Paid Purchase Event Image'
     },
     sybago: {
       campaign: 'Montara Forge Driveways campaign August 2026',
