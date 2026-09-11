@@ -18,6 +18,7 @@ import {
   isIncluded,
   includeList,
   manualFigures,
+  normaliseCost,
   sumAmounts,
   todayIn,
 } from '../lib/finance/config.js';
@@ -376,7 +377,12 @@ export default async function handler(req, res) {
         },
         ...manual.otherRevenue.map((r) => ({ ...r, source: 'manual' })),
       ];
-      expenses = [adSpendLine, ...manual.recurringCosts.map((c) => ({ ...c, source: 'manual' }))];
+      // normaliseCost, not the raw entry: an annual cost has to contribute one
+      // month's worth to a monthly total.
+      expenses = [
+        adSpendLine,
+        ...manual.recurringCosts.map((c) => ({ ...normaliseCost(c), source: 'manual' })),
+      ];
     }
 
     const metaValues = metaNamespace(adSpend);

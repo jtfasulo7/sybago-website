@@ -738,6 +738,34 @@ Things that are easy to get wrong here, all covered by tests:
   whether or not it is configured to spend more.
 - **Margin on zero revenue is `null`, not zero.** The UI renders it as an em dash.
 
+### Recurring costs, cadence and who paid
+
+`RECURRING_COSTS` holds the fixed monthly outgoings. Three today: Higgsfield
+($99/mo), the Skool subscription ($99/mo, paid by Mouayed) and the domain
+($24/yr, paid by JT). Monthly recurring is therefore **$200, not $222**.
+
+**`cadence` is load-bearing now and was not before.** It sat on the cost shape
+with nothing reading it, so every amount went straight into a monthly total. A
+$24/yr domain entered that way adds $24 to ONE month rather than $2 — a figure
+wrong by $22 that looks completely ordinary on the page. `monthlyAmount()` does
+the conversion, and `normaliseCost()` is what the endpoint and the sheet seeder
+both call.
+
+- **The config states the REAL BILLED AMOUNT**, not a pre-divided one: `24` with
+  `cadence: 'annual'`, never `2` with a comment explaining it. A figure someone
+  can check against an invoice is worth more than one already in the right units.
+- **`billedAmount` survives normalisation** and the detail line says
+  "$24 billed annual", because $2 shown against a $24 receipt reads as a bug in
+  the page rather than as a monthly share.
+- **An unrecognised cadence falls back to monthly rather than being dropped.**
+  Showing a cost in the wrong period is recoverable; silently omitting it from a
+  cash flow is not.
+
+**`paidBy` renders as a tag in the Detail column.** These costs come out of
+different pockets, and a shared cash-flow page that cannot say whose money it
+was is missing the one fact the page gets settled from. Omit it for anything the
+business pays itself.
+
 ### The include filter
 
 `AD_SPEND_INCLUDE` names which campaigns and ad sets count. Set it in the environment (one

@@ -670,5 +670,66 @@ console.log('\nMissing configuration is named, never guessed');
   process.env.META_AD_ACCOUNT_ID = saved;
 }
 
+
+/* ------------------------------------------------------------ cadence --- */
+console.log('\nCadence, and whose money it was');
+
+t('a monthly cost is itself', () =>
+  assert.equal(cfg.monthlyAmount({ amount: 99, cadence: 'monthly' }), 99));
+
+t('an annual cost contributes one twelfth', () => {
+  /* THE BUG THIS GUARDS: `cadence` sat on the cost shape with nothing reading
+     it, so a $24/yr domain would have been summed as $24 into a single month.
+     The page would have looked entirely normal and been wrong by $22. */
+  assert.equal(cfg.monthlyAmount({ amount: 24, cadence: 'annual' }), 2);
+  assert.notEqual(cfg.monthlyAmount({ amount: 24, cadence: 'annual' }), 24);
+});
+
+t('other cadences convert too', () => {
+  assert.equal(cfg.monthlyAmount({ amount: 30, cadence: 'quarterly' }), 10);
+  assert.equal(cfg.monthlyAmount({ amount: 12, cadence: 'yearly' }), 1);
+});
+
+t('an unknown cadence is treated as monthly, never dropped', () =>
+  // Showing a cost in the wrong period is recoverable. Silently omitting it
+  // from a cash flow is not.
+  assert.equal(cfg.monthlyAmount({ amount: 50, cadence: 'fortnightly-ish' }), 50));
+
+t('a missing amount is zero, not NaN', () => {
+  assert.equal(cfg.monthlyAmount({ cadence: 'monthly' }), 0);
+  assert.equal(cfg.monthlyAmount({}), 0);
+});
+
+t('normalising keeps the billed figure alongside the monthly one', () => {
+  const n = cfg.normaliseCost({ label: 'Domain', amount: 24, cadence: 'annual', note: 'Registration.' });
+  assert.equal(n.amount, 2);          // what it costs this month
+  assert.equal(n.billedAmount, 24);   // what the invoice says
+  // The detail line has to explain the gap, or $2 against a $24 receipt looks
+  // like an error in the page.
+  assert.match(n.note, /24 billed annual/);
+});
+
+t('a monthly cost gets no extra explanation', () => {
+  const n = cfg.normaliseCost({ label: 'Skool subscription', amount: 99, cadence: 'monthly', note: 'Hosts it.' });
+  assert.equal(n.amount, 99);
+  assert.equal(n.note, 'Hosts it.');
+});
+
+t('both new costs are configured, with who paid', () => {
+  const byId = Object.fromEntries(cfg.RECURRING_COSTS.map((c) => [c.id, c]));
+  assert.equal(byId.skool.amount, 99);
+  assert.equal(byId.skool.cadence, 'monthly');
+  assert.equal(byId.skool.paidBy, 'Mouayed');
+  assert.equal(byId.domain.amount, 24);
+  assert.equal(byId.domain.cadence, 'annual');
+  assert.equal(byId.domain.paidBy, 'JT');
+});
+
+t('the configured costs total what a month actually costs', () => {
+  // Higgsfield 99 + Skool 99 + domain 24/12 = 200, not 222.
+  const total = cfg.RECURRING_COSTS.reduce((a, c) => a + cfg.monthlyAmount(c), 0);
+  assert.equal(Math.round(total * 100) / 100, 200);
+});
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

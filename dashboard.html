@@ -427,6 +427,15 @@ table.ss-grid:not(:focus-within) td.in-range { background:rgba(var(--accent-rgb)
 .src-live { color:var(--kpi-good); background:var(--kpi-good-bg); }
 .src-manual { color:var(--warn-text); background:var(--kpi-warn-bg); }
 .fin-note { font-size:.76rem; color:var(--t3); line-height:1.45; }
+/* Who actually paid. Two of these costs come out of different pockets, so the
+   page has to be able to say whose money it was — that is the fact a shared
+   cash flow is settled from. */
+.fin-payer {
+  display:inline-block; margin-right:.4rem; padding:.1rem .45rem;
+  border-radius:999px; font-size:.68rem; font-weight:700; letter-spacing:.02em;
+  color:var(--accent-d); background:rgba(var(--accent-rgb),.12);
+  border:1px solid rgba(var(--accent-rgb),.28);
+}
 .fin-in  { color:var(--kpi-good); font-weight:700; }
 .fin-out { color:var(--neg); font-weight:700; }
 tr.fin-total > * { border-top:2px solid var(--hairline); font-weight:800; }
@@ -3790,9 +3799,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           '<strong class="fin-in">' + money(t.revenue) + '</strong>', '']);
 
         (d.expenses || []).forEach(function(x){
+          var payer = x.paidBy
+            ? '<span class="fin-payer">' + esc(x.paidBy) + '</span>' : '';
           rows.push([esc(x.label), srcTag(x.source),
             '<span class="fin-out">' + negative(x.amount) + '</span>',
-            '<span class="fin-note">' + esc(x.note || '') + '</span>']);
+            payer + '<span class="fin-note">' + esc(x.note || '') + '</span>']);
         });
         totals.push(rows.length);
         rows.push(['<strong>Total expenses</strong>', '',
