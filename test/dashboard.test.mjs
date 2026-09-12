@@ -117,6 +117,14 @@ const DAILY = [{
 }];
 const CAMPAIGNS = [{ campaign_id: '1', campaign_name: 'Peps — Skool signups', ...DAILY[0] }];
 
+/* The one-row aggregate for the whole window: account level, no daily
+   increment. That ABSENCE is how the server asks for it, so it is how the stub
+   recognises it — not by which fields are named or in what order. */
+const isAggregate = (u) => {
+  const url = String(u);
+  return /level=account/.test(url) && !/time_increment/.test(url) && !/\/campaigns\b/.test(url);
+};
+
 const stubOk = (byUrl) => async (u) => ({
   ok: true, headers: { get: () => null }, json: async () => ({ data: byUrl(String(u)) }),
 });
@@ -621,14 +629,21 @@ console.log('\nReach is deduplicated, never summed');
     if (/\/campaigns\b/.test(url)) {
       return { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) };
     }
-    // The deduplicated request is the one asking for reach WITHOUT a daily
-    // increment. That absence is the whole mechanism.
-    if (url.includes('fields=reach') && !url.includes('time_increment')) {
+    /* The aggregate request is the one at ACCOUNT level with no daily
+       increment. That absence is the whole mechanism — and it is checked that
+       way rather than by which fields are named, so adding a field to the
+       request cannot break a test about reach. */
+    if (isAggregate(url)) {
       dedupAsked = url;
       return {
         ok: true,
         headers: { get: () => null },
-        json: async () => ({ data: [{ reach: '5000', frequency: '1.8', impressions: '9000' }] }),
+        // Deliberately NOT 30.00/9000: the daily rows sum to that, so a total
+        // reading 33.00 proves the aggregate answered and the sum did not.
+        json: async () => ({ data: [{
+          reach: '5000', frequency: '1.8', impressions: '9000', spend: '33.00',
+          clicks: '30', inline_link_clicks: '24',
+        }] }),
       };
     }
     return { ok: true, headers: { get: () => null }, json: async () => ({ data: threeDays }) };
@@ -651,6 +666,43 @@ console.log('\nReach is deduplicated, never summed');
 
   t('frequency is impressions over people, from the same two figures', () =>
     assert.equal(r.body.totals.frequency, 9000 / 5000));
+
+  /* WHY THE TILES USED TO LAG. Everything except reach was summed from the
+     time_increment=1 series, which Meta materialises separately from the
+     aggregate and writes later for the current day. The tiles therefore trailed
+     Ads Manager by however long that took. The aggregate is the figure Ads
+     Manager itself reads. */
+  t('spend comes from Meta\'s aggregate, not from summing the days', () => {
+    assert.equal(r.body.totals.spend, 33);
+    assert.notEqual(r.body.totals.spend, 30);   // 3 x 10.00, the daily sum
+  });
+
+  t('the response says which figure answered', () =>
+    assert.equal(r.body.totalsSource, 'aggregate'));
+}
+
+{
+  /* No aggregate row comes back for a window with no delivery. The daily sum
+     answers instead, because falling back beats reporting a zero that is only
+     an absent row. */
+  const oneDay = [{
+    date_start: '2026-09-01', date_stop: '2026-09-01',
+    spend: '12.50', impressions: '900', reach: '700', frequency: '1.29',
+    clicks: '9', inline_link_clicks: '7', ctr: '1', cpc: '1.39', cpm: '13.89',
+  }];
+  globalThis.fetch = async (u) => {
+    const ok = (data) => ({ ok: true, headers: { get: () => null }, json: async () => ({ data }) });
+    if (/\/campaigns\b/.test(String(u))) return ok([]);
+    if (isAggregate(u)) return ok([]);          // Meta returns nothing at all
+    return ok(oneDay);
+  };
+  const r = mockRes();
+  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+
+  t('a missing aggregate falls back to the daily series rather than to zero', () =>
+    assert.equal(r.body.totals.spend, 12.5));
+  t('and says so, so the fallback is visible rather than inferred', () =>
+    assert.equal(r.body.totalsSource, 'daily-sum'));
 }
 
 {
@@ -840,10 +892,33 @@ const rowWith = (actions, costPer) => ({
   cost_per_action_type: costPer || [],
 });
 
-const serve = (rows) => async (u) =>
-  /\/campaigns\b/.test(String(u))
-    ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
-    : { ok: true, headers: { get: () => null }, json: async () => ({ data: rows }) };
+/* What Meta returns for that request: ONE row covering the window, carrying
+   every action across it. A stub that replayed the daily rows here would hand
+   back day one alone and read as an under-count. */
+const aggregateOf = (rows) => {
+  const sum = (k) => rows.reduce((n, r) => n + Number(r[k] || 0), 0);
+  return {
+    date_start: rows[0].date_start, date_stop: rows[rows.length - 1].date_stop,
+    spend: sum('spend').toFixed(2),
+    impressions: String(sum('impressions')),
+    // Reach is NOT summed: Meta deduplicates people across the window, which is
+    // the entire reason this request exists.
+    reach: String(Math.max(...rows.map((r) => Number(r.reach || 0)))),
+    clicks: String(sum('clicks')),
+    inline_link_clicks: String(sum('inline_link_clicks')),
+    ctr: rows[0].ctr, cpc: rows[0].cpc, cpm: rows[0].cpm,
+    actions: rows.flatMap((r) => r.actions || []),
+    cost_per_action_type: rows.flatMap((r) => r.cost_per_action_type || []),
+    action_values: rows.flatMap((r) => r.action_values || []),
+  };
+};
+
+const serve = (rows) => async (u) => {
+  const ok = (data) => ({ ok: true, headers: { get: () => null }, json: async () => ({ data }) });
+  if (/\/campaigns\b/.test(String(u))) return ok([]);
+  if (isAggregate(u)) return ok(rows.length ? [aggregateOf(rows)] : []);
+  return ok(rows);
+};
 
 {
   globalThis.fetch = serve([
@@ -1069,6 +1144,133 @@ console.log('\nSeveral campaigns at once');
     const f = decodeURIComponent(seen.find((u) => u.includes('time_increment=1')));
     assert.match(f, /adset\.id/);
     assert.ok(!/campaign\.id/.test(f), 'campaign filter should not also be applied');
+  });
+}
+
+
+/* ------------------------------------------------------- pixel totals ---- */
+console.log('\nWhat the pixel saw, against what the ads got credit for');
+
+/* Insights and Events Manager are different datasets. Insights reports only the
+   conversions Meta could attribute to an ad; the pixel reports every event it
+   received. Montara Forge's five leads against two attributed ones is that gap,
+   not a bug — so both figures are carried, separately and plainly labelled. */
+
+// aggregation=event returns hourly buckets, each holding per-event rows.
+const PIXEL_OK = {
+  data: [
+    { aggregation: 'event', start_time: '2026-09-01T00:00:00+0000',
+      data: [{ value: 'Lead', count: 2 }, { value: 'PageView', count: 140 }] },
+    { aggregation: 'event', start_time: '2026-09-01T01:00:00+0000',
+      data: [{ value: 'Lead', count: 3 }, { value: 'ViewContent', count: 11 }] },
+  ],
+};
+
+const pixelStub = (payload) => async (u) => {
+  const url = String(u);
+  if (url.includes('/stats')) {
+    return { ok: true, headers: { get: () => null }, json: async () => payload };
+  }
+  if (url.includes('/adspixels')) {
+    return { ok: true, headers: { get: () => null }, json: async () => ({ data: [{ id: '99887766' }] }) };
+  }
+  return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+};
+
+{
+  const seen = [];
+  globalThis.fetch = async (u) => { seen.push(String(u)); return pixelStub(PIXEL_OK)(u); };
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'sybago', since: '2026-09-01', until: '2026-09-07' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('the pixel total counts every event, not only the attributed ones', () =>
+    assert.equal(r.body.pixelTotal.total, 5));
+
+  t('hourly buckets are summed rather than the first one being taken', () =>
+    // Two buckets of 2 and 3. Reading only one gives 2 or 3 — which is exactly
+    // the under-count this whole feature exists to correct.
+    assert.notEqual(r.body.pixelTotal.total, 2));
+
+  t('other events in the same bucket are not swept in', () =>
+    // PageView 140 and ViewContent 11 sit alongside Lead in the payload.
+    assert.equal(r.body.pixelTotal.total, 5));
+
+  t('the event it counted is named', () =>
+    assert.equal(r.body.pixelTotal.event, 'Lead'));
+
+  t('the pixel figure is kept apart from the attributed conversions', () =>
+    // Merging them would produce a number that answers neither question.
+    assert.notEqual(r.body.totals.registrations, r.body.pixelTotal.total));
+
+  t('the pixel window is the one the charts use', () => {
+    const stats = seen.find((u) => u.includes('/stats'));
+    const q = new URL(stats).searchParams;
+    assert.equal(new Date(Number(q.get('start_time')) * 1000).toISOString().slice(0, 10), '2026-09-01');
+    assert.equal(new Date(Number(q.get('end_time')) * 1000).toISOString().slice(0, 10), '2026-09-07');
+  });
+
+  t('the pixel id is discovered from the ad account, not hard-coded', () =>
+    assert.equal(r.body.pixelTotal.pixelId, '99887766'));
+
+  t('the token does not appear anywhere in the pixel response', () =>
+    assert.ok(!JSON.stringify(r.body).includes(process.env.META_ADS_TOKEN)));
+}
+
+{
+  // Meta documents the row type only as list<AdsPixelStats>, with no field
+  // names at all. Rather than guess, an unreadable row reports nothing.
+  globalThis.fetch = pixelStub({ data: [{ data: [{ mystery_field: 'Lead', tally: 5 }] }] });
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('an unrecognised row shape reports null, never zero', () => {
+    assert.equal(r.body.pixelTotal.total, null);
+    assert.equal(r.body.pixelTotal.reason, 'event-not-found');
+  });
+}
+
+{
+  globalThis.fetch = pixelStub({ data: [] });
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('an empty payload reads as unknown rather than as no leads', () =>
+    assert.equal(r.body.pixelTotal.total, null));
+}
+
+{
+  // The pixel figure is context beside the headline number. If reading it
+  // fails, the dashboard still has to render everything else.
+  globalThis.fetch = async (u) => {
+    if (String(u).includes('/stats') || String(u).includes('/adspixels')) {
+      return { ok: false, status: 400, headers: { get: () => null },
+        json: async () => ({ error: { code: 100, message: 'nonexistent pixel' } }) };
+    }
+    return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('a pixel failure does not take the dashboard down with it', () => {
+    assert.equal(r.code, 200);
+    assert.ok(r.body.totals.impressions > 0);
+  });
+  t('and the failure is reported rather than shown as zero', () =>
+    assert.equal(r.body.pixelTotal.total, null));
+}
+
+{
+  // Dave's account converts on CompleteRegistration, Montara Forge on Lead.
+  // Reading the wrong event would quietly report another campaign's number.
+  globalThis.fetch = pixelStub({
+    data: [{ data: [{ value: 'CompleteRegistration', count: 9 }, { value: 'Lead', count: 4 }] }],
+  });
+  const r = mockRes();
+  await insights({ method: 'GET', query: {}, headers: { cookie: validCookie } }, r);
+  t('each account reads its own pixel event', () => {
+    assert.equal(r.body.pixelTotal.event, 'CompleteRegistration');
+    assert.equal(r.body.pixelTotal.total, 9);
   });
 }
 

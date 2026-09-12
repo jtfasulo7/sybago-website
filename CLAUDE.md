@@ -413,6 +413,62 @@ second row ragged. Extra metrics belong in the chart pickers and the table.
   attribution, not extraction. Do not "fix" it by widening `REGISTRATION_TYPES`: those
   aliases are the same conversions counted again, and summing them double-counts.
 
+**The headline totals come from Meta's AGGREGATE row, not from summing the daily
+series.** One request asks for the whole window at account level with no
+`time_increment`, and `totals` is built from it; `summed` (the daily reduce) is
+only the fallback for a window Meta returns no aggregate row for. `totalsSource`
+in the response says which answered.
+
+- **This is a freshness fix, and it is why the tiles used to lag.**
+  `time_increment=1` is materialised separately inside Meta from the aggregate,
+  and the current day's row lands later and keeps settling longer. Summing it
+  meant spend, CPM and impressions trailed what Ads Manager already showed.
+- **It is also the only correct source for reach.** Reach counts PEOPLE, so a
+  sum across days counts the same person twice and the total climbs past
+  impressions. The absence of `time_increment` is the entire mechanism —
+  `isAggregate()` in the tests identifies the request that way, deliberately not
+  by which fields are named.
+- **Do not "simplify" this back into one request.** The daily series is still
+  needed, for the trend charts. The two answer different questions.
+
+**`pixelTotal` is Events Manager, which is a DIFFERENT dataset from Insights.**
+`{ads-pixel-id}/stats?aggregation=event` returns hourly buckets that must be
+summed; `VIEWS[view].pixelEvent` names the event ('CompleteRegistration' for
+Dave, 'Lead' for Montara Forge — the Events Manager name, NOT the Insights
+action type), and the pixel id is discovered from `/adspixels` unless
+`META_PIXEL_ID*` is set.
+
+- **It is deliberately not merged into `registrations`.** Insights reports only
+  what Meta could attribute to an ad; the pixel reports everything it received.
+  Montara Forge's five against two is that gap. One blended figure would answer
+  neither question.
+- **Meta documents the row type as `list<AdsPixelStats>` with no field names.**
+  The parser accepts `value|event|name|key` and `count|value_count|total` and
+  returns `total: null` with a reason rather than guessing. `?debug=pixel`
+  returns the raw payload — tighten the parser against that, never against a
+  hunch.
+- A pixel failure is caught and reported as `total: null`. It must never take
+  the dashboard down: this is context beside the headline figure.
+
+**What the conversion is CALLED is per view too.** `CONVERSION_WORDS` in
+`dashboard.html` gives Dave 'Purchases' and Montara Forge 'Leads', and
+`applyConversionLabels()` rewrites `METRICS.registrations` and
+`METRICS.costPerRegistration` in place at the top of `applyView()`. Everything
+downstream — KPI tiles, both charts, the table, the geo panel, the 3D axis
+pickers — reads METRICS, so that one call is what makes them all agree.
+
+- **One shared word would be wrong for one account whichever word was chosen.**
+  Dave sells access to a community, so a sign-up is a purchase; Montara Forge
+  collects requests for an estimate, which are leads and are not sales.
+- **The collapsed explainer above the charts is rewritten too**, via
+  `#conv-note-sum` / `#conv-note-body`. It otherwise talks about leads on a
+  page counting purchases.
+- **The literals in the METRICS table are only a fallback** ('Conversions'),
+  used if a view has no entry. Editing them does not change what either
+  dashboard shows.
+- **The KEYS still do not move.** `registrations` and `costPerRegistration` are
+  the =META() namespace the finance sheet reads; renaming them is a migration.
+
 **The conversion metric is called Leads, and the event it counts is a property of the
 ACCOUNT.** `VIEWS[view].conversion` names the family: `registration` for Dave, whose Skool
 sign-up fires CompleteRegistration, and `lead` for Montara Forge, whose form fires Lead.

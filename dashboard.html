@@ -529,22 +529,46 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 #dash-body { transition:opacity .18s var(--eo); }
 #dash-body.swapping { opacity:.35; }
 
-.adpick { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; }
-.ad-chips { display:flex; flex-wrap:wrap; gap:.4rem; }
-.ad-chip {
-  display:inline-flex; align-items:center; gap:.3rem; max-width:260px;
-  padding:.28rem .35rem .28rem .6rem; border-radius:999px;
-  border:1px solid rgba(var(--accent-rgb),.28); background:rgba(var(--accent-rgb),.08);
-  font-size:.82rem; font-weight:600; color:var(--accent-d);
+/* Ad sets and ads as a toggle tree.
+   Everything in the campaign is visible at once and one press is the whole
+   interaction — no select to open, no Add to confirm. */
+.tree { display:flex; flex-direction:column; gap:.35rem; width:100%; min-width:0; }
+.tree-row { display:flex; flex-wrap:wrap; gap:.4rem; min-width:0; }
+/* The ads belonging to the ad set immediately above, indented and hung off a
+   rule, so the nesting is readable without a disclosure triangle to operate. */
+.tree-kids {
+  display:flex; flex-wrap:wrap; gap:.35rem; min-width:0;
+  margin:.1rem 0 .45rem .62rem; padding:.1rem 0 .1rem .72rem;
+  border-left:1.5px solid rgba(var(--accent-rgb),.26);
 }
-.ad-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ad-chip button {
-  flex:0 0 22px; width:22px; height:22px; display:grid; place-items:center;
-  border:0; border-radius:50%; background:transparent; color:inherit; cursor:pointer;
+.tog {
+  display:inline-flex; align-items:center; gap:.4rem; max-width:100%; min-width:0;
+  padding:.34rem .7rem; border-radius:999px; cursor:pointer;
+  border:1px solid var(--line); background:var(--card);
+  font:inherit; font-size:.82rem; font-weight:600; color:var(--ink-2);
+  transition:background .14s var(--eo), border-color .14s var(--eo), color .14s var(--eo);
 }
-.ad-chip button:hover { background:rgba(var(--accent-rgb),.18); }
-#ad-add { width:auto; max-width:280px; min-height:38px; padding:.3rem 1.9rem .3rem .6rem; font-size:.85rem; }
-.add-ad { min-height:38px; padding:.35rem .75rem; font-size:.84rem; }
+.tog > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.tog:hover { border-color:rgba(var(--accent-rgb),.45); color:var(--ink); }
+.tog:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+/* The pressed state carries the colour, so on/off is legible at a glance
+   rather than only from the tick. */
+.tog[aria-pressed="true"] {
+  border-color:rgba(var(--accent-rgb),.55); background:rgba(var(--accent-rgb),.12);
+  color:var(--accent-d);
+}
+/* A mark, not a checkbox: it fills in when pressed and is decorative — the
+   real state is on aria-pressed, which is what a screen reader announces. */
+.tog .mark {
+  flex:0 0 15px; width:15px; height:15px; border-radius:4px;
+  border:1.5px solid rgba(var(--accent-rgb),.4); display:grid; place-items:center;
+  color:transparent;
+}
+.tog[aria-pressed="true"] .mark { background:var(--accent); border-color:var(--accent); color:#fff; }
+.tog-ad { font-size:.78rem; font-weight:500; }
+.tog-ad .mark { border-radius:50%; }
+/* An ad set with nothing under it, or a campaign with no ad sets at all. */
+.tree-empty { font-size:.78rem; color:var(--ink-3); padding:.2rem 0; }
 
 .stickybar {
   position:fixed; top:.6rem; left:50%; transform:translateX(-50%) translateY(-8px);
@@ -910,17 +934,18 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* Range spans the row; the paired date and scope fields sit side by side;
      Refresh spans again so it keeps a comfortable tap target. Hidden fields
      are display:none, so the custom date row collapses out of the grid. */
-  #range-field, #refresh, #ad-field, #adset-field { grid-column:1 / -1; }
-  #ad-add, #adset-add { max-width:none; flex:1 1 auto; }
+  #range-field, #refresh, #scope-field { grid-column:1 / -1; }
 
   /* A flex item's default min-width is its CONTENT, so a long ad set name
-     pushed the chip wider than the column and carried its own close button off
-     the screen. Every level from the row down to the label has to be allowed
-     to shrink, or the ellipsis never gets the chance to apply. */
-  .adpick, .ad-chips { min-width:0; max-width:100%; }
-  .ad-chips { flex:1 1 100%; }
-  .ad-chip { max-width:100%; min-width:0; }
-  .ad-chip span { min-width:0; }
+     pushed the pill wider than the column and off the screen. Every level from
+     the row down to the label has to be allowed to shrink, or the ellipsis
+     never gets the chance to apply. */
+  .tree, .tree-row, .tree-kids { min-width:0; max-width:100%; }
+  .tog { max-width:100%; min-width:0; min-height:44px; padding:.5rem .8rem; font-size:.86rem; }
+  .tog-ad { font-size:.82rem; }
+  /* Pills sit a finger-width apart so a miss lands on nothing rather than on
+     the neighbouring ad set. */
+  .tree-row, .tree-kids { gap:.5rem; }
   .toolbar select, .toolbar input[type=date] { min-height:42px; padding-top:.45rem; padding-bottom:.45rem; }
   /* SEVEN buttons: Today, 7d, 14d, 30d, 90d, Lifetime, Custom.
      Four columns splits them 4 + 3, and the last one spans the spare column so
@@ -1185,30 +1210,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         <label for="campaign-pick">Campaign</label>
         <select id="campaign-pick"><option value="">All campaigns</option></select>
       </div>
-      <div class="field" id="adset-field" style="flex:1 1 100%;">
-        <span class="lbl" id="adset-lbl">Ad sets</span>
-        <div class="adpick" role="group" aria-labelledby="adset-lbl">
-          <div id="adset-chips" class="ad-chips"></div>
-          <select id="adset-add" aria-label="Add an ad set to compare" disabled></select>
-          <button type="button" class="btn btn-ghost add-ad" id="adset-add-btn" aria-describedby="adset-hint" disabled>
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
-            Add ad set
-          </button>
-        </div>
-        <span id="adset-hint" class="sub" style="font-size:.78rem">With no ad sets added, figures are for the whole campaign.</span>
-      </div>
-
-      <div class="field" id="ad-field" style="flex:1 1 100%;">
-        <span class="lbl" id="ad-lbl">Ads</span>
-        <div class="adpick" role="group" aria-labelledby="ad-lbl">
-          <div id="ad-chips" class="ad-chips"></div>
-          <select id="ad-add" aria-label="Add an ad to compare"></select>
-          <button type="button" class="btn btn-ghost add-ad" id="ad-add-btn" aria-describedby="ad-hint">
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
-            Add ad
-          </button>
-        </div>
-        <span id="ad-hint" class="sub" style="font-size:.78rem">With no ads added, figures are for the whole ad set.</span>
+      <!-- One control for both levels. The ad sets in the selected campaign are
+           listed as toggles; switching one on reveals its ads, indented, as
+           toggles of their own. -->
+      <div class="field" id="scope-field" style="flex:1 1 100%;">
+        <span class="lbl" id="scope-lbl">Ad sets and ads</span>
+        <div id="scope-tree" class="tree" role="group" aria-labelledby="scope-lbl"></div>
+        <span id="scope-hint" class="sub" style="font-size:.78rem">With nothing selected, figures are for the whole campaign.</span>
       </div>
 
       <button type="submit" class="btn btn-primary" id="refresh">
@@ -1251,8 +1259,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       </button>
     </div>
     <details class="attrib-note">
-      <summary>Why a lead count can look low</summary>
-      <p>Meta keeps attributing conversions for up to about three days, so today's and yesterday's lead counts rise after the fact. Meta also only counts a lead it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, converts without ever appearing here. Expect this figure to sit below the count you keep yourself.</p>
+      <summary id="conv-note-sum">Why a conversion count can look low</summary>
+      <p id="pixel-note" hidden></p>
+      <p id="conv-note-body">Meta keeps attributing conversions for up to about three days, so today's and yesterday's counts rise after the fact. Meta also only counts a conversion it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, converts without ever appearing here. Expect this figure to sit below the count you keep yourself.</p>
     </details>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
@@ -1665,13 +1674,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     ctr:                    { label:'CTR', short:'CTR',                 fmt:pct,   icon:'percent' },
     cpc:                    { label:'CPC', short:'CPC',                 fmt:money, icon:'tag'     },
     cpm:                    { label:'CPM', short:'CPM',                 fmt:money, icon:'tag'     },
-    /* Labelled "Leads" because that is what both accounts are buying, even
-       though Meta fires a different event for each: Dave's Skool sign-up is a
-       CompleteRegistration, Montara Forge's form is a Lead. The KEYS keep the
-       registration spelling — they are the =META() namespace the finance sheet
-       reads, where a rename silently breaks saved formulas. */
-    registrations:          { label:'Leads',          short:'Leads',      fmt:num,   icon:'check'   },
-    costPerRegistration:    { label:'Cost / lead',    short:'$/Lead',     fmt:money, icon:'tag'     },
+    /* These two labels are REWRITTEN PER VIEW by applyConversionLabels().
+       The values here are only the fallback — see CONVERSION_WORDS. The KEYS
+       never change: they are the =META() namespace the finance sheet reads,
+       where a rename silently breaks saved formulas. */
+    registrations:          { label:'Conversions',    short:'Conv.',      fmt:num,   icon:'check'   },
+    costPerRegistration:    { label:'Cost / conv.',   short:'$/Conv.',    fmt:money, icon:'tag'     },
     landingPageViews:       { label:'Landing page views', short:'LPV',  fmt:num,   icon:'page'    },
     costPerLandingPageView: { label:'Cost / LP view', short:'$/LPV',      fmt:money, icon:'tag'     },
     roas:                   { label:'ROAS', short:'ROAS',                fmt:mult,  icon:'trend'   }
@@ -1960,6 +1968,53 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     }
   };
 
+  /* What each account calls its conversion.
+     Dave sells access to a community, so a sign-up is a purchase. Montara Forge
+     collects requests for an estimate, which are leads and are not sales. One
+     shared word would be wrong for one of them whichever word was chosen.
+
+     `note` is the wording of the collapsed explainer above the charts, which
+     otherwise talks about leads on a page counting purchases. */
+  var CONVERSION_WORDS = {
+    dave: {
+      label: 'Purchases', short: 'Buys',
+      costLabel: 'Cost / purchase', costShort: '$/Buy',
+      one: 'purchase', many: 'purchases',
+    },
+    sybago: {
+      label: 'Leads', short: 'Leads',
+      costLabel: 'Cost / lead', costShort: '$/Lead',
+      one: 'lead', many: 'leads',
+    },
+  };
+
+  /* Rewrites the two labels in place for the current view.
+     METRICS is read by the KPI tiles, both charts, the table, the geo panel and
+     the 3D axis pickers, so changing it here is what makes every one of them
+     agree. Called before each render rather than once at boot, because the view
+     can change without a reload. */
+  function applyConversionLabels(){
+    var w = CONVERSION_WORDS[state.view] || CONVERSION_WORDS.sybago;
+    METRICS.registrations.label = w.label;
+    METRICS.registrations.short = w.short;
+    METRICS.costPerRegistration.label = w.costLabel;
+    METRICS.costPerRegistration.short = w.costShort;
+
+    var sum = $('conv-note-sum'), body = $('conv-note-body');
+    if(sum) sum.textContent = 'Why a ' + w.one + ' count can look low';
+    // Redrawn from whatever the last response carried, since the wording it
+    // uses is per-view and the view can change without a reload.
+    renderPixelNote(lastPixelTotal);
+    if(body){
+      body.textContent =
+        'Meta keeps attributing conversions for up to about three days, so today\'s and ' +
+        'yesterday\'s ' + w.one + ' counts rise after the fact. Meta also only counts a ' +
+        w.one + ' it can tie back to an ad interaction — anyone who arrives on a different ' +
+        'device, or with tracking off, converts without ever appearing here. Expect this ' +
+        'figure to sit below the count you keep yourself.';
+    }
+  }
+
   /** Reduce a name to the words that carry meaning. */
   function nameWords(x){
     return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
@@ -2145,134 +2200,186 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return rest || ad.name;
   }
 
-  function renderAdPicker(){
-    var chips = $('ad-chips'), sel = $('ad-add'), btn = $('ad-add-btn');
-    if(!chips) return;
+  /* ------------------------------------------------------- scope tree ----
+     Every ad set in the selected campaign, as a toggle. Switching one on
+     reveals its ads beneath it, also as toggles.
 
-    selectedAds = currentScope().ads;
-    chips.innerHTML = '';
-    selectedAds.forEach(function(ad, i){
-      var chip = document.createElement('span');
-      chip.className = 'ad-chip';
-      var label = document.createElement('span');
-      label.textContent = adLabel(ad);
-      label.title = ad.name + ' (id ' + ad.id + ')';
-      var x = document.createElement('button');
-      x.type = 'button';
-      x.setAttribute('aria-label', 'Remove ' + ad.name);
-      x.innerHTML = '<svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
-      x.addEventListener('click', function(){
-        currentScope().ads.splice(i, 1);
-        selectedAds = currentScope().ads;
-        renderAdPicker();
-        renderSeriesRows();
-        refreshAll();
+     Nothing here is a new selection model: it writes the same scope.adsets and
+     scope.ads the dropdowns wrote, so the chart, the table and the request
+     builder are unchanged. What changed is that the choices are visible instead
+     of being hidden one dropdown-open away, and that an ad now sits under the
+     ad set it belongs to rather than in one flat list of every ad in the
+     campaign. */
+
+  /* The ads belonging to ONE ad set. adsInScope() answers for the whole
+     selection at once, which cannot say which ad set an ad came from. */
+  function adsUnder(adsetId){
+    var out = [];
+    visibleCampaigns().forEach(function(c){
+      (c.adsets || []).forEach(function(a){
+        if(a.id !== adsetId) return;
+        (a.ads || []).forEach(function(ad){
+          out.push({ id: ad.id, name: assetLabel(ad), adsetName: a.name });
+        });
       });
-      chip.appendChild(label); chip.appendChild(x);
-      chips.appendChild(chip);
     });
-
-    var chosen = {};
-    selectedAds.forEach(function(a){ chosen[a.id] = true; });
-    var available = adsInScope().filter(function(a){ return !chosen[a.id]; });
-
-    sel.innerHTML = '';
-    if(!available.length){
-      sel.appendChild(opt('', selectedAds.length ? 'No other ads in scope' : 'No ads in this range'));
-      sel.disabled = true;
-      btn.disabled = true;
-    } else {
-      sel.appendChild(opt('', 'Choose an ad…'));
-      // Ad names repeat often — duplicates in the list look like a bug and
-      // give no way to tell which one is being added.
-      var seen = {};
-      available.forEach(function(a){ seen[a.name] = (seen[a.name] || 0) + 1; });
-      available.forEach(function(a){
-        var label = seen[a.name] > 1 ? a.name + ' · …' + a.id.slice(-4) : a.name;
-        sel.appendChild(opt(a.id, label));
-      });
-      sel.disabled = false;
-      btn.disabled = false;
-    }
-
-    $('ad-hint').textContent =
-      selectedAds.length > 1
-        ? selectedAds.length + ' ads compared. The chart draws one line each and the panels break down by ad.'
-        : selectedAds.length === 1
-          ? 'Scoped to one ad. Add another to compare them side by side.'
-          : 'With no ads added, figures are for the whole ad set.';
+    return out;
   }
 
-  /* ---------------------------------------------------- ad set picker ----
-     Same control as the ads below it, one level up: chips for what is being
-     compared, a dropdown of what else is available. Nothing selected means the
-     whole campaign; one means a scope; two or more means a comparison. */
-  function renderAdsetPicker(){
-    var chips = $('adset-chips'), sel = $('adset-add'), btn = $('adset-add-btn');
-    if(!chips) return;
-    chips.innerHTML = '';
+  var TICK = '<svg viewBox="0 0 20 20" width="11" height="11" fill="none" stroke="currentColor" ' +
+             'stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+             '<path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>';
+
+  /* One pill. `on` drives aria-pressed, which is both the accessible state and
+     the CSS hook — there is no second copy of the state to fall out of step. */
+  function togglePill(entity, on, extraClass, label, onPress){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tog ' + extraClass;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.title = entity.name + ' (id ' + entity.id + ')';
+    var mark = document.createElement('span');
+    mark.className = 'mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.innerHTML = TICK;
+    var text = document.createElement('span');
+    text.textContent = label;
+    b.appendChild(mark);
+    b.appendChild(text);
+    b.addEventListener('click', onPress);
+    return b;
+  }
+
+  function treeNote(text){
+    var p = document.createElement('p');
+    p.className = 'tree-empty';
+    p.textContent = text;
+    return p;
+  }
+
+  function renderScopeTree(){
+    var host = $('scope-tree');
+    if(!host) return;
     var sc = currentScope();
-    var picked = sc.adsets || [];
+    sc.adsets = sc.adsets || [];
+    sc.ads = sc.ads || [];
+    selectedAds = sc.ads;
 
-    picked.forEach(function(set, i){
-      var chip = document.createElement('span');
-      chip.className = 'ad-chip';
-      var label = document.createElement('span');
-      label.textContent = set.name;
-      label.title = set.name + ' (id ' + set.id + ')';
-      var x = document.createElement('button');
-      x.type = 'button';
-      x.setAttribute('aria-label', 'Remove ' + set.name);
-      x.innerHTML = '<svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8"/></svg>';
-      x.addEventListener('click', function(){
-        sc.adsets.splice(i, 1);
-        // Ads belong to an ad set that is no longer in scope.
-        pruneAds();
-        renderAdsetPicker();
-        renderAdPicker();
-        renderSeriesRows();
-        refreshAll();
-      });
-      chip.appendChild(label); chip.appendChild(x);
-      chips.appendChild(chip);
-    });
+    host.innerHTML = '';
 
-    var chosen = {};
-    picked.forEach(function(a){ chosen[a.id] = true; });
-    var available = adsetsInScope().filter(function(a){ return !chosen[a.id]; });
-
-    sel.innerHTML = '';
-    if(!available.length){
-      sel.appendChild(opt('', picked.length ? 'No other ad sets in scope' : 'No ad sets'));
-      sel.disabled = true; btn.disabled = true;
-    } else {
-      sel.appendChild(opt('', 'Choose an ad set…'));
-      available.forEach(function(a){ sel.appendChild(opt(a.id, a.name)); });
-      sel.disabled = false; btn.disabled = false;
+    var sets = adsetsInScope();
+    if(!sets.length){
+      host.appendChild(treeNote(sc.campaignId
+        ? 'This campaign has no ad sets.'
+        : 'Choose a campaign to see its ad sets.'));
+      updateScopeHint();
+      return;
     }
 
-    $('adset-hint').textContent =
-      picked.length > 1
-        ? picked.length + ' ad sets compared. The chart draws one line each for a single metric.'
-        : picked.length === 1
-          ? 'Scoped to one ad set. Add another to compare them side by side.'
-          : 'With no ad sets added, figures are for the whole campaign.';
+    var setOn = {};
+    sc.adsets.forEach(function(a){ setOn[a.id] = true; });
+    var adOn = {};
+    sc.ads.forEach(function(a){ adOn[a.id] = true; });
+
+    /* Ad labels are trimmed against every ad ON SCREEN, not against the
+       siblings inside one ad set. Trimming per ad set made an ad set holding
+       one ad show its full "Dave - Ad 3 - Text Offer - Static" next to a
+       neighbour trimmed to "Image" — there was nothing for a lone ad to differ
+       from, so nothing came off. Judged across the whole tree the labels come
+       out consistent, and still never ambiguous: a wider list can only share a
+       SHORTER prefix, so this trims less, never more. */
+    var shownAds = [];
+    sets.forEach(function(set){ if(setOn[set.id]) shownAds = shownAds.concat(adsUnder(set.id)); });
+
+    sets.forEach(function(set){
+      var on = !!setOn[set.id];
+      var row = document.createElement('div');
+      row.className = 'tree-row';
+      // Names in one campaign share a long prefix; trimmed against each other
+      // so the pills differ where the names differ, full name on the title.
+      row.appendChild(togglePill(set, on, 'tog-set', adLabel(set, sets), function(){
+        toggleAdset(set, !on);
+      }));
+      host.appendChild(row);
+
+      if(!on) return;
+
+      var ads = adsUnder(set.id);
+      var kids = document.createElement('div');
+      kids.className = 'tree-kids';
+      if(!ads.length){
+        kids.appendChild(treeNote('No ads in this ad set.'));
+      } else {
+        ads.forEach(function(ad){
+          var lit = !!adOn[ad.id];
+          kids.appendChild(togglePill(ad, lit, 'tog-ad', adLabel(ad, shownAds), function(){
+            toggleAd(ad, !lit);
+          }));
+        });
+      }
+      host.appendChild(kids);
+    });
+
+    updateScopeHint();
   }
 
-  function addSelectedAdset(){
-    var sel = $('adset-add'), id = sel.value;
-    if(!id) return;
-    var set = adsetsInScope().filter(function(a){ return a.id === id; })[0];
-    if(!set) return;
-    currentScope().adsets.push(set);
+  function toggleAdset(set, on){
+    var sc = currentScope();
+    if(on){
+      if(!sc.adsets.some(function(a){ return a.id === set.id; })){
+        sc.adsets.push({ id: set.id, name: set.name });
+      }
+    } else {
+      sc.adsets = sc.adsets.filter(function(a){ return a.id !== set.id; });
+    }
+    // Switching an ad set off leaves its ads pointing at a scope that no longer
+    // contains them, which would filter every figure to nothing.
     pruneAds();
-    renderAdsetPicker();
-    renderAdPicker();
-    // Comparing ad sets collapses the chart to one metric, so the metric chips
-    // have to be rebuilt as the count crosses that line.
+    renderScopeTree();
+    // Crossing one-versus-several ad sets changes how many metrics the chart
+    // can draw, so the metric chips are rebuilt rather than left stale.
     renderSeriesRows();
     refreshAll();
   }
+
+  function toggleAd(ad, on){
+    var sc = currentScope();
+    if(on){
+      if(!sc.ads.some(function(a){ return a.id === ad.id; })){
+        sc.ads.push({ id: ad.id, name: ad.name });
+      }
+    } else {
+      sc.ads = sc.ads.filter(function(a){ return a.id !== ad.id; });
+    }
+    selectedAds = sc.ads;
+    renderScopeTree();
+    renderSeriesRows();
+    refreshAll();
+  }
+
+  function updateScopeHint(){
+    var el = $('scope-hint');
+    if(!el) return;
+    var sc = currentScope();
+    var sets = (sc.adsets || []).length, ads = (sc.ads || []).length;
+
+    if(ads > 1){
+      el.textContent = ads + ' ads compared. The chart draws one line each and the panels break down by ad.';
+    } else if(ads === 1){
+      el.textContent = 'Scoped to one ad. Switch on another to compare them side by side.';
+    } else if(sets > 1){
+      el.textContent = sets + ' ad sets compared. The chart draws one line each for a single metric.';
+    } else if(sets === 1){
+      el.textContent = 'Scoped to one ad set. Switch on its ads to go narrower, or another ad set to compare.';
+    } else {
+      el.textContent = 'With nothing selected, figures are for the whole campaign.';
+    }
+  }
+
+  /* Both names survive because a dozen call sites use them, and both now draw
+     the one tree — the levels are no longer separate controls. */
+  function renderAdsetPicker(){ renderScopeTree(); }
+  function renderAdPicker(){ renderScopeTree(); }
 
   /* Drop any selected ad the current scope no longer contains. Leaving one in
      would filter the figures to an ad outside the ad sets on screen. */
@@ -2282,20 +2389,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     adsInScope().forEach(function(a){ inScope[a.id] = true; });
     sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
     selectedAds = sc.ads;
-  }
-
-  function addSelectedAd(){
-    var sel = $('ad-add'), id = sel.value;
-    if(!id) return;
-    var ad = adsInScope().filter(function(a){ return a.id === id; })[0];
-    if(!ad) return;
-    currentScope().ads.push(ad);
-    selectedAds = currentScope().ads;
-    renderAdPicker();
-    // The chips relabel themselves once several ads are being compared, so they
-    // have to be redrawn when the ad count crosses that line.
-    renderSeriesRows();
-    refreshAll();
   }
 
   /* ================================ state ================================= */
@@ -2322,12 +2415,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     sybago: { label:'Montara Forge', sub:'Montara Forge — Sybago client', eyebrow:'Agency client' }
   };
 
-  /* Meta's own pipeline is the floor on freshness here — spend and impressions
-     land within minutes, conversions keep filling in for up to about three
-     days. Polling faster than this would burn rate limit to redraw identical
-     numbers, so three minutes is the interval and a manual Refresh is always
-     available for the impatient case. */
-  var AUTO_MS = 3 * 60 * 1000;
+  /* How often to poll, decided by the range on screen rather than fixed.
+     The old single three-minute interval was too slow for a campaign running
+     right now and pure waste for a window that closed last month.
+
+     Meta's pipeline is the floor: spend and impressions land within a couple of
+     minutes, conversions keep filling in for about three days, and a day older
+     than that will not change again no matter how often it is asked for. */
+  var AUTO_LIVE_MS   =      60 * 1000;   // the range includes today
+  var AUTO_RECENT_MS =  3 * 60 * 1000;   // conversions still backfilling
+  var AUTO_OLD_MS    = 15 * 60 * 1000;   // settled; polling only burns rate limit
+
+  function autoDelay(){
+    var until = resolveRange(globalRange).until;
+    var today = daysAgo(0);
+    if(until >= today) return AUTO_LIVE_MS;
+    // ISO dates, so a plain string compare orders them correctly.
+    return until >= daysAgo(3) ? AUTO_RECENT_MS : AUTO_OLD_MS;
+  }
   var autoTimer = null;
   var isLoading = false;
   // Set when a refresh is asked for while one is already running — a fast tab
@@ -2550,10 +2655,6 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     renderSeriesRows();
     refreshAll();
   });
-  $('adset-add-btn').addEventListener('click', addSelectedAdset);
-  $('adset-add').addEventListener('change', function(){ if(this.value) addSelectedAdset(); });
-  $('ad-add-btn').addEventListener('click', addSelectedAd);
-  $('ad-add').addEventListener('change', function(){ if(this.value) addSelectedAd(); });
 
   /* The picker lists everything that EXISTS, which is what makes a new ad set
      appear before it has spent — but it also means old paused work is in the
@@ -2605,8 +2706,41 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return d.rows||[];
   }
 
+  /* What the PIXEL recorded, beside what Meta could attribute to an ad.
+     These are two different datasets, not two attempts at one number: Insights
+     reports only conversions it can tie back to an ad interaction, Events
+     Manager reports every event the pixel received. The gap between them is
+     the answer to "Events Manager says five and this says two", so it is shown
+     rather than reconciled away. */
+  var lastPixelTotal = null, lastAttributed = 0;
+
+  /* Called with the figures when a response lands, and with nothing when only
+     the wording needs redrawing — switching view relabels the sentence without
+     refetching. */
+  function renderPixelNote(p, attributed){
+    if(arguments.length){ lastPixelTotal = p || null; lastAttributed = attributed || 0; }
+    var el = $('pixel-note');
+    if(!el) return;
+    var w = CONVERSION_WORDS[state.view] || CONVERSION_WORDS.sybago;
+    p = lastPixelTotal;
+
+    // No figure is not the same as a figure of zero, so nothing is claimed.
+    if(!p || p.total === null || p.total === undefined){ el.hidden = true; return; }
+
+    var gap = p.total - lastAttributed;
+    el.hidden = false;
+    el.textContent =
+      'Your pixel recorded ' + p.total + ' ' + (p.total === 1 ? w.one : w.label.toLowerCase()) +
+      ' over this range, against ' + lastAttributed + ' Meta could attribute to an ad' +
+      (gap > 0
+        ? ' — the other ' + gap + ' fired the pixel without Meta being able to tie ' +
+          (gap === 1 ? 'it' : 'them') + ' back to an ad click.'
+        : '.');
+  }
+
   function renderKpis(d){
     var t=d.totals||{};
+    renderPixelNote(d.pixelTotal, t.registrations);
     var keys=KPI_KEYS;
     $('kpis').innerHTML = keys.map(function(k){
       var m=METRICS[k], v=t[k], muted=(v==null||v===0), pair=(k==='impressions');
@@ -3559,6 +3693,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      the root element, the headings, and the browser chrome colour. Charts pick
      their colours up on the next render, which a view switch always triggers. */
   function applyView(){
+    // Before anything paints: the two accounts call their conversion different
+    // things, and every label downstream reads METRICS.
+    applyConversionLabels();
     var m = VIEW_META[state.view] || VIEW_META.dave;
     document.documentElement.setAttribute('data-view', state.view);
     $('account-line').textContent = m.sub;
@@ -3671,9 +3808,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var adst = $('sb-adset');
     if(adst){
       var picked = (currentScope().adsets || []);
+      var pickedAds = (currentScope().ads || []);
       adst.innerHTML = '';
       adst.appendChild(opt('',
-        picked.length === 0 ? 'All ad sets'
+        pickedAds.length > 1 ? pickedAds.length + ' ads compared'
+        : pickedAds.length === 1 ? pickedAds[0].name
+        : picked.length === 0 ? 'All ad sets'
         : picked.length === 1 ? picked[0].name
         : picked.length + ' ad sets compared'));
       adst.disabled = true;
@@ -5306,7 +5446,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       // the moment it is looked at again.
       if(document.visibilityState === 'visible') refreshAll();
       else scheduleAuto();
-    }, AUTO_MS);
+    }, autoDelay());
   }
 
   /* paintOnly is for boot, where the trailing refreshAll() already loads —
@@ -5316,7 +5456,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var b=$('live-toggle');
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
     $('live-label').textContent = on ? 'Live' : 'Paused';
-    b.title = on ? 'Refreshing every 3 minutes. Click to pause.' : 'Auto-refresh paused. Click to resume.';
+    b.title = on
+      ? 'Refreshing every ' + Math.round(autoDelay() / 60000) + ' minute' +
+        (autoDelay() > 60000 ? 's' : '') + '. Click to pause.'
+      : 'Auto-refresh paused. Click to resume.';
     if(paintOnly) return;
     if(on) refreshAll(); else if(autoTimer){ clearTimeout(autoTimer); autoTimer=null; }
   }

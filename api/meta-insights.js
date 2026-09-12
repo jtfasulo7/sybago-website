@@ -42,6 +42,10 @@ const VIEWS = {
        events from unrelated older campaigns, so naming the family is what stops
        those being added to the Skool figure. */
     conversion: 'registration',
+    /* The event name as it reads in Events Manager, which is NOT the Insights
+       action type. Optional: without it the pixel total is simply not shown. */
+    pixelEvent: 'CompleteRegistration',
+    pixelEnv: ['META_PIXEL_ID_DAVE', 'META_PIXEL_ID'],
   },
   sybago: {
     label: 'Montara Forge',
@@ -50,6 +54,8 @@ const VIEWS = {
     masterOnly: true,
     // The contact form fires Lead. There is no registration event here at all.
     conversion: 'lead',
+    pixelEvent: 'Lead',
+    pixelEnv: ['META_PIXEL_ID_SYBAGO', 'META_PIXEL_ID'],
   },
 };
 const DEFAULT_VIEW = 'dave';
@@ -334,6 +340,46 @@ function buildEdgeUrl(accountId, edge, params, token) {
   return u.toString();
 }
 
+/** Pixels on an ad account, so an id need not be pasted into an env var. */
+function buildPixelStatsUrl(pixelId, range, token) {
+  const u = new URL(`https://graph.facebook.com/${API_VERSION}/${pixelId}/stats`);
+  u.searchParams.set('aggregation', 'event');
+  // /stats takes seconds. The window is the one Meta RESOLVED for the charts,
+  // so the two figures never cover different days.
+  u.searchParams.set('start_time', String(Math.floor(Date.parse(range.since + 'T00:00:00Z') / 1000)));
+  u.searchParams.set('end_time', String(Math.floor(Date.parse(range.until + 'T23:59:59Z') / 1000)));
+  u.searchParams.set('access_token', token);
+  return u.toString();
+}
+
+/**
+ * Every event the pixel received in the window, attributed or not.
+ *
+ * Deliberately NOT merged into `registrations`: one counts what the ads
+ * produced and the other what the business got, and a single blended figure
+ * would answer neither.
+ */
+function sumPixelEvent(payload, eventName) {
+  const buckets = (payload && payload.data) || [];
+  if (!buckets.length) return { total: null, reason: 'no-events' };
+
+  let total = 0;
+  let matched = false;
+  for (const bucket of buckets) {
+    for (const row of bucket.data || []) {
+      const name = row.value ?? row.event ?? row.name ?? row.key;
+      const count = Number(row.count ?? row.value_count ?? row.total);
+      if (name == null || !Number.isFinite(count)) continue;
+      if (String(name).toLowerCase() === String(eventName).toLowerCase()) {
+        total += count;
+        matched = true;
+      }
+    }
+  }
+  if (!matched) return { total: null, reason: 'event-not-found' };
+  return { total, reason: null };
+}
+
 /* --------------------------------------------------------------- shaping */
 
 const num = (v) => {
@@ -530,6 +576,40 @@ export default async function handler(req, res) {
           'Performance, or set a separate token for that view.';
 
     return res.status(200).json({ summary, views });
+  }
+
+  /* ?debug=pixel — the raw /stats payload and the pixels on the account.
+     The row shape is undocumented; this exists to read it off a real account
+     rather than infer it. */
+  if (req.query.debug === 'pixel') {
+    const cfg = VIEWS[view];
+    try {
+      const list = await fetchWithBackoff(
+        buildEdgeUrl(accountId, 'adspixels', { fields: 'id,name', limit: '25' }, token),
+        { env: envNames },
+      );
+      const pixels = (list.json.data || []).map((p) => ({ id: p.id, name: p.name || null }));
+      const configured = firstEnv(cfg.pixelEnv || []).value;
+      const pixelId = configured || (pixels[0] && pixels[0].id) || null;
+      if (!pixelId) {
+        return res.status(200).json({ view, pixels, message: 'No pixel is attached to this ad account.' });
+      }
+      const raw = await fetchWithBackoff(
+        buildPixelStatsUrl(pixelId, { since, until }, token), { env: envNames },
+      );
+      return res.status(200).json({
+        view,
+        pixels,
+        pixelId,
+        pixelIdSource: configured ? firstEnv(cfg.pixelEnv).envName : 'discovered from the ad account',
+        expectedEvent: cfg.pixelEvent || null,
+        range: { since, until },
+        parsed: sumPixelEvent(raw.json, cfg.pixelEvent || 'Lead'),
+        raw: raw.json,
+      });
+    } catch (e) {
+      return res.status(200).json({ view, error: scrubSecrets(e.message || String(e)) });
+    }
   }
 
   // ?debug=meta-assets — the Facebook Pages each configured Meta token can act
@@ -869,18 +949,28 @@ export default async function handler(req, res) {
         { env: envNames },
       ),
       fetchWithBackoff(
-        /* Reach and frequency for the WHOLE window, deduplicated.
-           These two cannot be derived from anything else already fetched.
-           Reach counts PEOPLE, so summing the daily series counts somebody
-           reached on Monday and again on Tuesday twice, and the total climbs
-           past impressions — impossible, and completely plausible-looking on a
-           tile. Summing the per-entity breakdown double-counts the same way,
-           across ad sets instead of across days.
-           Only Meta can deduplicate, and it only does so for the period it is
-           asked about: one row, no time_increment, no level breakdown. */
+        /* THE headline row: the whole window, aggregated by Meta itself.
+           Every KPI tile reads this rather than a sum of the daily series.
+
+           Two reasons, and both matter.
+
+           FRESHNESS. time_increment=1 is materialised separately inside Meta
+           from the aggregate, and the current day's row arrives later and keeps
+           settling longer. Summing it meant the tiles trailed Ads Manager by
+           however long Meta took to write today's row.
+
+           CORRECTNESS. Reach counts PEOPLE, so summing the daily series counts
+           somebody reached on Monday and again on Tuesday twice, and the total
+           climbs past impressions — impossible, and entirely plausible-looking
+           on a tile. Only Meta can deduplicate, and it only does so for the
+           period it is asked about: one row, no time_increment, no level
+           breakdown.
+
+           The same request already existed for reach alone. Asking it for the
+           full field set costs nothing extra. */
         buildUrl(accountId, {
           level: 'account',
-          fields: 'reach,frequency,impressions',
+          fields: BASE_FIELDS.join(','),
           ...period,
           limit: '1',
           ...attribution,
@@ -959,11 +1049,41 @@ export default async function handler(req, res) {
       ? { since: dates[0], until: dates[dates.length - 1] }
       : { since, until };
 
+    /* The pixel's own count, over the range Meta resolved for the charts.
+       Wrapped so a pixel problem can never take the dashboard down with it —
+       this is context beside the headline figure, not the figure itself. */
+    let pixelTotal = null;
+    const pixelCfg = VIEWS[view];
+    if (pixelCfg.pixelEvent) {
+      try {
+        let pixelId = firstEnv(pixelCfg.pixelEnv || []).value;
+        if (!pixelId) {
+          const list = await fetchWithBackoff(
+            buildEdgeUrl(accountId, 'adspixels', { fields: 'id', limit: '5' }, token),
+            { env: envNames },
+          );
+          pixelId = ((list.json.data || [])[0] || {}).id || null;
+        }
+        if (pixelId) {
+          const raw = await fetchWithBackoff(
+            buildPixelStatsUrl(pixelId, resolved, token), { env: envNames },
+          );
+          const sum = sumPixelEvent(raw.json, pixelCfg.pixelEvent);
+          pixelTotal = { event: pixelCfg.pixelEvent, total: sum.total, reason: sum.reason, pixelId };
+        }
+      } catch (e) {
+        pixelTotal = { event: pixelCfg.pixelEvent, total: null, reason: 'error', message: scrubSecrets(e.message || String(e)) };
+      }
+    }
+
     // Totals are summed from the daily series rather than the breakdown, so the
     // headline numbers stay correct regardless of which level is selected.
     // Each metric is summed only against itself. Nothing is combined across
     // action types.
-    const totals = daily.reduce(
+    /* Summed from the daily series. No longer the headline figure — kept as
+       the fallback for a window Meta returns no aggregate row for, where a sum
+       of nothing is a truthful zero but an absent row is not. */
+    const summed = daily.reduce(
       (acc, d) => {
         acc.spend += d.spend;
         acc.impressions += d.impressions;
@@ -979,14 +1099,30 @@ export default async function handler(req, res) {
         registrations: 0, registrationValue: 0, landingPageViews: 0,
       },
     );
-    /* Deduplicated, from its own request — never summed. A missing row means
-       no delivery in the window, which is a real zero rather than a fault. */
+
+    /* A missing row means no delivery in the window — a real zero rather than
+       a fault, and the only case where the daily sum answers instead. */
     const dedupRow = (deduped.json.data || [])[0] || null;
-    totals.reach = dedupRow ? num(dedupRow.reach) : 0;
-    /* Frequency is impressions per person. Meta returns it, but recomputing it
-       from two figures already on the tile keeps it consistent with them: a
-       returned frequency answers for its own row, and the impressions here are
-       summed from the daily series. */
+    const agg = dedupRow ? shapeRow(dedupRow, 'account', conversionFamily) : null;
+    const totalsSource = agg ? 'aggregate' : 'daily-sum';
+
+    const totals = agg
+      ? {
+          spend: agg.spend,
+          impressions: agg.impressions,
+          clicks: agg.clicks,
+          linkClicks: agg.linkClicks,
+          registrations: agg.registrations || 0,
+          registrationValue: agg.registrationValue || 0,
+          landingPageViews: agg.landingPageViews || 0,
+        }
+      : summed;
+
+    totals.reach = agg ? agg.reach : 0;
+    /* Frequency is impressions per person. Meta returns its own, but deriving
+       it from the two figures actually on the tiles keeps all three consistent
+       — a tile reading 1.2 beside numbers that divide to 1.4 looks like a bug
+       whichever one is right. */
     totals.frequency = totals.reach ? totals.impressions / totals.reach : 0;
 
     totals.ctr = totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0;
@@ -1052,6 +1188,14 @@ export default async function handler(req, res) {
       // Which conversion event this account is scored on. Fixed by the account,
       // reported so the figure can never be read as the other kind.
       conversionFamily,
+      /* 'aggregate' when the totals came from Meta's own one-row figure for
+         the window — the fresh path, and the normal one. 'daily-sum' when Meta
+         returned no aggregate row and the daily series had to answer. */
+      totalsSource,
+      /* What the PIXEL saw, against what Insights could attribute. Null
+         whenever it could not be read, which the UI shows as unavailable
+         rather than as zero. */
+      pixelTotal,
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,
