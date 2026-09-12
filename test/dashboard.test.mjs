@@ -867,11 +867,55 @@ const serve = (rows) => async (u) =>
   });
 
   t('the alias that supplied the figure is named', () =>
-    assert.equal(r.body.rows[0].registrationType, 'offsite_conversion.fb_pixel_lead'));
+    // The unified total, not a subset of it — see the next block for why.
+    assert.equal(r.body.rows[0].registrationType, 'lead'));
 
   t('leads and landing page views stay separate figures', () => {
     assert.equal(r.body.totals.landingPageViews, 41);
     assert.notEqual(r.body.totals.registrations, 43);
+  });
+}
+
+{
+  /* THE BUG THIS FIXED: the dashboard read low on a real account.
+     `offsite_conversion.fb_pixel_lead` counts WEBSITE leads only and
+     `onsite_conversion.lead_grouped` counts instant-form leads only, while
+     `lead` is Meta's unified total and the number Ads Manager shows. With a
+     subset first, an account running both reported just the website half and
+     said nothing about the rest. */
+  globalThis.fetch = serve([
+    rowWith([
+      { action_type: 'lead', value: '5' },                              // Ads Manager's figure
+      { action_type: 'offsite_conversion.fb_pixel_lead', value: '2' },  // website only
+      { action_type: 'onsite_conversion.lead_grouped', value: '3' },    // instant forms only
+    ]),
+  ]);
+
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+
+  t('a mixed lead account reports the unified total, not the website half', () => {
+    assert.equal(r.body.totals.registrations, 5);
+    assert.notEqual(r.body.totals.registrations, 2);
+  });
+
+  t('and does not sum the subsets into a double count', () =>
+    // 5 + 2 + 3 = 10 would be the same lead counted three times.
+    assert.notEqual(r.body.totals.registrations, 10));
+}
+
+{
+  // An account that only ever reports the pixel alias still works — the
+  // unified name simply is not present to be preferred.
+  globalThis.fetch = serve([
+    rowWith([{ action_type: 'offsite_conversion.fb_pixel_lead', value: '4' }]),
+  ]);
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+
+  t('a website-only account falls through to the pixel alias', () => {
+    assert.equal(r.body.totals.registrations, 4);
+    assert.equal(r.body.rows[0].registrationType, 'offsite_conversion.fb_pixel_lead');
   });
 }
 

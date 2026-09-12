@@ -130,18 +130,36 @@ const LEVEL_FIELDS = {
  * or the other, so first-match resolves each correctly, and 'registrationType'
  * on the response names the alias that supplied the figure.
  *
- * ORDER IS THE CONTRACT: pixel-specific names first, because they are the ones
- * tied to a conversion the advertiser deliberately configured. The generic
- * rollups follow as a fallback for accounts with no pixel event of their own.
+ * ORDER IS THE CONTRACT, and it is decided per family rather than by a single
+ * rule. Registrations lead with the pixel-specific name because every alias was
+ * verified to agree. Leads lead with the UNIFIED `lead` instead, because there
+ * the aliases are subsets of each other and the specific ones under-report —
+ * see LEAD_TYPES.
  */
 const REGISTRATION_TYPES = [
   'offsite_conversion.fb_pixel_complete_registration',
   'complete_registration',
 ];
 
+/**
+ * ORDER MATTERS, and it is the opposite of the registration list's.
+ *
+ * `lead` is Meta's UNIFIED total and is what the Leads column in Ads Manager
+ * reports — the number the business counts against. The others are each a
+ * subset: `offsite_conversion.fb_pixel_lead` is website leads only, and
+ * `onsite_conversion.lead_grouped` is Facebook instant-form leads only.
+ *
+ * Putting a subset first is how the dashboard came to read low: an account
+ * running both website and instant-form leads reported only the website half,
+ * with nothing on screen to say the rest had been dropped.
+ *
+ * Still first-match, never a sum — `lead` already contains the others, so
+ * adding them would count the same lead more than once.
+ */
 const LEAD_TYPES = [
-  'offsite_conversion.fb_pixel_lead',
   'lead',
+  'offsite_conversion.fb_pixel_lead',
+  'onsite_conversion.lead_grouped',
   'onsite_web_lead',
 ];
 
