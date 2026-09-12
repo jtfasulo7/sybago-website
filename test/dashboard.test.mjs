@@ -1396,5 +1396,111 @@ console.log('\nA scoped figure must not read as a total');
       u.includes('level=account') && !u.includes('time_increment') && u.includes('filtering'))));
 }
 
+
+/* ------------------------------------------------- rolling date windows -- */
+console.log('\nRolling windows belong to Meta, not to the caller');
+
+/* The dashboard read "Showing 2026-09-06 to 2026-09-12" on the evening of the
+   11th — a day that had not happened. iso() was toISOString().slice(0,10),
+   which is UTC, so after 20:00 Eastern it already reported tomorrow. Every
+   computed window shifted forward a day: "last 7 days" dropped a real day of
+   delivery off the start and added a nonexistent one to the end. */
+
+{
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights({ method: 'GET', query: { preset: 'last_7d' }, headers: { cookie: validCookie } }, r);
+
+  t('a rolling preset reaches Meta as a preset, not as computed dates', () => {
+    const series = seen.find((u) => u.includes('time_increment=1'));
+    assert.match(series, /date_preset=last_7d/);
+    assert.ok(!/time_range/.test(series), 'time_range must not also be sent');
+  });
+
+  t('the window reported back is the one Meta answered for', () =>
+    // Read off the returned rows, never echoed from the request — otherwise
+    // the x-axis is drawn against dates the data does not belong to.
+    assert.equal(r.body.range.since, DAILY[0].date_start));
+}
+
+{
+  // Only the known presets. Anything else is a caller trying its luck, and a
+  // date_preset Meta does not recognise fails the whole request.
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { preset: 'last_3d; DROP', since: '2026-09-01', until: '2026-09-07' },
+      headers: { cookie: validCookie } },
+    r,
+  );
+  t('an unknown preset is ignored and the explicit dates are used', () => {
+    const series = decodeURIComponent(seen.find((u) => u.includes('time_increment=1')));
+    assert.ok(!/date_preset/.test(series), 'no date_preset should be sent');
+    assert.match(series, /2026-09-01/);
+  });
+}
+
+{
+  /* The anchor: what the filtered tiles are a subset of. "Leads 1" gives no way
+     to tell a quiet day apart from a broken page unless the whole-account
+     figure is beside it. */
+  globalThis.fetch = async (u) => {
+    const url = String(u);
+    const ok = (data) => ({ ok: true, headers: { get: () => null }, json: async () => ({ data }) });
+    if (/\/campaigns\b/.test(url)) return ok([]);
+    if (/date_preset=maximum/.test(url) && !/filtering/.test(url)) {
+      // Unfiltered lifetime: three leads across everything.
+      return ok([{ ...DAILY[0], spend: '221.92',
+        actions: [{ action_type: 'lead', value: '3' }] }]);
+    }
+    return ok(DAILY);
+  };
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'sybago', adsetIds: '120256163870610583' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('a filtered request also fetches the unfiltered lifetime anchor', () => {
+    assert.ok(r.body.lifetime, 'lifetime anchor missing');
+    assert.equal(r.body.lifetime.registrations, 3);
+  });
+
+  t('the anchor is NOT filtered by the current scope', () =>
+    // If it were, it would report the same number as the tiles and explain
+    // nothing at all.
+    assert.notEqual(r.body.lifetime.registrations, r.body.totals.registrations));
+}
+
+{
+  // Already unfiltered lifetime: the anchor would be the identical request, so
+  // it is not made.
+  let maximumCalls = 0;
+  globalThis.fetch = async (u) => {
+    const url = String(u);
+    if (/date_preset=maximum/.test(url) && !/time_increment/.test(url)) maximumCalls++;
+    return /\/campaigns\b/.test(url)
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights({ method: 'GET', query: { preset: 'maximum' }, headers: { cookie: validCookie } }, r);
+  t('an unfiltered lifetime view does not fetch a duplicate anchor', () =>
+    assert.equal(r.body.lifetime, null));
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

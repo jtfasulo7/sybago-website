@@ -495,9 +495,14 @@ function shapeRow(r, level, family) {
   };
 }
 
+/* The LOCAL calendar date n days back, not the UTC one.
+   toISOString() is UTC, so after 20:00 in New York it already reports
+   tomorrow — which put a future date on the dashboard and shifted every
+   computed window forward by a day. */
 function isoDaysAgo(n) {
   const d = new Date(Date.now() - n * 86400000);
-  return d.toISOString().slice(0, 10);
+  const pad = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -789,6 +794,16 @@ export default async function handler(req, res) {
   // timezone, which is also the timezone Ads Manager reports in.
   const useToday = req.query.preset === 'today';
 
+  /* Rolling windows are resolved by META, in the ad account's timezone.
+     Computing "the last 7 days" from the caller's clock asks the wrong
+     question whenever the browser and the ad account disagree about what day
+     it is — which, for a US account viewed in the evening, is every evening.
+     Meta's last_Nd presets are evaluated in the account's own timezone, the
+     same one Ads Manager reports in. Only this fixed list is honoured, so a
+     query string can never inject an arbitrary preset. */
+  const ROLLING_PRESETS = new Set(['last_7d', 'last_14d', 'last_30d', 'last_90d']);
+  const rollingPreset = ROLLING_PRESETS.has(req.query.preset) ? req.query.preset : null;
+
   /* Lifetime is Meta's own `maximum` preset rather than a date range we invent.
      Asking for "since the beginning" by guessing a start date means guessing:
      too early and every chart carries months of empty axis, too late and the
@@ -802,7 +817,9 @@ export default async function handler(req, res) {
     ? { date_preset: 'today' }
     : useMaximum
       ? { date_preset: 'maximum' }
-      : { time_range };
+      : rollingPreset
+        ? { date_preset: rollingPreset }
+        : { time_range };
 
   // Hourly is a BREAKDOWN, not a finer time_increment: asking for
   // time_increment=1 across a single day returns one row for that day, not
@@ -1083,9 +1100,48 @@ export default async function handler(req, res) {
        empty leading axis, or a chart that silently starts after the account did.
        Read back off the rows Meta returned. */
     const dates = daily.map((r) => r.dateStart).filter(Boolean).sort();
-    const resolved = (useToday || useMaximum) && dates.length
+    const resolved = (useToday || useMaximum || rollingPreset) && dates.length
       ? { since: dates[0], until: dates[dates.length - 1] }
       : { since, until };
+
+    /* THE ANCHOR: everything, all time, no filter.
+       A scoped or short-range figure is unreadable on its own — "1 lead" gives
+       no way to tell a quiet day apart from a broken page. This is the number
+       the tiles are a subset OF, so the client can say "1 today, 3 all-time"
+       in one breath.
+
+       Skipped when the request is already unfiltered lifetime, where it would
+       be the identical call twice. Wrapped, like the pixel total: an anchor
+       failing must never cost the figures it was there to explain. */
+    let lifetime = null;
+    const isFiltered = Object.keys(filterParam).length > 0;
+    if (isFiltered || !useMaximum) {
+      try {
+        const anchor = await fetchWithBackoff(
+          buildUrl(accountId, {
+            level: 'account',
+            fields: BASE_FIELDS.join(','),
+            date_preset: 'maximum',
+            limit: '1',
+            ...attribution,
+          }, token),
+          { env: envNames },
+        );
+        const row = (anchor.json.data || [])[0];
+        if (row) {
+          const a = shapeRow(row, 'account', conversionFamily);
+          lifetime = {
+            registrations: a.registrations || 0,
+            spend: a.spend,
+            otherConversions: a.otherConversions,
+            since: row.date_start,
+            until: row.date_stop,
+          };
+        }
+      } catch (e) {
+        lifetime = null;
+      }
+    }
 
     /* The pixel's own count, over the range Meta resolved for the charts.
        Wrapped so a pixel problem can never take the dashboard down with it —
@@ -1238,6 +1294,10 @@ export default async function handler(req, res) {
          whenever it could not be read, which the UI shows as unavailable
          rather than as zero. */
       pixelTotal,
+      /* The whole account, all time, unfiltered — what the tiles are a subset
+         of. Null when the request was already exactly that, so the client must
+         treat its absence as "nothing narrower is being shown". */
+      lifetime,
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,

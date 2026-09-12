@@ -532,11 +532,16 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 /* What the figures are filtered to. Quiet, but never hidden: the whole point
    is that a scoped number must not be readable as a total. */
 .scope-line {
-  margin:.1rem 0 .9rem; padding:.5rem .75rem; border-radius:var(--r-sm);
-  border:1px solid rgba(var(--accent-rgb),.3); background:rgba(var(--accent-rgb),.07);
-  font-size:.82rem; font-weight:600; color:var(--accent-d);
+  margin:.1rem 0 .9rem; padding:.55rem .8rem; border-radius:var(--r-sm);
+  border:1px solid var(--line); background:var(--card);
+  font-size:.82rem; font-weight:500; color:var(--ink-2); line-height:1.5;
 }
-.scope-line b { font-weight:800; }
+/* Filtered figures get the accent. Nothing filtered is a plain statement —
+   colouring both would make the warning mean nothing. */
+.scope-line.scope-narrow {
+  border-color:rgba(var(--accent-rgb),.38); background:rgba(var(--accent-rgb),.08);
+  font-weight:600; color:var(--accent-d);
+}
 
 /* Ad sets and ads as a toggle tree.
    Everything in the campaign is visible at once and one press is the whole
@@ -1723,7 +1728,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* ============================== date ranges ==============================
      Custom ranges are first-class, so an arbitrary window works unchanged once
      there IS history — nothing here assumes a short account lifetime. */
-  var iso = function (d) { return d.toISOString().slice(0,10); };
+  /* The LOCAL calendar date, not the UTC one. toISOString() is UTC, so after
+     20:00 in New York it already reports tomorrow — which is how the range
+     label came to read "2026-09-06 to 2026-09-12" on the evening of the 11th. */
+  var iso = function (d) {
+    var p = function (x) { return String(x).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  };
   var daysAgo = function (n) { return iso(new Date(Date.now() - n*86400000)); };
 
   /* Lifetime by default: everything the account has ever done. It is the only
@@ -1781,6 +1792,23 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function isSingleDay(r){
     var x = resolveRange(r || {mode:'global'});
     return x.since === x.until;
+  }
+
+  /* Which of Meta's own presets answers this range, or '' for a custom range
+     that has to go as explicit dates.
+
+     Rolling windows belong to META, not to us: "the last 7 days" computed from
+     the browser's clock is the wrong week whenever the viewer and the ad
+     account disagree about the date, which for a US account viewed after 20:00
+     Eastern is every evening. Meta evaluates last_Nd in the ad account's
+     timezone, which is also the timezone Ads Manager reports in. */
+  var ROLLING = { 7:'last_7d', 14:'last_14d', 30:'last_30d', 90:'last_90d' };
+
+  function metaPreset(r){
+    if(isToday(r)) return 'today';
+    if(isLifetime(r)) return 'maximum';
+    if(r && r.mode === 'preset' && ROLLING[r.days]) return ROLLING[r.days];
+    return '';                      // custom: explicit dates, no preset
   }
 
   /* True only for the Today button, not for a custom single-day range in the
@@ -2730,43 +2758,77 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
      Montara Forge read 2 leads for days because the page opened scoped to one
      ad set of three, and nothing beside the number said so — the picker showed
      it, but a KPI tile reading "Leads 2" is what gets believed. */
-  function renderScopeLine(totals){
+  /* WHAT YOU ARE LOOKING AT, in one sentence, always visible.
+
+     The tiles were right and still unreadable: "Leads 1" was one day of one ad
+     set out of three, and nothing on the page said what the number would be
+     without those two filters. Naming the filter was not enough — the reader
+     has to see 1 sitting inside 3, or the only conclusion available is that the
+     dashboard is broken. */
+  function renderScopeLine(d){
     var el = $('scope-line');
     if(!el) return;
+    var totals = (d && d.totals) || {};
     var sc = currentScope();
     var w = CONVERSION_WORDS[state.view] || CONVERSION_WORDS.sybago;
-    var parts = [];
+
+    /* ---- what is being shown --------------------------------------- */
+    var filters = [];
+
+    // The range first: it is the filter people forget they applied.
+    var r = resolveRange(globalRange);
+    if(isToday(globalRange)) filters.push('today only');
+    else if(!isLifetime(globalRange) && globalRange.mode === 'preset') filters.push('the last ' + globalRange.days + ' days');
+    else if(globalRange.mode === 'custom') filters.push(r.since + ' to ' + r.until);
 
     var sets = (sc.adsets || []).length, ads = (sc.ads || []).length;
     if(ads){
-      parts.push(ads === 1 ? 'one ad' : ads + ' ads');
+      filters.push(ads === 1 ? 'one ad' : ads + ' ads');
     } else if(sets){
-      // Of how many — the fraction is the part that makes it land.
+      // The fraction is the part that makes it land.
       var available = adsetsInScope().length;
-      parts.push(sets === 1 ? 'one ad set' : sets + ' ad sets');
-      if(available > sets) parts[0] += ' of ' + available;
+      var label = sets === 1 ? 'one ad set' : sets + ' ad sets';
+      filters.push(available > sets ? label + ' of ' + available : label);
+    }
+
+    /* ---- what it is a subset of ------------------------------------ */
+    var anchors = [];
+    var lt = d && d.lifetime;
+    if(lt){
+      anchors.push('all time, across everything: ' + lt.registrations + ' ' +
+        (lt.registrations === 1 ? w.one : w.label.toLowerCase()) +
+        ' on ' + money(lt.spend));
+    }
+    var px = d && d.pixelTotal;
+    if(px && px.total !== null && px.total !== undefined){
+      anchors.push('your pixel recorded ' + px.total);
     }
 
     /* Conversions Meta attributed under an event this account does not score
        on. Montara Forge's Sep 9 submission came back only as a custom
        conversion, so the lead count could not see it. Named, never added. */
-    var other = (totals && totals.otherConversions) || [];
+    var other = (totals.otherConversions) || [];
     var otherTotal = other.reduce(function(n, o){ return n + (o.count || 0); }, 0);
 
-    if(!parts.length && !otherTotal){ el.hidden = true; return; }
+    if(!filters.length && !anchors.length && !otherTotal){ el.hidden = true; return; }
 
-    var text = parts.length
-      ? 'Filtered to ' + parts.join(' and ') + '. Figures exclude everything else in this campaign.'
-      : '';
+    var text = filters.length
+      ? 'Showing ' + filters.join(', ') + '.'
+      : 'Showing everything, all time.';
+
+    if(anchors.length) text += ' For comparison — ' + anchors.join('; ') + '.';
+
     if(otherTotal){
-      text += (text ? ' ' : '') +
-        'Meta also attributed ' + otherTotal + ' ' +
+      text += ' Meta also attributed ' + otherTotal + ' ' +
         (otherTotal === 1 ? 'conversion' : 'conversions') + ' under ' +
         other.map(function(o){ return o.actionType; }).join(' and ') +
-        ', which is not counted as ' + (otherTotal === 1 ? 'a ' + w.one : w.label.toLowerCase()) + '.';
+        ', not counted as ' + (otherTotal === 1 ? 'a ' + w.one : w.label.toLowerCase()) + '.';
     }
+
     el.textContent = text;
     el.hidden = false;
+    // Loud only when something IS filtered away; a plain statement otherwise.
+    el.classList.toggle('scope-narrow', filters.length > 0);
   }
 
   /* What the PIXEL recorded, beside what Meta could attribute to an ad.
@@ -2818,7 +2880,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function renderKpis(d){
     var t=d.totals||{};
     renderPixelNote(d.pixelTotal, t.registrations, t.otherConversions);
-    renderScopeLine(t);
+    renderScopeLine(d);
     var keys=KPI_KEYS;
     $('kpis').innerHTML = keys.map(function(k){
       var m=METRICS[k], v=t[k], muted=(v==null||v===0), pair=(k==='impressions');
@@ -3678,7 +3740,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return fetchInsights({
       level:'campaign', since:r.since, until:r.until,
       campaignIds:sp.campaignIds, adsetIds:sp.adsetIds, adIds:sp.adIds,
-      preset: isToday(globalRange) ? 'today' : isLifetime(globalRange) ? 'maximum' : '',
+      preset: metaPreset(globalRange),
     })
       .then(function(d){
         state.campaigns=d.campaigns||[];

@@ -431,6 +431,35 @@ in the response says which answered.
 - **Do not "simplify" this back into one request.** The daily series is still
   needed, for the trend charts. The two answer different questions.
 
+**Rolling date windows are resolved by META, never computed here.**
+`iso()` used `toISOString().slice(0, 10)`, which is UTC. After 20:00 Eastern that
+already reports tomorrow, so on the evening of the 11th the dashboard read
+"Showing 2026-09-06 to 2026-09-12" — a day that had not happened — and every
+preset window shifted forward by one, dropping a real day of delivery off the
+start and adding an empty one to the end.
+
+- `iso()` and `isoDaysAgo()` now read the LOCAL calendar date. A range label
+  showing tomorrow is broken however the arithmetic downstream works out.
+- 7d / 14d / 30d / 90d go to Meta as `last_7d` … `last_90d`, resolved in the AD
+  ACCOUNT's timezone — the one Ads Manager reports in — exactly as `today` and
+  `maximum` already were. **The browser's clock is not the authority on which
+  day an ad account is having.**
+- Only the fixed `ROLLING_PRESETS` set is honoured, so a query string cannot
+  inject an arbitrary preset; an unknown one falls back to explicit dates.
+- `resolved` reads the real window back off the returned rows for these too, so
+  the label states what Meta used rather than what was asked for.
+
+**`lifetime` is the anchor a narrow figure gets read against.** One unfiltered
+`date_preset=maximum` row, fetched whenever the request is narrower than that
+and skipped when it would be the identical call twice.
+
+- Three separate times a CORRECT number read as a broken dashboard, because
+  nothing beside it said what the unfiltered figure was. Verified to the cent
+  against Meta each time; the arithmetic was never the problem.
+- `#scope-line` states range, scope and anchor in one sentence above the tiles,
+  and carries the accent only when something is actually filtered away —
+  colouring it always would make the warning mean nothing.
+
 **A SCOPED FIGURE MUST NEVER READ AS A TOTAL. This cost days.**
 
 Montara Forge showed 2 leads while Events Manager showed 5. Resolved 2026-09-11
