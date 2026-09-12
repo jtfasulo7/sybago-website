@@ -38,6 +38,58 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 
 const PANELS = new Set(['kpi', 'trend']);
 
+/**
+ * The output contract, as a tool the model is FORCED to call.
+ *
+ * This is why the panels stopped failing. Asking for a bare JSON object in the
+ * reply text means competing with every reason a model might put something
+ * before it — a preamble, a fence, a thinking block with no text of its own —
+ * and every one of those arrives as an unparseable answer. A forced tool call
+ * comes back as structured `input`, so there is no brace to find.
+ *
+ * The descriptions are load-bearing: they are the only instruction the model
+ * gets about each field at the point it fills it in.
+ */
+const ANALYSIS_TOOL = {
+  name: 'report_analysis',
+  description: 'Report the finished analysis. This is the only way to answer.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      verdict: {
+        type: 'string',
+        enum: ['positive', 'concerning', 'mixed'],
+        description: 'The overall reading.',
+      },
+      headline: {
+        type: 'string',
+        description: 'One sentence stating the verdict plainly. No preamble, no "Based on the data".',
+      },
+      finding: {
+        type: 'string',
+        description:
+          'One or two short paragraphs naming the single most likely problem, or confirming healthy performance. ' +
+          'Separate paragraphs with a blank line. Cite the actual numbers.',
+      },
+      recommendation: {
+        type: 'string',
+        description: 'One short paragraph on the specific next action.',
+      },
+      flag: {
+        type: 'object',
+        description:
+          'Only when a KPI is genuinely at a critical threshold. Omit entirely otherwise.',
+        properties: {
+          level: { type: 'string', enum: ['critical', 'warning', 'positive'] },
+          text: { type: 'string', description: 'One sentence.' },
+        },
+        required: ['level', 'text'],
+      },
+    },
+    required: ['verdict', 'headline', 'finding', 'recommendation'],
+  },
+};
+
 /* Montara Forge is master-only, exactly as in api/meta-insights.js. Repeated
    rather than imported because an access rule that lives in one place and is
    assumed in another is how a view leaks. */
@@ -149,20 +201,14 @@ function buildTrendPayload(body) {
 
 /* --------------------------------------------------------------- the model */
 
-/** The model answers in JSON. Parsed defensively — a fence or stray prose
- *  around it is a formatting slip, not a reason to show the reader an error. */
-function parseAnalysis(text) {
-  let raw = String(text || '').trim();
-
-  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) raw = fence[1].trim();
-
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('no JSON object in the response');
-
-  const parsed = JSON.parse(raw.slice(start, end + 1));
-
+/**
+ * Normalise one analysis object, whether it arrived as tool input or as parsed
+ * JSON. Both routes land here so validation can never differ between them.
+ *
+ * `verdict` and `flag.level` drive CSS, so an unrecognised value falls back
+ * rather than reaching the stylesheet and styling nothing.
+ */
+function shapeAnalysis(parsed) {
   const verdicts = new Set(['positive', 'concerning', 'mixed']);
   const levels = new Set(['critical', 'warning', 'positive']);
 
@@ -176,7 +222,7 @@ function parseAnalysis(text) {
   const out = {
     verdict: verdicts.has(parsed.verdict) ? parsed.verdict : 'mixed',
     headline: clean(parsed.headline, 400),
-    // Paragraph breaks survive; everything else is collapsed.
+    // Paragraph breaks survive; every other control character is collapsed.
     finding: String(parsed.finding || '')
       .replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
       .trim()
@@ -188,8 +234,23 @@ function parseAnalysis(text) {
     flag,
   };
 
-  if (!out.headline && !out.finding) throw new Error('the response had no analysis in it');
+  if (!out.headline && !out.finding) throw new Error('the analysis came back empty');
   return out;
+}
+
+/** Fallback for a model that answered in prose. A fence or stray text around
+ *  the object is a formatting slip, not a reason to show the reader an error. */
+function parseAnalysis(text) {
+  let raw = String(text || '').trim();
+
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) raw = fence[1].trim();
+
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new Error('no JSON object in the response');
+
+  return shapeAnalysis(JSON.parse(raw.slice(start, end + 1)));
 }
 
 /** Never let a key fragment reach the browser in an error string. */
@@ -213,11 +274,17 @@ async function generate({ panel, account, payload, key }) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1400,
+      // Raised from 1400: the reply now carries the schema's field names as
+      // well as the prose, and a truncated tool call is not partially usable.
+      max_tokens: 2000,
       // The framework is long and identical on every call for an account, so
       // it is the system prompt rather than part of the message.
       system,
       messages: [{ role: 'user', content: user }],
+      tools: [ANALYSIS_TOOL],
+      // Forced. Without this the model may answer in prose instead, which is
+      // the failure this replaced.
+      tool_choice: { type: 'tool', name: ANALYSIS_TOOL.name },
     }),
   });
 
@@ -230,8 +297,27 @@ async function generate({ panel, account, payload, key }) {
     throw err;
   }
 
-  const text = (json.content || []).map((c) => c.text || '').join('');
-  return parseAnalysis(text);
+  const blocks = Array.isArray(json.content) ? json.content : [];
+
+  /* The expected path: structured input, nothing to parse. */
+  const call = blocks.find((b) => b && b.type === 'tool_use' && b.name === ANALYSIS_TOOL.name);
+  if (call && call.input && typeof call.input === 'object') return shapeAnalysis(call.input);
+
+  /* Fallback: a model that answered in prose regardless. Only text blocks are
+     read — a thinking block has no `.text` and contributed an empty string to
+     the old join, which is one of the ways this used to fail silently. */
+  const text = blocks.filter((b) => b && b.type === 'text').map((b) => b.text || '').join('');
+  if (text.trim()) return parseAnalysis(text);
+
+  /* Nothing usable. Say WHAT came back — the previous message was the same
+     sentence for five different causes, which made it undiagnosable. */
+  const seen = blocks.map((b) => (b && b.type) || 'unknown').join(', ') || 'no content blocks';
+  const err = new Error(
+    `The model returned nothing usable (stop_reason: ${json.stop_reason || 'unknown'}; blocks: ${seen}).` +
+    (json.stop_reason === 'max_tokens' ? ' The reply hit the token limit before it finished.' : ''),
+  );
+  err.status = 502;
+  throw err;
 }
 
 /* ------------------------------------------------------------------ handler */

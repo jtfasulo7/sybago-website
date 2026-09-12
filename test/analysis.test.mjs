@@ -58,9 +58,20 @@ const REPLY = {
   flag: { level: 'critical', text: 'Ad 3 has spent $52 with no signups.' },
 };
 
+/* How the API really answers now: a tool_use block carrying the analysis as
+   structured input. Nothing to parse. */
 const anthropicOk = (payload) => async () => ({
   ok: true,
-  json: async () => ({ content: [{ type: 'text', text: JSON.stringify(payload ?? REPLY) }] }),
+  json: async () => ({
+    stop_reason: 'tool_use',
+    content: [{ type: 'tool_use', name: 'report_analysis', input: payload ?? REPLY }],
+  }),
+});
+
+/* A model that answered in prose anyway. The fallback path. */
+const anthropicText = (text) => async () => ({
+  ok: true,
+  json: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text }] }),
 });
 
 const KPI_BODY = {
@@ -170,20 +181,14 @@ console.log('\nReading the model');
 {
   // Models fence JSON given half a chance. A fence is a formatting slip, not a
   // reason to show the reader an error.
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => ({ content: [{ text: '```json\n' + JSON.stringify(REPLY) + '\n```' }] }),
-  });
+  globalThis.fetch = anthropicText('```json\n' + JSON.stringify(REPLY) + '\n```');
   const r = mockRes();
   await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
   t('a fenced reply is still read', () => assert.equal(r.body.analysis.headline, REPLY.headline));
 }
 
 {
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => ({ content: [{ text: JSON.stringify({ ...REPLY, verdict: 'catastrophic', flag: { level: 'nuclear', text: 'x' } }) }] }),
-  });
+  globalThis.fetch = anthropicOk({ ...REPLY, verdict: 'catastrophic', flag: { level: 'nuclear', text: 'x' } });
   const r = mockRes();
   await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
   t('an invented verdict falls back rather than reaching the CSS', () =>
@@ -195,7 +200,7 @@ console.log('\nReading the model');
 }
 
 {
-  globalThis.fetch = async () => ({ ok: true, json: async () => ({ content: [{ text: 'I am afraid I cannot do that.' }] }) });
+  globalThis.fetch = anthropicText('I am afraid I cannot do that.');
   const r = mockRes();
   await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
   t('an unparseable reply is an error, never an empty panel', () => assert.equal(r.code, 502));
@@ -319,6 +324,108 @@ console.log('\nThe output contract');
   t('the length target is stated', () => assert.match(p, /150[–-]250 words/));
   t('reasoning is kept out of the output', () =>
     assert.match(p, /Do not show your reasoning/));
+}
+
+
+/* ------------------------------------------------ the shape of the reply -- */
+console.log('\nThe reply arrives as a forced tool call');
+
+/* BOTH PANELS FAILED with "no JSON object in the response" — a 200 whose text
+   contained no brace. Asking for a bare JSON object in prose competes with
+   every reason a model might put something before it, and each of those arrived
+   as the same unparseable answer. A forced tool call removes the class. */
+
+{
+  let sent = null;
+  globalThis.fetch = async (_u, o) => { sent = JSON.parse(o.body); return anthropicOk()(); };
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+
+  t('the tool is declared and forced', () => {
+    assert.equal(sent.tools[0].name, 'report_analysis');
+    assert.deepEqual(sent.tool_choice, { type: 'tool', name: 'report_analysis' });
+  });
+
+  t('the schema requires the fields the panel renders', () => {
+    const req = sent.tools[0].input_schema.required;
+    ['verdict', 'headline', 'finding', 'recommendation'].forEach(function (k) {
+      assert.ok(req.includes(k), k + ' is not required');
+    });
+  });
+
+  t('the flag is optional, since most analyses should not raise one', () =>
+    assert.ok(!sent.tools[0].input_schema.required.includes('flag')));
+
+  t('verdict is constrained to the three the CSS knows', () =>
+    assert.deepEqual(sent.tools[0].input_schema.properties.verdict.enum,
+      ['positive', 'concerning', 'mixed']));
+
+  t('structured input is read straight through', () =>
+    assert.equal(r.body.analysis.headline, REPLY.headline));
+}
+
+{
+  /* A thinking block carries no .text. The old join mapped it to an empty
+     string and reported "no JSON object", which named neither the cause nor
+     the block. This is one of the shapes that used to break it. */
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      stop_reason: 'tool_use',
+      content: [
+        { type: 'thinking', thinking: 'weighing the CTR against the CPM' },
+        { type: 'tool_use', name: 'report_analysis', input: REPLY },
+      ],
+    }),
+  });
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+  t('a thinking block alongside the tool call is ignored, not fatal', () =>
+    assert.equal(r.body.analysis.headline, REPLY.headline));
+}
+
+{
+  // Prose despite the forced tool: the fallback parser still handles it.
+  globalThis.fetch = anthropicText('Here you go:\n' + JSON.stringify(REPLY));
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+  t('a prose reply with a preamble is still recovered', () =>
+    assert.equal(r.body.analysis.headline, REPLY.headline));
+}
+
+{
+  /* Nothing usable. The message must NAME what came back — the old one was the
+     same sentence for five different causes and diagnosed none of them. */
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ stop_reason: 'max_tokens', content: [{ type: 'thinking', thinking: 'x' }] }),
+  });
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+  t('an unusable reply names the stop reason and the blocks', () => {
+    assert.match(r.body.message, /max_tokens/);
+    assert.match(r.body.message, /thinking/);
+  });
+  t('and says so when the token limit was the cause', () =>
+    assert.match(r.body.message, /token limit/));
+}
+
+{
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ stop_reason: 'end_turn', content: [] }) });
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+  t('an empty content array is reported as such', () =>
+    assert.match(r.body.message, /no content blocks/));
+}
+
+{
+  // max_tokens has to leave room for the schema's field names as well as prose.
+  let sent = null;
+  globalThis.fetch = async (_u, o) => { sent = JSON.parse(o.body); return anthropicOk()(); };
+  const r = mockRes();
+  await analysis({ method: 'POST', query: {}, body: KPI_BODY, headers: { cookie: daveCookie } }, r);
+  t('there is headroom above the 250-word target', () =>
+    assert.ok(sent.max_tokens >= 2000, 'max_tokens is ' + sent.max_tokens));
 }
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');

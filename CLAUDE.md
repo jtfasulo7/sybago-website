@@ -751,8 +751,25 @@ flattens; Opus costs several times more for a judgement Sonnet already makes.
   also not a sale, so that prompt is explicitly told **not to assert
   profitability** — close rate and job value are not in this data.
 
-**The model answers in JSON, not prose.** `{verdict, headline, finding,
-recommendation, flag}`.
+**The model answers through a FORCED TOOL CALL, not prose.** `report_analysis`,
+whose `input_schema` is the contract; the reply arrives as `input` on a
+`tool_use` block with nothing to parse.
+
+- **This replaced a bare-JSON-in-the-reply approach that failed outright.** Both
+  panels returned "no JSON object in the response": asking for an object in
+  prose competes with every reason a model might put something before it — a
+  preamble, a code fence, a thinking block carrying no `.text`, an empty content
+  array, a reply truncated before the first brace — and every one of those
+  arrived as the same unparseable answer. A tool call has no envelope to get
+  wrong.
+- **The prompt and the mechanism must agree.** `OUTPUT_CONTRACT` describes the
+  tool, not a JSON object. A system prompt still asking for JSON would be an
+  instruction the model is structurally prevented from following.
+- **A prose reply is still recovered** by `parseAnalysis`, and only `type:
+  "text"` blocks are read — the old code took `.text` off every block, so a
+  thinking block contributed an empty string and broke it silently.
+- **An unusable reply names `stop_reason` and the block types it saw.** The old
+  message was one sentence for five different causes and diagnosed none of them.
 
 - Markdown would have to be parsed back into the callout and paragraph shapes,
   which is guesswork. A fixed shape also kills the chat register outright —
