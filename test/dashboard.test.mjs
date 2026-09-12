@@ -978,5 +978,99 @@ const serve = (rows) => async (u) =>
   });
 }
 
+
+/* ------------------------------------------- several campaigns at once --- */
+console.log('\nSeveral campaigns at once');
+
+{
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { campaignIds: '111,222' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('both campaigns reach Meta as one filter', () => {
+    const series = seen.find((u) => u.includes('time_increment=1'));
+    const f = decodeURIComponent(series);
+    assert.match(f, /campaign\.id/);
+    assert.match(f, /111/);
+    assert.match(f, /222/);
+  });
+
+  t('the scope reports the list it was given', () =>
+    assert.deepEqual(r.body.scope.campaignIds, ['111', '222']));
+
+  t('campaignId stays null when several are in scope', () =>
+    // It names THE campaign, and with two there is no such thing. A caller
+    // reading it as "the first one" would be silently wrong.
+    assert.equal(r.body.scope.campaignId, null));
+}
+
+{
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { campaignId: '999' }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('the older single campaignId parameter still scopes', () => {
+    // A bookmarked link, or a client that has not reloaded, still sends it.
+    assert.equal(r.body.scope.campaignId, '999');
+    assert.deepEqual(r.body.scope.campaignIds, ['999']);
+  });
+}
+
+{
+  globalThis.fetch = async (u) =>
+    /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { campaignIds: "111,DROP TABLE,'; --,222" }, headers: { cookie: validCookie } },
+    r,
+  );
+
+  t('non-numeric campaign ids are dropped, not passed through', () =>
+    // These reach Meta's filter, so the shape is checked rather than trusted.
+    assert.deepEqual(r.body.scope.campaignIds, ['111', '222']));
+}
+
+{
+  // An ad set beats a campaign, which beats nothing — the narrowest scope wins,
+  // and the filter must carry exactly one of them.
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { campaignIds: '111,222', adsetIds: '333' }, headers: { cookie: validCookie } },
+    r,
+  );
+  t('an ad set scope beats the campaign list', () => {
+    const f = decodeURIComponent(seen.find((u) => u.includes('time_increment=1')));
+    assert.match(f, /adset\.id/);
+    assert.ok(!/campaign\.id/.test(f), 'campaign filter should not also be applied');
+  });
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

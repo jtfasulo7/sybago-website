@@ -704,7 +704,6 @@ export default async function handler(req, res) {
   // for the whole account while the table showed one campaign. Meta's own
   // `filtering` parameter scopes both requests identically.
   const scope = {};
-  if (/^\d+$/.test(req.query.campaignId || '')) scope.campaignId = req.query.campaignId;
 
   // Comma separated ids. Anything non-numeric is dropped rather than passed
   // through — an id from a query string reaches Meta's filter, so it is checked
@@ -724,6 +723,13 @@ export default async function handler(req, res) {
   // The narrowest single ad set, for callers that still read one.
   scope.adsetId = scope.adsetIds && scope.adsetIds.length === 1 ? scope.adsetIds[0] : null;
 
+  /* `campaignIds` is the list; `campaignId` is the older single-value form,
+     still accepted so a bookmarked link keeps working. */
+  const campaignIds = idList(req.query.campaignIds);
+  if (campaignIds.length) scope.campaignIds = campaignIds;
+  else if (/^\d+$/.test(req.query.campaignId || '')) scope.campaignIds = [req.query.campaignId];
+  scope.campaignId = scope.campaignIds && scope.campaignIds.length === 1 ? scope.campaignIds[0] : null;
+
   const adIds = idList(req.query.adIds);
   if (adIds.length) scope.adIds = adIds;
 
@@ -733,8 +739,8 @@ export default async function handler(req, res) {
     filtering.push({ field: 'ad.id', operator: 'IN', value: scope.adIds });
   } else if (scope.adsetIds) {
     filtering.push({ field: 'adset.id', operator: 'IN', value: scope.adsetIds });
-  } else if (scope.campaignId) {
-    filtering.push({ field: 'campaign.id', operator: 'IN', value: [scope.campaignId] });
+  } else if (scope.campaignIds) {
+    filtering.push({ field: 'campaign.id', operator: 'IN', value: scope.campaignIds });
   }
   const filterParam = filtering.length ? { filtering } : {};
 
@@ -846,7 +852,7 @@ export default async function handler(req, res) {
              single-line path is what the metric overlay expects. */
           level: scope.adIds
             ? 'ad'
-            : scope.adsetIds ? 'adset' : scope.campaignId ? 'campaign' : 'account',
+            : scope.adsetIds ? 'adset' : scope.campaignIds ? 'campaign' : 'account',
           // Ad name comes along when the series is per-ad, so the client can
           // draw one line per ad rather than one merged line.
           fields: (scope.adIds
@@ -1063,6 +1069,7 @@ export default async function handler(req, res) {
       requestedRange: { since, until },
       scope: {
         campaignId: scope.campaignId || null,
+        campaignIds: scope.campaignIds || null,
         adsetId: scope.adsetId || null,
         adsetIds: scope.adsetIds || null,
       },

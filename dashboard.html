@@ -1752,7 +1752,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   // adIds belongs in the key: two requests differing only by which ads are
   // selected are different data, and without it the second would be served the
   // first one's response.
-  function queryKey(p){ return [p.level,p.since,p.until,p.campaignId||'',p.adsetIds||'',p.adIds||''].join('|'); }
+  function queryKey(p){ return [p.level,p.since,p.until,p.campaignIds||'',p.adsetIds||'',p.adIds||''].join('|'); }
 
   /* Hourly only makes sense for one day. Asking for it across a month would
      return 24 rows of month totals, which reads as a plausible chart and is
@@ -1780,7 +1780,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // Let Meta resolve "today" in the ad account's timezone rather than the
     // browser's — see the note in api/meta-insights.js.
     if (p.preset) qs.set('preset', p.preset);
-    if (p.campaignId) qs.set('campaignId', p.campaignId);
+    if (p.campaignIds) qs.set('campaignIds', p.campaignIds);
     if (p.adsetIds) qs.set('adsetIds', p.adsetIds);
     if (p.adIds) qs.set('adIds', p.adIds);
     var promise = fetch('/api/meta-insights?' + qs.toString()).then(function (r) {
@@ -1919,9 +1919,34 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
    */
   /* `adsets` is a list and opens as a comparison; `adset` is the single-value
      form, still read so a view that wants one scope can say so plainly. */
+  /* Which campaigns the picker offers, per view.
+     An account accumulates tests, copies and finished experiments; listing all
+     of them buries the ones being worked on. Names are matched LOOSELY — words
+     in order, case and punctuation ignored — so renaming "Campaign 2" to
+     "Campaign 2 - Testing" does not silently empty the dropdown.
+     A view with no entry here shows everything, which is the right default for
+     an account nobody has curated. */
+  var CAMPAIGN_ALLOW = {
+    dave: ['Dave Campaign 2 Testing', 'Dave Campaign Winner']
+  };
+
+  /* The campaigns a view is allowed to show.
+     If the allow-list matches NOTHING the full list is returned instead. An
+     empty dropdown looks like a broken dashboard and hides the very data
+     someone came for; showing too much is merely untidy. */
+  function visibleCampaigns(){
+    var all = state.campaigns || [];
+    var want = CAMPAIGN_ALLOW[state.view];
+    if(!want || !want.length) return all;
+    var keep = all.filter(function(c){
+      return want.some(function(p){ return looseMatch(c.name, p); });
+    });
+    return keep.length ? keep : all;
+  }
+
   var VIEW_DEFAULTS = {
     dave: {
-      campaign: 'Dave Campaign 2 September 2026 Sales Campaign',
+      campaign: 'Dave Campaign 2 Testing',
       /* One ad set, so the page opens SCOPED rather than comparing: the chart
          goes back to several metrics on one line each, which is the right shape
          for reading a single ad set. Add others from the picker to compare.
@@ -2017,8 +2042,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   function scopeParams(){
     var sc = currentScope();
+    /* With nothing chosen, scope to the campaigns the picker offers rather than
+       to the whole account. Hiding campaigns from the dropdown while the totals
+       silently still counted them would be worse than not hiding them. */
+    var ids = sc.campaignId
+      ? [sc.campaignId]
+      : visibleCampaigns().map(function(c){ return c.id; });
+    var everything = !CAMPAIGN_ALLOW[state.view] && !sc.campaignId;
     return {
-      campaignId: sc.campaignId || '',
+      campaignIds: everything ? '' : ids.join(','),
       adsetIds: (sc.adsets || []).map(function(a){ return a.id; }).join(','),
       adIds: (sc.ads || []).map(function(a){ return a.id; }).join(','),
     };
@@ -2028,7 +2060,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   function adsetsInScope(){
     var sc = currentScope();
     var out = [];
-    (state.campaigns || []).forEach(function(c){
+    visibleCampaigns().forEach(function(c){
       if(sc.campaignId && c.id !== sc.campaignId) return;
       (c.adsets || []).forEach(function(a){
         out.push({ id: a.id, name: assetLabel(a), campaignName: c.name });
@@ -2057,7 +2089,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     (sc.adsets || []).forEach(function(a){ chosen[a.id] = true; });
     var narrowed = (sc.adsets || []).length > 0;
     var out = [];
-    (state.campaigns || []).forEach(function(c){
+    visibleCampaigns().forEach(function(c){
       if(cid && c.id !== cid) return;
       (c.adsets || []).forEach(function(a){
         if(narrowed && !chosen[a.id]) return;
@@ -2554,7 +2586,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var level = dim==='day' ? 'campaign' : effectiveDim(dim);
     return fetchInsights({
       level:level, since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetIds:sp.adsetIds, adIds:sp.adIds,
+      campaignIds:sp.campaignIds, adsetIds:sp.adsetIds, adIds:sp.adIds,
       hourly: isSingleDay(panelRange),
       preset: isToday(panelRange) ? 'today' : isLifetime(panelRange) ? 'maximum' : '',
     });
@@ -3433,7 +3465,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var r=resolveRange(globalRange), sp=scopeParams();
     return fetchInsights({
       level:'campaign', since:r.since, until:r.until,
-      campaignId:sp.campaignId, adsetIds:sp.adsetIds, adIds:sp.adIds,
+      campaignIds:sp.campaignIds, adsetIds:sp.adsetIds, adIds:sp.adIds,
       preset: isToday(globalRange) ? 'today' : isLifetime(globalRange) ? 'maximum' : '',
     })
       .then(function(d){
@@ -3449,9 +3481,17 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           sc.campaignId = ''; sc.adsets = []; sc.ads = [];
         }
 
+        var shown = visibleCampaigns();
         var cSel=$('campaign-pick');
         cSel.innerHTML=''; cSel.appendChild(opt('','All campaigns'));
-        state.campaigns.forEach(function(c){ cSel.appendChild(opt(c.id, assetLabel(c))); });
+        shown.forEach(function(c){ cSel.appendChild(opt(c.id, assetLabel(c))); });
+
+        /* A campaign that is no longer offered must not stay selected — the
+           picker would show "All campaigns" while the figures were still
+           filtered to something invisible. */
+        if(sc.campaignId && !shown.some(function(c){ return c.id === sc.campaignId; })){
+          sc.campaignId = ''; sc.adsets = []; sc.ads = [];
+        }
         cSel.value = sc.campaignId || '';
 
         // An ad set this account no longer has must not stay selected, or the
@@ -5155,7 +5195,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       breakdown:'geo', view:state.view,
       since:r.since, until:r.until, level:'account'
     });
-    if(sp.campaignId) qs.set('campaignId', sp.campaignId);
+    if(sp.campaignIds) qs.set('campaignIds', sp.campaignIds);
     if(sp.adsetIds) qs.set('adsetIds', sp.adsetIds);
     if(sp.adIds) qs.set('adIds', sp.adIds);
     if(isToday({mode:'global'})) qs.set('preset','today');

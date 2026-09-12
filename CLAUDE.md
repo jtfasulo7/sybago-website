@@ -322,6 +322,30 @@ caption, and do not remove focus outlines.
 - Each series chip draws that series' exact `stroke-dasharray`, so the chips ARE the
   legend. There is deliberately no separate legend strip.
 
+**The campaign picker is filtered per view.** `CAMPAIGN_ALLOW` in `dashboard.html`
+lists which campaigns a view offers; Dave shows only `Dave - Campaign 2 -
+Testing` and `Dave Campaign Winner`. The account also carries ClientCaptur,
+two Hispanic campaigns, two older Dave campaigns and some 2026 leftovers, and a
+dropdown listing all of them buries the two being worked on.
+
+- **Matched loosely**, the same words-in-order rule the defaults use, so
+  renaming 'Campaign 2' to 'Campaign 2 - Testing' does not empty the
+  dropdown. A view with no entry shows everything.
+- **An allow-list matching NOTHING falls back to the full list.** An empty
+  picker looks like a broken dashboard and hides the data someone came for;
+  showing too much is merely untidy.
+- **'All campaigns' means all LISTED campaigns.** It sends the allowed ids
+  rather than no filter. Hiding campaigns from the picker while the headline
+  totals silently still counted them would be worse than not hiding them.
+- **A selected campaign that stops being offered is cleared**, along with its
+  ad sets and ads. Otherwise the picker reads 'All campaigns' while the
+  figures stay filtered to something invisible.
+
+`campaignIds` on `api/meta-insights.js` carries the list, mirroring `adsetIds`.
+The single-value `campaignId` is still accepted for bookmarked links, and
+`scope.campaignId` stays null when several are in scope — it names THE
+campaign, and with two there is no such thing.
+
 **Where each account lands.** `VIEW_DEFAULTS` in `dashboard.html` names the campaign and ad
 set each view opens on, and the global range defaults to **Lifetime**. It is the only default
 that is never empty: Today is blank until the day's delivery starts, and a blank dashboard on
