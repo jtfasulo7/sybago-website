@@ -460,6 +460,39 @@ and skipped when it would be the identical call twice.
   and carries the accent only when something is actually filtered away —
   colouring it always would make the warning mean nothing.
 
+**`MANUAL_CONVERSIONS` adds conversions Meta cannot attribute — and says so
+every time.** Montara Forge carries 3 entries dated 2026-09-11. **To change the
+number, edit `count` in that registry. That is the whole knob.**
+
+The ad is also a real Facebook page post — `effective_object_story_id` confirms
+it, and it has been shared twice and saved twice. A click from an organic view
+of that post is not an ad click: Meta does not attribute it and it never appears
+in `landing_page_view` either. On 2026-09-11 the ad delivered 4 landing page
+views while GoHighLevel took 3 submissions, which is not a conversion rate.
+
+Four rules this feature lives by, because a dashboard that inflates its own
+conversion count without disclosing it is worse than one that reads low:
+
+- **Entries are DATED and counted only when the range covers them.** A bare
+  "+3 always" would show three leads on a day none happened — open Today and
+  read three leads against zero spend.
+- **Nothing is added while filtered to an ad set or an ad.** An unattributed
+  lead belongs to no ad set; that is what unattributed means. Assigning one to
+  a specific ad would invent a conversion for that ad. `withheldReason` says
+  why, so the page states it rather than quietly showing a smaller number.
+- **`costPerRegistration` is derived AFTER the adjustment**, and the matching
+  `daily` row gets its share, so the tile, the cost-per figure and the chart
+  cannot disagree.
+- **`manualConversions` is in every response and `#scope-line` prints it**,
+  styled with the accent so it cannot be skimmed past. Never silent.
+
+**The configured 3 is the owner's instruction, not a measured gap.** At account
+level Meta attributes 3 and GoHighLevel holds 5, so the observed gap is 2; the 3
+was the gap against a view filtered to one ad set showing 2. Reconcile against
+GoHighLevel before trusting the total. Once montaraforge.com's `src-` tags have
+a week of data (see `lib/attribution.ts` there), that reconciliation becomes a
+Smart List filter rather than an argument.
+
 **A SCOPED FIGURE MUST NEVER READ AS A TOTAL. This cost days.**
 
 Montara Forge showed 2 leads while Events Manager showed 5. Resolved 2026-09-11

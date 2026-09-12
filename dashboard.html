@@ -2791,6 +2791,22 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       filters.push(available > sets ? label + ' of ' + available : label);
     }
 
+    /* ---- conversions added by hand --------------------------------- */
+    /* Disclosed every time it is applied. An adjusted conversion count that
+       does not announce itself is how a dashboard ends up lying to the person
+       who configured it. */
+    var manual = d && d.manualConversions;
+    var manualNote = '';
+    if(manual && manual.applied && manual.count){
+      manualNote = 'Includes ' + manual.count + ' manually added ' +
+        (manual.count === 1 ? w.one : w.label.toLowerCase()) +
+        ' that Meta could not attribute to an ad click.';
+    } else if(manual && manual.count && manual.withheldReason){
+      manualNote = manual.count + ' manually added ' +
+        (manual.count === 1 ? w.one : w.label.toLowerCase()) +
+        ' are NOT included here — ' + manual.withheldReason + '.';
+    }
+
     /* ---- what it is a subset of ------------------------------------ */
     var anchors = [];
     var lt = d && d.lifetime;
@@ -2810,7 +2826,7 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     var other = (totals.otherConversions) || [];
     var otherTotal = other.reduce(function(n, o){ return n + (o.count || 0); }, 0);
 
-    if(!filters.length && !anchors.length && !otherTotal){ el.hidden = true; return; }
+    if(!filters.length && !anchors.length && !otherTotal && !manualNote){ el.hidden = true; return; }
 
     var text = filters.length
       ? 'Showing ' + filters.join(', ') + '.'
@@ -2825,10 +2841,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
         ', not counted as ' + (otherTotal === 1 ? 'a ' + w.one : w.label.toLowerCase()) + '.';
     }
 
+    if(manualNote) text += ' ' + manualNote;
+
     el.textContent = text;
     el.hidden = false;
-    // Loud only when something IS filtered away; a plain statement otherwise.
-    el.classList.toggle('scope-narrow', filters.length > 0);
+    // Loud only when something IS filtered away, or when the conversion count
+    // has been adjusted — both are things a reader must not miss.
+    el.classList.toggle('scope-narrow', filters.length > 0 || !!manualNote);
   }
 
   /* What the PIXEL recorded, beside what Meta could attribute to an ad.

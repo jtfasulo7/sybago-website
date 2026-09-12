@@ -125,6 +125,12 @@ const isAggregate = (u) => {
   return /level=account/.test(url) && !/time_increment/.test(url) && !/\/campaigns\b/.test(url);
 };
 
+/* The stub rows are dated 2026-09-07 and the manual conversion adjustment sits
+   on 2026-09-11, so asking for this window tests the ALIAS EXTRACTION on its
+   own. Without it every sybago figure below reads three higher and the tests
+   look broken by something they are not about. */
+const PRE_ADJUSTMENT = { since: '2026-09-01', until: '2026-09-07' };
+
 const stubOk = (byUrl) => async (u) => ({
   ok: true, headers: { get: () => null }, json: async () => ({ data: byUrl(String(u)) }),
 });
@@ -321,7 +327,7 @@ globalThis.fetch = async (u) => {
   return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
 };
 res = mockRes();
-await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, res);
 t('master may read the agency view', () => assert.equal(res.code, 200));
 t('the agency view queries the agency account', () =>
   assert.ok(lastUrls.length > 0 && lastUrls.every((u) => u.includes('act_777777'))));
@@ -342,7 +348,7 @@ t('an unknown view falls back to the default account', () =>
   delete process.env.META_ADS_ACCOUNT_ID_SYBAGO;
   lastUrls = [];
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('an unset agency account id is a configuration error, not a fallback', () =>
     assert.ok(r.code === 500 && r.body.error === 'server_misconfigured'));
   t('the error names the variable to set', () =>
@@ -368,7 +374,7 @@ globalThis.fetch = async (u) => {
   return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
 };
 res = mockRes();
-await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, res);
 t('with one token configured, the agency view uses it', () =>
   assert.ok(lastUrls.length > 0 && lastUrls.every((u) => tokenOf(u) === process.env.META_ADS_TOKEN)));
 t('the response names the credential it used', () =>
@@ -379,7 +385,7 @@ t('the response names the credential it used', () =>
   process.env.META_ADS_TOKEN_SYBAGO = 'SECOND_TOKEN_also_never_in_output_987654321';
   lastUrls = [];
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('a view-specific token overrides the shared one', () =>
     assert.ok(lastUrls.length > 0 && lastUrls.every((u) => tokenOf(u) === process.env.META_ADS_TOKEN_SYBAGO)));
   t('the response reports the view-specific credential', () =>
@@ -399,7 +405,7 @@ t('the response names the credential it used', () =>
     message: 'Boom https://graph.facebook.com/x?access_token=' + process.env.META_ADS_TOKEN_SYBAGO,
   });
   const r3 = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r3);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r3);
   t('an error never echoes the view-specific token', () =>
     assert.ok(!JSON.stringify(r3.body).includes('SECOND_TOKEN')));
   t('an error never echoes the shared token either', () =>
@@ -449,7 +455,7 @@ process.env.META_ADS_TOKEN_SYBAGO = 'AGENCY_TOKEN_never_in_output_5555';
 globalThis.fetch = stubErr(400, { code: 190, error_subcode: 463, message: 'Session has expired' });
 
 res = mockRes();
-await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, res);
 t('an expired agency token names the agency variable', () =>
   assert.match(res.body.message, /META_ADS_TOKEN_SYBAGO/));
 t("it does not name the other business's token", () =>
@@ -464,7 +470,7 @@ t("an expired token on Dave's view names the shared variable", () =>
 // Settings for an assignment that cannot exist.
 globalThis.fetch = stubErr(403, { code: 200, message: 'Permissions error' });
 res = mockRes();
-await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, res);
 t('a permission error explains the cross-business case too', () =>
   assert.match(res.body.message, /different business/i));
 t('and still names the token variable that failed', () =>
@@ -473,7 +479,7 @@ t('and still names the token variable that failed', () =>
 // A bad account id should name that view's account variable.
 globalThis.fetch = stubErr(400, { code: 100, message: 'Unsupported get request; object does not exist' });
 res = mockRes();
-await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, res);
+await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, res);
 t("an unloadable account names that view's account variable", () =>
   assert.match(res.body.message, /META_ADS_ACCOUNT_ID_SYBAGO/));
 
@@ -483,7 +489,7 @@ t("an unloadable account names that view's account variable", () =>
   delete process.env.META_ADS_TOKEN_SYBAGO;
   delete process.env.META_ADS_TOKEN;
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('a missing token is reported against the right dashboard', () =>
     assert.ok(r.code === 500 && /Montara Forge/.test(r.body.message)));
   process.env.META_ADS_TOKEN = savedShared;
@@ -927,7 +933,7 @@ const serve = (rows) => async (u) => {
 
   const r = mockRes();
   await insights(
-    { method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } },
+    { method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } },
     r,
   );
 
@@ -967,7 +973,7 @@ const serve = (rows) => async (u) => {
   ]);
 
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
 
   t('a mixed lead account reports the unified total, not the website half', () => {
     assert.equal(r.body.totals.registrations, 5);
@@ -986,7 +992,7 @@ const serve = (rows) => async (u) => {
     rowWith([{ action_type: 'offsite_conversion.fb_pixel_lead', value: '4' }]),
   ]);
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
 
   t('a website-only account falls through to the pixel alias', () => {
     assert.equal(r.body.totals.registrations, 4);
@@ -1025,7 +1031,7 @@ const serve = (rows) => async (u) => {
   ]);
 
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
 
   t('a lead account ignores stray registration events', () => {
     assert.equal(r.body.totals.registrations, 2);
@@ -1225,7 +1231,7 @@ const pixelStub = (payload) => async (u) => {
   // names at all. Rather than guess, an unreadable row reports nothing.
   globalThis.fetch = pixelStub({ data: [{ data: [{ mystery_field: 'Lead', tally: 5 }] }] });
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('an unrecognised row shape reports null, never zero', () => {
     assert.equal(r.body.pixelTotal.total, null);
     assert.equal(r.body.pixelTotal.reason, 'event-not-found');
@@ -1235,7 +1241,7 @@ const pixelStub = (payload) => async (u) => {
 {
   globalThis.fetch = pixelStub({ data: [] });
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('an empty payload reads as unknown rather than as no leads', () =>
     assert.equal(r.body.pixelTotal.total, null));
 }
@@ -1251,7 +1257,7 @@ const pixelStub = (payload) => async (u) => {
     return { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
   };
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('a pixel failure does not take the dashboard down with it', () => {
     assert.equal(r.code, 200);
     assert.ok(r.body.totals.impressions > 0);
@@ -1302,7 +1308,7 @@ console.log('\nConversions Meta attributed under another event');
     ]),
   ]);
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
 
   t('a conversion outside the family is reported rather than dropped', () =>
     assert.deepEqual(r.body.totals.otherConversions,
@@ -1325,7 +1331,7 @@ console.log('\nConversions Meta attributed under another event');
     ]),
   ]);
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
 
   t('the lead count stays the lead count', () =>
     assert.equal(r.body.totals.registrations, 1));
@@ -1340,7 +1346,7 @@ console.log('\nConversions Meta attributed under another event');
   // then has to guard.
   globalThis.fetch = serve([rowWith([{ action_type: 'lead', value: '3' }])]);
   const r = mockRes();
-  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  await insights({ method: 'GET', query: { view: 'sybago', ...PRE_ADJUSTMENT }, headers: { cookie: masterCookie } }, r);
   t('no stray conversions reports an empty list', () =>
     assert.deepEqual(r.body.totals.otherConversions, []));
 }
@@ -1476,7 +1482,10 @@ console.log('\nRolling windows belong to Meta, not to the caller');
 
   t('a filtered request also fetches the unfiltered lifetime anchor', () => {
     assert.ok(r.body.lifetime, 'lifetime anchor missing');
-    assert.equal(r.body.lifetime.registrations, 3);
+    // 3 attributed + the 3 manual entries. The anchor is the all-time
+    // unfiltered figure, so it carries them; a comparison line that omitted
+    // them would contradict the tile it exists to explain.
+    assert.equal(r.body.lifetime.registrations, 6);
   });
 
   t('the anchor is NOT filtered by the current scope', () =>
@@ -1500,6 +1509,109 @@ console.log('\nRolling windows belong to Meta, not to the caller');
   await insights({ method: 'GET', query: { preset: 'maximum' }, headers: { cookie: validCookie } }, r);
   t('an unfiltered lifetime view does not fetch a duplicate anchor', () =>
     assert.equal(r.body.lifetime, null));
+}
+
+
+/* -------------------------------------- manually added conversions ------ */
+console.log('\nConversions added by hand, and never added silently');
+
+/* The ad is also a Facebook page post that has been shared, so it earns
+   organic reach the ad account never sees — on 2026-09-11 it delivered 4
+   landing page views while GoHighLevel took 3 submissions. The owner's call is
+   that those leads exist because the post exists, so the dashboard counts
+   them. What must never happen is counting them without saying so. */
+
+{
+  const row = {
+    date_start: '2026-09-11', date_stop: '2026-09-11',
+    spend: '22.30', impressions: '786', reach: '730', frequency: '1.08',
+    clicks: '16', inline_link_clicks: '10', ctr: '2.04', cpc: '1.39', cpm: '28.37',
+    actions: [{ action_type: 'lead', value: '1' }],
+  };
+  globalThis.fetch = serve([row]);
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'sybago', since: '2026-09-06', until: '2026-09-12' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('the manual entries are added to the conversion total', () =>
+    assert.equal(r.body.totals.registrations, 4));   // 1 attributed + 3 manual
+
+  t('cost per lead is recomputed from the ADJUSTED count', () =>
+    // The whole point of folding it in before the derived figures: a tile
+    // reading 4 leads beside a cost per lead of 22.30 would be incoherent.
+    assert.equal(r.body.totals.costPerRegistration, 22.3 / 4));
+
+  t('the daily row carries its share, so the chart agrees with the tile', () => {
+    const day = r.body.daily.find((x) => x.dateStart === '2026-09-11');
+    assert.equal(day.registrations, 4);
+  });
+
+  t('the adjustment is reported, never silent', () => {
+    assert.equal(r.body.manualConversions.applied, true);
+    assert.equal(r.body.manualConversions.count, 3);
+    assert.ok(r.body.manualConversions.entries[0].note);
+  });
+}
+
+{
+  // A range that does not cover the entry's day. "Always add three" would put
+  // three leads on a day none happened.
+  globalThis.fetch = serve([rowWith([{ action_type: 'lead', value: '1' }])]);
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'sybago', since: '2026-09-01', until: '2026-09-07' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+  t('a range not covering the entry gets no adjustment', () => {
+    assert.equal(r.body.totals.registrations, 1);
+    assert.equal(r.body.manualConversions.count, 0);
+  });
+}
+
+{
+  /* Filtered to an ad set. An unattributed lead belongs to no ad set — that is
+     what unattributed means — so assigning it to one would invent a conversion
+     for a specific ad. It is withheld, and the reason is reported so the page
+     can say so rather than quietly showing a smaller number. */
+  globalThis.fetch = serve([{
+    date_start: '2026-09-11', date_stop: '2026-09-11',
+    spend: '22.30', impressions: '786', reach: '730', frequency: '1.08',
+    clicks: '16', inline_link_clicks: '10', ctr: '2.04', cpc: '1.39', cpm: '28.37',
+    actions: [{ action_type: 'lead', value: '1' }],
+  }]);
+  const r = mockRes();
+  await insights(
+    { method: 'GET',
+      query: { view: 'sybago', since: '2026-09-06', until: '2026-09-12', adsetIds: '120256163870610583' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('nothing is added while filtered to an ad set', () =>
+    assert.equal(r.body.totals.registrations, 1));
+  t('and the page is told why, rather than just seeing a smaller number', () => {
+    assert.equal(r.body.manualConversions.applied, false);
+    assert.match(r.body.manualConversions.withheldReason, /ad set/);
+  });
+}
+
+{
+  // Dave's account has no manual entries at all and must be untouched by any
+  // of this.
+  globalThis.fetch = serve([rowWith([
+    { action_type: 'offsite_conversion.fb_pixel_complete_registration', value: '6' },
+  ])]);
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'dave' }, headers: { cookie: masterCookie } }, r);
+  t('an account with no manual entries is unaffected', () => {
+    assert.equal(r.body.totals.registrations, 6);
+    assert.equal(r.body.manualConversions.count, 0);
+    assert.equal(r.body.manualConversions.applied, false);
+  });
 }
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');

@@ -196,6 +196,50 @@ const CONVERSION_TYPES = {
  * registration and lead families, which turned 17 into 33. Naming them lets
  * the page say what else Meta recorded without claiming it is the same thing.
  */
+/* ------------------------------------------------------------------------
+ * MANUALLY ADDED CONVERSIONS — leads the ads produced that Meta cannot see.
+ *
+ * TO CHANGE THE NUMBER, edit `count` below. That is the whole knob.
+ *
+ * Meta credits only clicks it can attribute. This campaign's ad is also a real
+ * Facebook page post that has been shared and saved, so it earns organic reach
+ * the ad account never records: on 2026-09-11 it delivered 4 landing page
+ * views while GoHighLevel took 3 form submissions. Those leads exist because
+ * the post exists, so they are counted here.
+ *
+ * Rules this file lives by, because a dashboard that inflates its own
+ * conversion count without saying so is worse than one that reads low:
+ *
+ *   - Every entry is DATED and counts only when the selected range covers it.
+ *     A bare "+3 always" would show three leads on a day none happened.
+ *   - Nothing is added while the figures are filtered to an ad set or an ad.
+ *     An unattributed lead belongs to no ad set — that is what unattributed
+ *     means — and assigning one to a specific ad would invent a conversion.
+ *   - The response always reports what was added, and the page states it above
+ *     the tiles. It is never silent.
+ *   - Cost per lead is recomputed from the adjusted count, so the tiles agree
+ *     with each other.
+ *
+ * NOTE ON THE FIGURE. At account level Meta attributes 3 and GoHighLevel holds
+ * 5, so the observed gap is 2. The 3 configured here is the owner's explicit
+ * instruction, given against a view that was filtered to one ad set showing 2.
+ * Worth reconciling against GoHighLevel before trusting the total.
+ * ---------------------------------------------------------------------- */
+const MANUAL_CONVERSIONS = {
+  sybago: [
+    {
+      date: '2026-09-11',
+      count: 3,
+      note: 'Website form submissions confirmed in GoHighLevel that Meta could not attribute to an ad click.',
+    },
+  ],
+};
+
+/** The entries whose day falls inside [since, until]. ISO dates compare as strings. */
+function manualInRange(view, since, until) {
+  return (MANUAL_CONVERSIONS[view] || []).filter((e) => e.date >= since && e.date <= until);
+}
+
 const OTHER_CONVERSION_TYPES = [
   'offsite_conversion.fb_pixel_custom',
   'offsite_conversion.fb_pixel_contact',
@@ -1130,8 +1174,12 @@ export default async function handler(req, res) {
         const row = (anchor.json.data || [])[0];
         if (row) {
           const a = shapeRow(row, 'account', conversionFamily);
+          /* The anchor is the unfiltered all-time figure, so it carries EVERY
+             manual entry. Leaving them out would have the comparison line
+             contradict the tile it is there to explain. */
+          const allManual = (MANUAL_CONVERSIONS[view] || []).reduce((n, e) => n + e.count, 0);
           lifetime = {
-            registrations: a.registrations || 0,
+            registrations: (a.registrations || 0) + allManual,
             spend: a.spend,
             otherConversions: a.otherConversions,
             since: row.date_start,
@@ -1223,6 +1271,39 @@ export default async function handler(req, res) {
        whichever one is right. */
     totals.frequency = totals.reach ? totals.impressions / totals.reach : 0;
 
+    /* Manually added conversions, folded in before any cost-per figure is
+       derived so every tile agrees with every other one.
+
+       Withheld while filtered: an unattributed lead cannot be assigned to an
+       ad set or an ad without inventing a conversion for one. The client is
+       told WHY rather than just seeing a smaller number. */
+    const manualEntries = manualInRange(view, resolved.since, resolved.until);
+    const manualCount = manualEntries.reduce((n, e) => n + e.count, 0);
+    const manualApplied = manualCount > 0 && !isFiltered;
+
+    if (manualApplied) {
+      totals.registrations += manualCount;
+      /* The chart reads the daily series, so the day gets its share too —
+         otherwise the tile says 6 and the line adds up to 3. A day Meta
+         returned no row for is skipped rather than invented, since there is no
+         spend to sit it beside. */
+      for (const e of manualEntries) {
+        const row = daily.find((r) => r.dateStart === e.date);
+        if (row) row.registrations = (row.registrations || 0) + e.count;
+      }
+    }
+
+    const manualConversions = {
+      count: manualCount,
+      applied: manualApplied,
+      entries: manualEntries.map((e) => ({ date: e.date, count: e.count, note: e.note })),
+      /* Why it was not applied, so the page can say so instead of silently
+         showing a different number than it did a moment ago. */
+      withheldReason: manualCount > 0 && !manualApplied
+        ? 'filtered to an ad set or ad, which an unattributed lead cannot belong to'
+        : null,
+    };
+
     totals.ctr = totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0;
     totals.cpc = totals.clicks ? totals.spend / totals.clicks : 0;
     totals.cpm = totals.impressions ? (totals.spend / totals.impressions) * 1000 : 0;
@@ -1298,6 +1379,10 @@ export default async function handler(req, res) {
          of. Null when the request was already exactly that, so the client must
          treat its absence as "nothing narrower is being shown". */
       lifetime,
+      /* Conversions added by hand because Meta cannot attribute them. Always
+         reported, applied or not — the page discloses this above the tiles and
+         must never be able to show an adjusted figure without saying so. */
+      manualConversions,
       // With date_preset the day is whatever the account's timezone says, so
       // the range is read back off a returned row rather than assumed.
       resolvedFromAccountTimezone: useToday,
