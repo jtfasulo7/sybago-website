@@ -1274,5 +1274,127 @@ const pixelStub = (payload) => async (u) => {
   });
 }
 
+
+/* ------------------------------------ the conversions a family misses ---- */
+console.log('\nConversions Meta attributed under another event');
+
+/* FROM THE LIVE ACCOUNT, 2026-09-11. act_4518527871759174, pixel
+   1455782335534012, 2026-08-23 to 2026-09-11.
+
+   Events Manager showed 5 Lead events. The dashboard showed 2. Four causes
+   stacked, and the largest was a default ad set — see the Scope block below.
+   This block covers the other one: the Sep 9 submission came back ONLY as
+   offsite_conversion.fb_pixel_custom, with no lead action on that day at all, so
+   the lead family could not see it and it vanished silently. */
+
+{
+  const row = (actions) => ({
+    date_start: '2026-09-09', date_stop: '2026-09-09',
+    spend: '28.98', impressions: '832', reach: '770', frequency: '1.08',
+    clicks: '13', inline_link_clicks: '5', ctr: '1.56', cpc: '2.23', cpm: '34.83',
+    actions,
+  });
+  globalThis.fetch = serve([
+    row([
+      { action_type: 'link_click', value: '5' },
+      { action_type: 'offsite_conversion.fb_pixel_custom', value: '1' },
+      { action_type: 'landing_page_view', value: '4' },
+    ]),
+  ]);
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+
+  t('a conversion outside the family is reported rather than dropped', () =>
+    assert.deepEqual(r.body.totals.otherConversions,
+      [{ actionType: 'offsite_conversion.fb_pixel_custom', count: 1 }]));
+
+  t('and is NOT added to the lead count', () =>
+    /* A custom conversion can be a rule built ON the same event, so summing
+       the two would count one submission twice — the mistake that turned
+       Dave's 17 registrations into 33. */
+    assert.equal(r.body.totals.registrations, 0));
+}
+
+{
+  // A lead AND a custom conversion on the same day stay two separate figures.
+  globalThis.fetch = serve([
+    rowWith([
+      { action_type: 'lead', value: '1' },
+      { action_type: 'offsite_conversion.fb_pixel_lead', value: '1' },
+      { action_type: 'offsite_conversion.fb_pixel_custom', value: '1' },
+    ]),
+  ]);
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+
+  t('the lead count stays the lead count', () =>
+    assert.equal(r.body.totals.registrations, 1));
+  t('the custom conversion is carried alongside, not merged in', () =>
+    assert.equal(r.body.totals.otherConversions[0].count, 1));
+  t('and never appears as two leads', () =>
+    assert.notEqual(r.body.totals.registrations, 2));
+}
+
+{
+  // Nothing outside the family: an empty list, not a missing key the client
+  // then has to guard.
+  globalThis.fetch = serve([rowWith([{ action_type: 'lead', value: '3' }])]);
+  const r = mockRes();
+  await insights({ method: 'GET', query: { view: 'sybago' }, headers: { cookie: masterCookie } }, r);
+  t('no stray conversions reports an empty list', () =>
+    assert.deepEqual(r.body.totals.otherConversions, []));
+}
+
+/* --------------------------------------------- scope must be visible ---- */
+console.log('\nA scoped figure must not read as a total');
+
+{
+  /* THE ROOT CAUSE. The Montara Forge campaign runs three ad sets and the
+     leads split 0 / 1 / 2 across them:
+
+       Montara Forge Ad Set 1 .............. 0
+       CONTACT - Montara Forge Ad Set 1 .... 1
+       LEAD - Montara Forge Ad Set 1 ....... 2
+
+     VIEW_DEFAULTS.sybago named 'Lead Montara Forge Ad Set 1', and findByName
+     normalises punctuation, so it resolved exactly onto the LEAD ad set. The
+     page opened showing 2 of the campaign's 3 leads and nothing beside the
+     number said it was filtered.
+
+     The dashboard's defaults are client-side, so what is asserted here is the
+     server half: an ad set scope REACHES Meta as a filter, and the response
+     states the scope it answered under. */
+  const seen = [];
+  globalThis.fetch = async (u) => {
+    seen.push(String(u));
+    return /\/campaigns\b/.test(String(u))
+      ? { ok: true, headers: { get: () => null }, json: async () => ({ data: [] }) }
+      : { ok: true, headers: { get: () => null }, json: async () => ({ data: DAILY }) };
+  };
+  const r = mockRes();
+  await insights(
+    { method: 'GET', query: { view: 'sybago', adsetIds: '120256163870610583' },
+      headers: { cookie: masterCookie } },
+    r,
+  );
+
+  t('an ad set scope reaches Meta as a filter', () => {
+    const f = decodeURIComponent(seen.find((u) => u.includes('time_increment=1')));
+    assert.match(f, /adset\.id/);
+    assert.match(f, /120256163870610583/);
+  });
+
+  t('the response names the scope it answered under', () =>
+    // The client needs this to say WHAT the figure was filtered to. Without
+    // it, a third of a campaign is indistinguishable from all of it.
+    assert.deepEqual(r.body.scope.adsetIds, ['120256163870610583']));
+
+  t('the aggregate row is filtered by the same scope', () =>
+    // Otherwise the tiles would report the whole account while the charts
+    // reported one ad set — the two halves of the page disagreeing.
+    assert.ok(seen.some((u) =>
+      u.includes('level=account') && !u.includes('time_increment') && u.includes('filtering'))));
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

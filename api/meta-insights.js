@@ -183,6 +183,26 @@ const CONVERSION_TYPES = {
   lead: LEAD_TYPES,
 };
 
+/* Conversions Meta attributed that the account's own family does NOT contain.
+ *
+ * Montara Forge's Sep 9 submission came back only as
+ * offsite_conversion.fb_pixel_custom — a custom conversion defined on the
+ * shared pixel, with no matching `lead` on that day. It is a real form
+ * submission that the lead count could not see.
+ *
+ * These are reported SEPARATELY and never added to the conversion total. A
+ * custom conversion can be a rule built ON the same event, so summing the two
+ * would count one submission twice — the identical mistake as merging the
+ * registration and lead families, which turned 17 into 33. Naming them lets
+ * the page say what else Meta recorded without claiming it is the same thing.
+ */
+const OTHER_CONVERSION_TYPES = [
+  'offsite_conversion.fb_pixel_custom',
+  'offsite_conversion.fb_pixel_contact',
+  'contact_total',
+  'contact_website',
+];
+
 const LANDING_PAGE_VIEW_TYPES = ['landing_page_view'];
 
 /* ----------------------------------------------------------------- errors */
@@ -409,9 +429,22 @@ function extractMetrics(actions, costPer, actionValues, family = 'registration')
   const valueByType = new Map((actionValues || []).map((a) => [a.action_type, num(a.value)]));
 
   const types = CONVERSION_TYPES[family] || REGISTRATION_TYPES;
+
+  /* Every attributed conversion outside this account's family, listed by name
+     rather than summed into one figure — the caller has to be able to say
+     WHICH other event Meta recorded, not just how many. */
+  const counted = new Set(types);
+  const other = [];
+  for (const type of OTHER_CONVERSION_TYPES) {
+    if (counted.has(type)) continue;
+    const count = byType.get(type);
+    if (count) other.push({ actionType: type, count });
+  }
+
   return {
     registration: pull(types, byType, costByType, valueByType),
     landingPageView: pull(LANDING_PAGE_VIEW_TYPES, byType, costByType, valueByType),
+    other,
   };
 }
 
@@ -442,6 +475,11 @@ function shapeRow(r, level, family) {
     // Landing page views — a separate traffic metric, never folded into the above.
     landingPageViews: m.landingPageView.count,
     costPerLandingPageView: m.landingPageView.costPer,
+    /* Attributed conversions this account does not score on, as
+       [{actionType, count}]. Reported so a form submission Meta filed under a
+       custom conversion is visible instead of vanishing. NEVER added to
+       registrations. */
+    otherConversions: m.other,
     adId: r.ad_id || null,
     adName: r.ad_name || null,
     adsetId: r.adset_id || null,
@@ -1117,6 +1155,10 @@ export default async function handler(req, res) {
           landingPageViews: agg.landingPageViews || 0,
         }
       : summed;
+
+    /* From the aggregate row, so this is the figure for the whole window and
+       the whole current scope — not a sum that could double-count. */
+    totals.otherConversions = agg ? agg.otherConversions : [];
 
     totals.reach = agg ? agg.reach : 0;
     /* Frequency is impressions per person. Meta returns its own, but deriving

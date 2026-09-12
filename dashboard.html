@@ -529,6 +529,15 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 #dash-body { transition:opacity .18s var(--eo); }
 #dash-body.swapping { opacity:.35; }
 
+/* What the figures are filtered to. Quiet, but never hidden: the whole point
+   is that a scoped number must not be readable as a total. */
+.scope-line {
+  margin:.1rem 0 .9rem; padding:.5rem .75rem; border-radius:var(--r-sm);
+  border:1px solid rgba(var(--accent-rgb),.3); background:rgba(var(--accent-rgb),.07);
+  font-size:.82rem; font-weight:600; color:var(--accent-d);
+}
+.scope-line b { font-weight:800; }
+
 /* Ad sets and ads as a toggle tree.
    Everything in the campaign is visible at once and one press is the whole
    interaction — no select to open, no Add to confirm. */
@@ -1263,6 +1272,10 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       <p id="pixel-note" hidden></p>
       <p id="conv-note-body">Meta keeps attributing conversions for up to about three days, so today's and yesterday's counts rise after the fact. Meta also only counts a conversion it can tie back to an ad interaction — anyone who arrives on a different device, or with tracking off, converts without ever appearing here. Expect this figure to sit below the count you keep yourself.</p>
     </details>
+    <!-- Stated beside the numbers, not just implied by the picker below them.
+         A figure filtered to one ad set of three read as an account total for
+         days. -->
+    <p id="scope-line" class="scope-line" hidden></p>
     <div id="error-box" class="notice notice-error" role="alert" hidden></div>
     <div id="results-notice" class="notice notice-warn" hidden></div>
 
@@ -1963,8 +1976,15 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       adset: 'Dave Ad Set 1 Paid Purchase Event Image'
     },
     sybago: {
-      campaign: 'Montara Forge Driveways campaign August 2026',
-      adset: 'Lead Montara Forge Ad Set 1'
+      /* NO default ad set, deliberately.
+         This campaign runs three — "Montara Forge Ad Set 1", "CONTACT -
+         Montara Forge Ad Set 1" and "LEAD - Montara Forge Ad Set 1" — and the
+         leads are split 0 / 1 / 2 across them. Defaulting to the LEAD one
+         showed 2 of the campaign's 3 while reading like the account total, and
+         it was the largest part of the reported "Events Manager says 5, this
+         says 2" gap. A lead account has to open on everything that produced a
+         lead. */
+      campaign: 'Montara Forge Driveways campaign August 2026'
     }
   };
 
@@ -2706,19 +2726,70 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     return d.rows||[];
   }
 
+  /* Names the filter the figures were taken under.
+     Montara Forge read 2 leads for days because the page opened scoped to one
+     ad set of three, and nothing beside the number said so — the picker showed
+     it, but a KPI tile reading "Leads 2" is what gets believed. */
+  function renderScopeLine(totals){
+    var el = $('scope-line');
+    if(!el) return;
+    var sc = currentScope();
+    var w = CONVERSION_WORDS[state.view] || CONVERSION_WORDS.sybago;
+    var parts = [];
+
+    var sets = (sc.adsets || []).length, ads = (sc.ads || []).length;
+    if(ads){
+      parts.push(ads === 1 ? 'one ad' : ads + ' ads');
+    } else if(sets){
+      // Of how many — the fraction is the part that makes it land.
+      var available = adsetsInScope().length;
+      parts.push(sets === 1 ? 'one ad set' : sets + ' ad sets');
+      if(available > sets) parts[0] += ' of ' + available;
+    }
+
+    /* Conversions Meta attributed under an event this account does not score
+       on. Montara Forge's Sep 9 submission came back only as a custom
+       conversion, so the lead count could not see it. Named, never added. */
+    var other = (totals && totals.otherConversions) || [];
+    var otherTotal = other.reduce(function(n, o){ return n + (o.count || 0); }, 0);
+
+    if(!parts.length && !otherTotal){ el.hidden = true; return; }
+
+    var text = parts.length
+      ? 'Filtered to ' + parts.join(' and ') + '. Figures exclude everything else in this campaign.'
+      : '';
+    if(otherTotal){
+      text += (text ? ' ' : '') +
+        'Meta also attributed ' + otherTotal + ' ' +
+        (otherTotal === 1 ? 'conversion' : 'conversions') + ' under ' +
+        other.map(function(o){ return o.actionType; }).join(' and ') +
+        ', which is not counted as ' + (otherTotal === 1 ? 'a ' + w.one : w.label.toLowerCase()) + '.';
+    }
+    el.textContent = text;
+    el.hidden = false;
+  }
+
   /* What the PIXEL recorded, beside what Meta could attribute to an ad.
      These are two different datasets, not two attempts at one number: Insights
      reports only conversions it can tie back to an ad interaction, Events
      Manager reports every event the pixel received. The gap between them is
      the answer to "Events Manager says five and this says two", so it is shown
      rather than reconciled away. */
-  var lastPixelTotal = null, lastAttributed = 0;
+  var lastPixelTotal = null, lastAttributed = 0, lastOther = 0;
 
   /* Called with the figures when a response lands, and with nothing when only
      the wording needs redrawing — switching view relabels the sentence without
      refetching. */
-  function renderPixelNote(p, attributed){
-    if(arguments.length){ lastPixelTotal = p || null; lastAttributed = attributed || 0; }
+  function renderPixelNote(p, attributed, other){
+    if(arguments.length){
+      lastPixelTotal = p || null;
+      lastAttributed = attributed || 0;
+      /* Conversions Meta DID attribute, under an event this account does not
+         score on. They belong on the attributed side of the arithmetic: calling
+         them unattributed would overstate the gap and blame tracking for
+         something Meta actually recorded. */
+      lastOther = (other || []).reduce(function(n, o){ return n + (o.count || 0); }, 0);
+    }
     var el = $('pixel-note');
     if(!el) return;
     var w = CONVERSION_WORDS[state.view] || CONVERSION_WORDS.sybago;
@@ -2727,20 +2798,27 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // No figure is not the same as a figure of zero, so nothing is claimed.
     if(!p || p.total === null || p.total === undefined){ el.hidden = true; return; }
 
-    var gap = p.total - lastAttributed;
+    // Everything Meta tied to an ad, whichever event it filed it under.
+    var matched = lastAttributed + lastOther;
+    var gap = p.total - matched;
+
     el.hidden = false;
     el.textContent =
       'Your pixel recorded ' + p.total + ' ' + (p.total === 1 ? w.one : w.label.toLowerCase()) +
-      ' over this range, against ' + lastAttributed + ' Meta could attribute to an ad' +
+      ' over this range. Meta attributed ' + lastAttributed + ' to an ad' +
+      (lastOther
+        ? ', plus ' + lastOther + ' filed under another conversion event'
+        : '') +
       (gap > 0
-        ? ' — the other ' + gap + ' fired the pixel without Meta being able to tie ' +
+        ? ' — the remaining ' + gap + ' fired the pixel without Meta being able to tie ' +
           (gap === 1 ? 'it' : 'them') + ' back to an ad click.'
         : '.');
   }
 
   function renderKpis(d){
     var t=d.totals||{};
-    renderPixelNote(d.pixelTotal, t.registrations);
+    renderPixelNote(d.pixelTotal, t.registrations, t.otherConversions);
+    renderScopeLine(t);
     var keys=KPI_KEYS;
     $('kpis').innerHTML = keys.map(function(k){
       var m=METRICS[k], v=t[k], muted=(v==null||v===0), pair=(k==='impressions');

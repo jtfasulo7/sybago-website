@@ -431,6 +431,54 @@ in the response says which answered.
 - **Do not "simplify" this back into one request.** The daily series is still
   needed, for the trend charts. The two answer different questions.
 
+**A SCOPED FIGURE MUST NEVER READ AS A TOTAL. This cost days.**
+
+Montara Forge showed 2 leads while Events Manager showed 5. Resolved 2026-09-11
+by querying the account directly — act_4518527871759174, pixel
+1455782335534012, 2026-08-23 to 2026-09-11. FOUR causes stacked, and the
+largest was a default the dashboard set for itself:
+
+| Figure | Value | Why it differs from the one above |
+|---|---|---|
+| Lead events at the pixel | 5 | everything the pixel received |
+| Attributed by Meta to an ad | 4 | 1 fired with no attributable click |
+| Counted by the lead family | 3 | Sep 9 came back ONLY as `offsite_conversion.fb_pixel_custom` |
+| **Shown on the page** | **2** | scoped to one ad set of three |
+
+Leads per ad set, all in the one campaign:
+
+    Montara Forge Ad Set 1 .............. 0
+    CONTACT - Montara Forge Ad Set 1 .... 1
+    LEAD - Montara Forge Ad Set 1 ....... 2   <- what the page opened on
+
+- **`VIEW_DEFAULTS.sybago` named 'Lead Montara Forge Ad Set 1'** and
+  `findByName` normalises punctuation, so it resolved exactly onto
+  "LEAD - Montara Forge Ad Set 1". The number was never wrong for what it
+  measured. It measured a third of the campaign while reading like a total.
+  That default is gone; a lead account opens on everything that produced a lead.
+- **Dave keeps its ad-set default** — that one was asked for deliberately. What
+  makes it safe is `#scope-line`, which states any active filter directly above
+  the KPI tiles. The ad-set picker showed the scope all along; a tile reading
+  "Leads 2" is what gets believed.
+- **Before theorising about a conversion gap, query the account.** The
+  attribution story was true and accounted for ONE of the five. Three quarters
+  of the gap was scope and event bucketing, and no amount of reasoning about
+  attribution windows would have found either.
+
+**`otherConversions` carries what the account's family does not.** Meta filed
+Montara Forge's Sep 9 submission under `offsite_conversion.fb_pixel_custom`
+with no `lead` on that day at all, so the lead count could not see it.
+`OTHER_CONVERSION_TYPES` names those events and reports them with their counts.
+
+- **Never add them to `registrations`.** A custom conversion can be a rule built
+  ON the same event, so summing would count one submission twice — the same
+  mistake as merging the registration and lead families, which turned 17 into 33.
+- They are reported as `[{actionType, count}]`, not as one number, because the
+  page has to be able to say WHICH other event Meta recorded.
+- They count as ATTRIBUTED in the pixel note's arithmetic. Calling them
+  unattributed overstates the gap and blames tracking for something Meta did
+  record.
+
 **`pixelTotal` is Events Manager, which is a DIFFERENT dataset from Insights.**
 `{ads-pixel-id}/stats?aggregation=event` returns hourly buckets that must be
 summed; `VIEWS[view].pixelEvent` names the event ('CompleteRegistration' for
