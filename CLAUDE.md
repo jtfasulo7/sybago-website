@@ -700,6 +700,85 @@ as "Invalid Date" reads as a fault in the data rather than in the clock.
 
 ---
 
+## AI ANALYSIS PANELS (/dashboard → Performance)
+
+Two panels between the KPI tiles and the charts. One diagnoses the current
+snapshot, the other reads how the curves are moving. They are a **synthesis
+layer** and are styled to say so — flat surface, coloured spine, no tile lift.
+
+| File | Role |
+|---|---|
+| `lib/analysis-prompts.js` | **Every word the model is told.** Business context, diagnostic framework, output contract. |
+| `api/ads-analysis.js` | Transport only: session gate, sanitising, the Anthropic call, the cache. |
+| `test/analysis.test.mjs` | `node test/analysis.test.mjs` — no creds, no network. |
+
+**To tune an analysis, edit `lib/analysis-prompts.js` and nothing else.** The
+split exists so that changing what the model says never means reading transport
+code, and so the prompts are reviewable as prose rather than as string
+concatenation buried in a handler.
+
+**GET reads, POST generates. This is the cost control.** A page load calls GET,
+which returns whatever is cached and never contacts Anthropic. The client POSTs
+only when GET comes back null — nobody has ever run that panel for that account
+— or when the reader presses refresh. Verified in the tests: a cached load makes
+**zero** model calls.
+
+- **Each panel refreshes independently.** Two buttons, two cache entries. A
+  trend reading that is still good should not be thrown away to re-run the KPI one.
+- **A failed regeneration never replaces the analysis on screen.** The error is
+  appended underneath with a Try again button, and the timestamp keeps pointing
+  at the last SUCCESSFUL generation. Losing a good reading because the retry
+  failed is the worst outcome available here.
+- **An empty range is answered without paying for it.** No impressions means no
+  diagnosis to make; the panel says what to widen instead.
+
+**The cache is per VIEW and panel, not per person.** Both roles that can see an
+account see identical numbers, so a per-user cache would buy the same answer
+twice. It is encrypted at rest through `lib/secure-store` for the same reason
+the finance ledger is — a Vercel Blob store is public.
+
+**Model: Sonnet** (`ANTHROPIC_MODEL`, defaulting to `claude-sonnet-5`). The
+framework needs real reasoning across a dozen interacting numbers, which Haiku
+flattens; Opus costs several times more for a judgement Sonnet already makes.
+
+**Two accounts, two sets of economics, and one of them is PROVISIONAL.**
+`ACCOUNTS` in the prompts file carries both.
+
+- **Dave's figures are the owner's, verbatim** — $9/month, $18 breakeven, $15
+  baseline CPA, $40–50 kill threshold, ~$50/day budget.
+- **Montara Forge's are researched benchmarks, not agreed numbers**, so it is
+  flagged `provisional: true` and the panel prints a line saying so. A lead is
+  also not a sale, so that prompt is explicitly told **not to assert
+  profitability** — close rate and job value are not in this data.
+
+**The model answers in JSON, not prose.** `{verdict, headline, finding,
+recommendation, flag}`.
+
+- Markdown would have to be parsed back into the callout and paragraph shapes,
+  which is guesswork. A fixed shape also kills the chat register outright —
+  there is nowhere for "Sure! Let me analyse…" to go.
+- `verdict` drives the spine colour and `flag.level` the callout, so both are
+  **checked against a fixed set**; an invented value falls back rather than
+  reaching the CSS and styling nothing.
+- Callout colours are `--kpi-good` / `--kpi-warn` / `--kpi-bad`, which exist per
+  palette. **Never hardcode a hex here** — a red picked for the light view is
+  unreadable on Dave's near-black one. Each level also states its own word
+  ("Action needed", "Watch", "Opportunity") so colour is never the only carrier.
+- `finding` keeps `\n\n`; the panel splits on it to render separate paragraphs.
+  The control-character sanitiser deliberately excludes `\u000a` for that field
+  and includes it for single-line ones. Tested.
+
+**Campaign and ad names are untrusted.** They are free text typed by whoever
+built the campaign and they go into a prompt, so the system prompt tells the
+model to treat them as labels and to report anything that reads like an
+instruction. Control characters are stripped server-side before they get there.
+
+**The per-ad rows exist for the kill-threshold check.** An account total can
+never reveal one ad burning $52 inside a healthy average, which is step 2 of the
+framework. Capped at 25 rows.
+
+---
+
 ## SOCIAL POSTING (/dashboard → Peps by Dave → Social post)
 
 Upload a finished video, generate a caption per platform, post to all four at once.

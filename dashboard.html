@@ -529,6 +529,110 @@ textarea:hover { border-color:rgba(var(--accent-rgb),.35); }
 #dash-body { transition:opacity .18s var(--eo); }
 #dash-body.swapping { opacity:.35; }
 
+/* ======================================================= AI analysis ====
+   A synthesis layer, deliberately not shaped like the tiles or the charts it
+   reads. Flat surface, a coloured spine down the left edge, no lift — the eye
+   should place it as commentary rather than as another instrument. */
+.ai-grid {
+  display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem;
+  margin:0 0 1.4rem;
+}
+.ai-card {
+  position:relative; overflow:hidden;
+  border:1px solid var(--line); border-radius:var(--r-md);
+  background:var(--surface-solid);
+  padding:1rem 1.1rem 1.1rem;
+}
+/* The spine carries the verdict colour once there is one to carry. */
+.ai-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--line); transition:background .3s var(--eo);
+}
+.ai-card[data-verdict="positive"]::before   { background:var(--kpi-good); }
+.ai-card[data-verdict="concerning"]::before { background:var(--kpi-bad); }
+.ai-card[data-verdict="mixed"]::before      { background:var(--kpi-warn); }
+
+.ai-head { display:flex; align-items:flex-start; gap:.6rem; margin-bottom:.7rem; }
+.ai-head h3 {
+  margin:0; font-size:.95rem; font-weight:800; letter-spacing:-.01em; color:var(--ink);
+}
+.ai-head .ai-when {
+  display:block; margin-top:.15rem;
+  font-size:.7rem; font-weight:600; letter-spacing:.03em; color:var(--ink-3);
+}
+.ai-head .ai-sp { flex:1 1 auto; }
+.ai-refresh {
+  flex:0 0 auto; width:32px; height:32px; display:grid; place-items:center;
+  border:1px solid var(--line); border-radius:9px; background:transparent;
+  color:var(--ink-2); cursor:pointer;
+  transition:color .15s var(--eo), border-color .15s var(--eo), background .15s var(--eo);
+}
+.ai-refresh:hover { color:var(--accent-d); border-color:rgba(var(--accent-rgb),.45); background:rgba(var(--accent-rgb),.07); }
+.ai-refresh:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.ai-refresh[aria-disabled="true"] { opacity:.45; pointer-events:none; }
+/* The icon turns only while a regeneration is actually in flight. */
+.ai-card.is-loading .ai-refresh svg { animation:aiSpin 1s linear infinite; }
+@keyframes aiSpin { to { transform:rotate(360deg); } }
+
+.ai-verdict {
+  margin:0 0 .6rem; font-size:.95rem; font-weight:700; line-height:1.45; color:var(--ink);
+}
+.ai-body p { margin:0 0 .6rem; font-size:.86rem; line-height:1.62; color:var(--ink-2); }
+.ai-body p:last-child { margin-bottom:0; }
+.ai-body .ai-rec-h {
+  margin:.9rem 0 .3rem; font-size:.66rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+
+/* The callout. Colour carries meaning here, so it is never the only carrier —
+   each level states its own word. */
+.ai-flag {
+  display:flex; gap:.55rem; align-items:flex-start;
+  margin:.9rem 0 0; padding:.6rem .75rem; border-radius:var(--r-sm);
+  font-size:.82rem; font-weight:600; line-height:1.5;
+  border:1px solid;
+}
+.ai-flag b { font-weight:800; letter-spacing:.02em; }
+/* currentColor for the border so each level needs one colour, not three, and a
+   palette swap cannot leave a border behind on the wrong hue. */
+.ai-flag[data-level="critical"] { color:var(--kpi-bad);  background:var(--kpi-bad-bg);  border-color:currentColor; }
+.ai-flag[data-level="warning"]  { color:var(--kpi-warn); background:var(--kpi-warn-bg); border-color:currentColor; }
+.ai-flag[data-level="positive"] { color:var(--kpi-good); background:var(--kpi-good-bg); border-color:currentColor; }
+
+/* Skeleton: the shape of the answer, so the wait reads as loading rather than
+   as blank. Lines are uneven because real paragraphs are. */
+.ai-skel span {
+  display:block; height:.72rem; margin-bottom:.55rem; border-radius:4px;
+  background:linear-gradient(90deg, var(--line) 25%, var(--surface) 37%, var(--line) 63%);
+  background-size:400% 100%;
+  animation:aiShimmer 1.4s ease infinite;
+}
+.ai-skel span:nth-child(1) { width:72%; height:.95rem; margin-bottom:.8rem; }
+.ai-skel span:nth-child(2) { width:100%; }
+.ai-skel span:nth-child(3) { width:96%; }
+.ai-skel span:nth-child(4) { width:88%; }
+.ai-skel span:nth-child(5) { width:64%; margin-bottom:.9rem; }
+.ai-skel span:nth-child(6) { width:92%; }
+@keyframes aiShimmer { 0% { background-position:100% 50%; } 100% { background-position:0 50%; } }
+@media (prefers-reduced-motion:reduce) {
+  .ai-skel span { animation:none; }
+  .ai-card.is-loading .ai-refresh svg { animation:none; }
+}
+
+.ai-error { font-size:.84rem; line-height:1.55; color:var(--kpi-bad); }
+.ai-error button {
+  margin-top:.5rem; font:inherit; font-size:.8rem; font-weight:700;
+  padding:.4rem .75rem; min-height:34px; border-radius:8px; cursor:pointer;
+  border:1px solid currentColor; background:transparent; color:inherit;
+}
+.ai-error button:hover { background:var(--kpi-bad-bg); }
+.ai-note { margin-top:.7rem; font-size:.72rem; color:var(--ink-3); line-height:1.5; }
+
+@media (max-width:860px){
+  .ai-grid { grid-template-columns:1fr; gap:.85rem; }
+  .ai-refresh { width:44px; height:44px; }   /* a real tap target on a phone */
+}
+
 /* What the figures are filtered to. Quiet, but never hidden: the whole point
    is that a scoped number must not be readable as a total. */
 .scope-line {
@@ -1287,6 +1391,43 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     <!-- KPIs first, on every breakpoint. -->
     <h2 id="kpi-h" class="sr-only">Totals for the selected range</h2>
     <dl class="kpis" id="kpis" aria-labelledby="kpi-h"></dl>
+
+    <!-- The synthesis layer: what the tiles above mean, and where the curves
+         below are heading. Between the two on purpose. -->
+    <h2 id="ai-h" class="sr-only">AI analysis</h2>
+    <div class="ai-grid" id="ai-grid" aria-labelledby="ai-h">
+
+      <article class="ai-card" id="ai-kpi" data-panel="kpi">
+        <div class="ai-head">
+          <div>
+            <h3>KPI analysis</h3>
+            <span class="ai-when" id="ai-kpi-when">Not analysed yet</span>
+          </div>
+          <span class="ai-sp"></span>
+          <button type="button" class="ai-refresh" id="ai-kpi-refresh"
+                  title="Regenerate analysis" aria-label="Regenerate KPI analysis">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 3v3.5H13"/></svg>
+          </button>
+        </div>
+        <div class="ai-body" id="ai-kpi-body" aria-live="polite"></div>
+      </article>
+
+      <article class="ai-card" id="ai-trend" data-panel="trend">
+        <div class="ai-head">
+          <div>
+            <h3>Trend analysis</h3>
+            <span class="ai-when" id="ai-trend-when">Not analysed yet</span>
+          </div>
+          <span class="ai-sp"></span>
+          <button type="button" class="ai-refresh" id="ai-trend-refresh"
+                  title="Regenerate analysis" aria-label="Regenerate trend analysis">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"/><path d="M16.5 3v3.5H13"/></svg>
+          </button>
+        </div>
+        <div class="ai-body" id="ai-trend-body" aria-live="polite"></div>
+      </article>
+
+    </div>
 
     <!-- ---------- 1. OVER TIME ---------- -->
     <section class="panel glass" id="panel-time" aria-labelledby="ts-h">
@@ -2438,6 +2579,263 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     sc.ads = (sc.ads || []).filter(function(a){ return inScope[a.id]; });
     selectedAds = sc.ads;
   }
+
+  /* ========================= AI analysis panels ===========================
+     Two panels: one reads the KPI snapshot, one reads the shape of the curves.
+     The prompts live in lib/analysis-prompts.js — nothing about what the model
+     is told is decided here.
+
+     GENERATE ONCE, THEN ONLY ON DEMAND. The endpoint's GET returns whatever is
+     cached without generating, so a page load costs nothing. A null answer
+     means nobody has ever run this panel for this account, and only then does
+     the client POST by itself. */
+
+  var AI_PANELS = ['kpi', 'trend'];
+
+  /* What is on screen per view and panel, so switching accounts does not show
+     one account's analysis over another's numbers. */
+  var aiState = {};
+
+  function aiKey(panel){ return state.view + '|' + panel; }
+  function aiEntry(panel){
+    var k = aiKey(panel);
+    if(!aiState[k]) aiState[k] = { status:'idle', analysis:null, generatedAt:null, error:null };
+    return aiState[k];
+  }
+
+  /* The last response, held so a refresh press has numbers to send without
+     refetching Meta. Null until the first load completes. */
+  var aiLastData = null;
+
+  function aiWhenText(iso){
+    if(!iso) return 'Not analysed yet';
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return 'Not analysed yet';
+    return 'Last analyzed ' + d.toLocaleString('en-US', {
+      month:'short', day:'numeric', hour:'2-digit', minute:'2-digit',
+    });
+  }
+
+  var AI_FLAG_WORD = { critical:'Action needed', warning:'Watch', positive:'Opportunity' };
+
+  function aiRender(panel){
+    var card = $('ai-' + panel), body = $('ai-' + panel + '-body'), when = $('ai-' + panel + '-when');
+    if(!card || !body) return;
+    var e = aiEntry(panel);
+
+    card.classList.toggle('is-loading', e.status === 'loading');
+    $('ai-' + panel + '-refresh').setAttribute('aria-disabled', e.status === 'loading' ? 'true' : 'false');
+    when.textContent = aiWhenText(e.generatedAt);
+
+    /* A failed refresh keeps the previous analysis on screen. The error is
+       appended under it rather than replacing it — losing a good reading
+       because the retry failed is the worst outcome available here. */
+    if(e.status === 'loading' && !e.analysis){
+      card.removeAttribute('data-verdict');
+      body.innerHTML = '<div class="ai-skel" role="status" aria-label="Generating analysis">' +
+        '<span></span><span></span><span></span><span></span><span></span><span></span></div>';
+      return;
+    }
+
+    body.innerHTML = '';
+
+    if(e.analysis){
+      card.setAttribute('data-verdict', e.analysis.verdict || 'mixed');
+
+      var h = document.createElement('p');
+      h.className = 'ai-verdict';
+      h.textContent = e.analysis.headline || '';
+      if(h.textContent) body.appendChild(h);
+
+      // The model separates paragraphs with a blank line; each becomes its own
+      // <p> so this renders as prose rather than as a wall.
+      String(e.analysis.finding || '').split(/\n\s*\n/).forEach(function(para){
+        var t = para.trim();
+        if(!t) return;
+        var p = document.createElement('p');
+        p.textContent = t;
+        body.appendChild(p);
+      });
+
+      if(e.analysis.recommendation){
+        var rh = document.createElement('p');
+        rh.className = 'ai-rec-h';
+        rh.textContent = 'What to do';
+        body.appendChild(rh);
+        var rp = document.createElement('p');
+        rp.textContent = e.analysis.recommendation;
+        body.appendChild(rp);
+      }
+
+      if(e.analysis.flag && e.analysis.flag.text){
+        var f = document.createElement('div');
+        f.className = 'ai-flag';
+        f.setAttribute('data-level', e.analysis.flag.level || 'warning');
+        var b = document.createElement('b');
+        // The colour is never the only signal.
+        b.textContent = (AI_FLAG_WORD[e.analysis.flag.level] || 'Watch') + ' —';
+        var sp = document.createElement('span');
+        sp.textContent = ' ' + e.analysis.flag.text;
+        f.appendChild(b); f.appendChild(sp);
+        body.appendChild(f);
+      }
+
+      if(e.provisional){
+        var n = document.createElement('p');
+        n.className = 'ai-note';
+        n.textContent = 'This account\u2019s economics are researched benchmarks, not figures you have confirmed. ' +
+          'Treat profitability statements as provisional.';
+        body.appendChild(n);
+      }
+    } else if(e.status !== 'loading' && !e.error){
+      card.removeAttribute('data-verdict');
+      var idle = document.createElement('p');
+      idle.textContent = 'No analysis yet.';
+      body.appendChild(idle);
+    }
+
+    if(e.error){
+      var err = document.createElement('div');
+      err.className = 'ai-error';
+      var em = document.createElement('p');
+      em.style.color = 'inherit';
+      em.textContent = e.error;
+      var retry = document.createElement('button');
+      retry.type = 'button';
+      retry.textContent = 'Try again';
+      retry.addEventListener('click', function(){ aiGenerate(panel); });
+      err.appendChild(em); err.appendChild(retry);
+      body.appendChild(err);
+    }
+  }
+
+  /* What the panel is looking at, in words, so the model knows the figures are
+     filtered rather than inferring it from numbers that look small. */
+  function aiScopeText(){
+    var sc = currentScope();
+    var bits = [];
+    if(sc.campaignId){
+      var c = visibleCampaigns().filter(function(x){ return x.id === sc.campaignId; })[0];
+      if(c) bits.push('campaign "' + c.name + '"');
+    }
+    if((sc.adsets || []).length) bits.push((sc.adsets.length === 1 ? 'ad set "' + sc.adsets[0].name + '"' : sc.adsets.length + ' ad sets'));
+    if((sc.ads || []).length) bits.push((sc.ads.length === 1 ? 'ad "' + sc.ads[0].name + '"' : sc.ads.length + ' ads'));
+    return bits.length ? 'Filtered to ' + bits.join(', ') + '.' : 'Whole account, unfiltered.';
+  }
+
+  function aiPayload(panel){
+    var d = aiLastData || {};
+    var base = { panel: panel, view: state.view, range: d.range || {}, scope: aiScopeText() };
+    if(panel === 'kpi'){
+      base.totals = d.totals || {};
+      // Per-ad rows are what make the kill-threshold check possible; an account
+      // total can never show one ad burning money inside a healthy average.
+      base.rows = (d.rows || []).map(function(r){
+        return {
+          name:r.name, level:r.level, spend:r.spend, impressions:r.impressions,
+          linkClicks:r.linkClicks, ctr:r.ctr, registrations:r.registrations,
+          costPerRegistration:r.costPerRegistration, landingPageViews:r.landingPageViews,
+        };
+      });
+    } else {
+      base.daily = (d.daily || []).map(function(x){
+        return {
+          date:x.date || x.dateStart, spend:x.spend, impressions:x.impressions, reach:x.reach,
+          frequency:x.frequency, linkClicks:x.linkClicks, ctr:x.ctr, cpc:x.cpc, cpm:x.cpm,
+          registrations:x.registrations, costPerRegistration:x.costPerRegistration,
+          landingPageViews:x.landingPageViews,
+        };
+      });
+    }
+    return base;
+  }
+
+  function aiApply(panel, j){
+    var e = aiEntry(panel);
+    e.status = 'ready';
+    e.error = null;
+    if(j.analysis){ e.analysis = j.analysis; e.generatedAt = j.generatedAt || null; }
+    e.provisional = !!j.provisionalContext;
+    aiRender(panel);
+  }
+
+  function aiGenerate(panel){
+    var e = aiEntry(panel);
+    if(e.status === 'loading') return Promise.resolve();
+    if(!aiLastData){ return Promise.resolve(); }        // nothing to analyse yet
+
+    e.status = 'loading';
+    e.error = null;
+    aiRender(panel);
+
+    var forKey = aiKey(panel);
+    return fetch('/api/ads-analysis', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(aiPayload(panel)),
+    })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, status:r.status, j:j }; }); })
+      .then(function(res){
+        // The account may have been switched while this was in flight; an answer
+        // for the previous view must not land on the current one.
+        if(forKey !== aiKey(panel)) return;
+        if(!res.ok){
+          var ent = aiEntry(panel);
+          ent.status = 'ready';
+          ent.error = res.j.message || 'The analysis could not be generated.';
+          aiRender(panel);
+          return;
+        }
+        aiApply(panel, res.j);
+      })
+      .catch(function(){
+        if(forKey !== aiKey(panel)) return;
+        var ent = aiEntry(panel);
+        ent.status = 'ready';
+        ent.error = 'Could not reach the analysis service.';
+        aiRender(panel);
+      });
+  }
+
+  /* On load: read the cache. Generate ONLY when nothing has ever been stored
+     for this account and panel. */
+  function aiLoad(panel){
+    var forKey = aiKey(panel);
+    var e = aiEntry(panel);
+    if(e.analysis){ aiRender(panel); return Promise.resolve(); }
+
+    e.status = 'loading';
+    aiRender(panel);
+
+    return fetch('/api/ads-analysis?panel=' + panel + '&view=' + encodeURIComponent(state.view))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(forKey !== aiKey(panel)) return;
+        if(j && j.analysis){ aiApply(panel, j); return; }
+        // Never generated for this account. Do it once, unprompted.
+        aiEntry(panel).status = 'idle';
+        return aiGenerate(panel);
+      })
+      .catch(function(){
+        if(forKey !== aiKey(panel)) return;
+        var ent = aiEntry(panel);
+        ent.status = 'ready';
+        ent.error = 'Could not reach the analysis service.';
+        aiRender(panel);
+      });
+  }
+
+  /* Called from refreshAll once the figures are in. The panels analyse what is
+     on screen, so they cannot run before it. */
+  function aiOnData(d){
+    aiLastData = d;
+    AI_PANELS.forEach(function(p){ aiLoad(p); });
+  }
+
+  AI_PANELS.forEach(function(p){
+    var btn = $('ai-' + p + '-refresh');
+    if(btn) btn.addEventListener('click', function(){ aiGenerate(p); });
+  });
 
   /* ================================ state ================================= */
   var state = {
@@ -3803,6 +4201,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
         syncStickyBar();
         renderKpis(d);
+        /* After the tiles, because the panels read the same response and the
+           reader should see the numbers before the reading of them. */
+        aiOnData(d);
 
         if(d.results&&d.results.note){
           $('results-notice').innerHTML='<span aria-hidden="true">⚠</span><span>'+esc(d.results.note)+'</span>';
@@ -3919,6 +4320,11 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // the campaign, ad set and ads that were chosen, while an id from one
     // account is never sent to the other.
     $('campaign-pick').value = '';
+    /* Each account keeps its own analysis in aiState, so switching back shows
+       the cached one rather than regenerating. What must not happen is the
+       previous account's reading sitting over this account's numbers. */
+    aiLastData = null;
+    AI_PANELS.forEach(function(p){ aiRender(p); });
     state.campaigns = [];
     selectedAds = currentScope().ads;
     // The pickers list the previous account's assets until the new campaign
