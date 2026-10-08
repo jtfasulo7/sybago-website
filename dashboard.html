@@ -128,6 +128,49 @@
   color-scheme: dark;
 }
 
+/* --------------------------------------------------------------------------
+   Growth Intelligence — deep forest green, sage, cream, white and charcoal.
+
+   A third palette, scoped to ONE pane of Dave's dashboard: it applies only
+   while data-pane="growth" is on the root, which showPane() sets. The tab is
+   a reporting tool people read tables in for long stretches, so it gets a
+   light cream ground and charcoal text rather than Dave's gold-on-black.
+
+   Every token the other two palettes state is restated here, for the reason
+   given above: miss one and a glass edge or the sticky table head keeps the
+   previous theme's colour. The component rules are in /assets/growth/growth.css
+   and read these tokens; the colours themselves live here, with the others.
+   -------------------------------------------------------------------------- */
+:root[data-view="dave"][data-pane="growth"] {
+  --accent:#1F5A45; --accent-b:#2C7358; --accent-d:#123B31;
+  --accent-rgb:31,90,69; --accent-b-rgb:44,115,88;
+  --neg-rgb:163,58,38; --warn-rgb:138,90,0;
+
+  /* Charcoal with a little green in it, so it sits with the forest accent. */
+  --t1:#1E2622; --t2:rgba(30,38,34,.74); --t3:rgba(30,38,34,.56); --t4:rgba(30,38,34,.08);
+
+  --ground:#F5F1E7; --ground-2:#EDE8DA;
+  --surface:rgba(255,255,255,.80); --surface-solid:#ffffff; --surface-rgb:255,255,255; --surface-hover:#ffffff;
+  --hairline:rgba(18,59,49,.13); --hairline-2:rgba(255,255,255,.9);
+  --nav-bg:rgba(245,241,231,.86);
+  --legend-bg:rgba(255,255,255,.9);
+  --thead-bg:rgba(250,248,242,.97);
+  --on-accent:#ffffff;
+  --seg-track:rgba(18,59,49,.06);
+  --glow-1:rgba(167,203,183,.40); --glow-2:rgba(167,203,183,.22);
+
+  --lift-1:0 1px 2px rgba(18,59,49,.06), 0 6px 18px -6px rgba(18,59,49,.12);
+  --lift-2:0 1px 2px rgba(18,59,49,.07), 0 14px 34px -10px rgba(18,59,49,.18);
+
+  --neg:#A33A26; --warn-text:#7A5000;
+
+  --kpi-good:#1B6E45; --kpi-good-bg:rgba(27,110,69,.11);
+  --kpi-warn:#7A5000; --kpi-warn-bg:rgba(138,90,0,.12);
+  --kpi-bad:#A33A26;  --kpi-bad-bg:rgba(163,58,38,.10);
+
+  color-scheme: light;
+}
+
 html, body { max-width:100%; overflow-x:hidden; overscroll-behavior-x:none; }
 body {
   font-family:var(--ff); color:var(--t1); line-height:1.55; -webkit-font-smoothing:antialiased;
@@ -1298,6 +1341,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
               aria-selected="false" aria-controls="pane-social" tabindex="-1">Social post</button>
       <button type="button" role="tab" id="sub-tab-finance" data-pane="finance"
               aria-selected="false" aria-controls="pane-finance" tabindex="-1">Finances</button>
+      <button type="button" role="tab" id="sub-tab-growth" data-pane="growth"
+              aria-selected="false" aria-controls="pane-growth" tabindex="-1">Growth Intelligence</button>
     </div>
 
     <div id="pane-performance" role="tabpanel" aria-labelledby="sub-tab-performance">
@@ -1787,6 +1832,13 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
           <div class="table-scroll"><table id="v3d-table"><caption>Every plotted point, with all three metrics.</caption></table></div>
         </details>
       </div>
+    </div>
+
+    <!-- ================= GROWTH INTELLIGENCE =================
+         Everything inside is rendered by /assets/growth/ui.js, which is
+         fetched the first time this tab is opened. See CLAUDE.md. -->
+    <div id="pane-growth" role="tabpanel" aria-labelledby="sub-tab-growth" hidden>
+      <div id="growth-root"><p class="sub" style="padding:2rem 0">Loading Growth Intelligence…</p></div>
     </div>
 
     </div><!-- /#dash-body -->
@@ -6447,7 +6499,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
   /* ------------------------------------------------------------- panes ---- */
   function showPane(name){
     social.pane = name;
-    ['performance','social','finance'].forEach(function(p){
+    // The pane is on the root element because Growth Intelligence carries its
+    // own palette, and a palette is a set of tokens on :root.
+    document.documentElement.setAttribute('data-pane', name);
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if(tc && state.view === 'dave') tc.setAttribute('content', name === 'growth' ? '#F5F1E7' : '#0B0B0C');
+    ['performance','social','finance','growth'].forEach(function(p){
       var pane=$('pane-'+p), tab=$('sub-tab-'+p);
       if(!pane||!tab) return;
       var on = p===name;
@@ -6460,6 +6517,24 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
     // Fetched on first open rather than at boot: it is two more Meta requests
     // for a pane most sessions never look at.
     if(name==='finance' && !financeLoaded){ financeLoaded = true; renderFinance(); }
+    if(name==='growth') openGrowth();
+  }
+
+  /* Growth Intelligence is a module of its own — about as much code again as
+     this page — so it is fetched on first open rather than at boot. Re-opening
+     the tab re-renders: a chart drawn while its pane was hidden measures its
+     canvas as zero wide. */
+  var growth = { mod:null, loading:false };
+  function openGrowth(){
+    if(growth.mod){ growth.mod.shown(); return; }
+    if(growth.loading) return;
+    growth.loading = true;
+    import('/assets/growth/ui.js')
+      .then(function(m){ growth.mod = m; return m.mount($('growth-root'), { Chart: window.Chart }); })
+      .catch(function(){
+        growth.loading = false;
+        $('growth-root').innerHTML = '<p class="notice notice-error" role="alert">Growth Intelligence could not be loaded. Reload the page to try again.</p>';
+      });
   }
 
   /* ------------------------------------------------------- platform list -- */

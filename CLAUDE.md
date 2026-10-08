@@ -172,7 +172,8 @@ main-site pages. **Deliberately omitted from ad landing pages** to keep them sin
 
 **Serverless functions:** `api/contact.js`, `api/lead.js`, `api/review.js`,
 `api/dashboard-login.js`, `api/meta-insights.js` (the last two are the internal dashboard —
-see its section below).
+see its section below), plus the dashboard's finance, social and `growth*` endpoints, each
+documented in its own section.
 
 **Known placeholders in the footers** (main site): `tel:[PHONE]` and `href="#"` social links —
 still unfilled, marked with HTML comments.
@@ -1248,6 +1249,208 @@ on any other pane its rect is all zeros, which reads as "scrolled past" and floa
 picker over a page it does not drive. `evaluate()` therefore tests
 `social.pane === 'performance'` first, and `showPane()` re-runs it — no scroll event fires on
 a tab click.
+
+---
+
+## GROWTH INTELLIGENCE (/dashboard → Peps by Dave → Growth Intelligence)
+
+Member analytics for the Skool community, lined up against the daily Meta ad history. A
+fourth sub-tab on Dave's view, with its own twelve-section sidebar. `node test/growth.test.mjs`.
+
+| File | Role |
+|---|---|
+| `assets/growth/engine.js` | **Every calculation.** Pure ES module: parsing, identity, replay, all metrics. No DOM, no network. |
+| `assets/growth/ui.js` | Shell, shared widgets, the analytics pages. Loaded lazily by `openGrowth()`. |
+| `assets/growth/ui-admin.js` | Pages that change data (reconciliation, member record, settings) and the AI/report page. |
+| `assets/growth/demo.js` | Demonstration data, generated as CSV and pasted text and run through the real parsers. |
+| `assets/growth/growth.css` | Component styles. **Colours are NOT here** — see Theming below. |
+| `api/growth.js` | The member database: GET, POST an import, PUT settings/corrections. |
+| `api/growth-meta.js` | Stored ad history: GET reads, POST syncs, `?cron=1` is the daily job. |
+| `api/growth-ai.js` | The AI analyst. Transport only. |
+| `api/growth-report.js` | Weekly report by email, and its Monday cron. |
+| `lib/growth/store.js` | Encrypted Blob paths. |
+| `lib/growth/meta-sync.js` | The read-only Meta sync. |
+| `lib/growth/analyst-prompt.js` | Every word the analyst is told. |
+
+**The spec asked for Next.js, Supabase and OpenAI. It was built on this site's own stack
+instead, deliberately**: static HTML + Vercel functions + encrypted Blob + the Anthropic key
+already here. The request was "a tab on the dashboard", and a second framework, database and
+login beside the first would have been three more things to keep in sync for no gain at this
+size. Chart.js stands in for Recharts for the reason already given above (no React).
+
+### The model is a replay, not a table
+
+**The database is an ordered list of imports plus a list of manual corrections. Member
+history is rebuilt from them on every render by `buildState()`.** Nothing derived is stored.
+
+- **A new CSV cannot overwrite history** — it is one more entry in the list.
+- **Reversing an import is exact**: flag it in the index, replay without it. Restoring is the
+  same flag cleared. The import blob is never deleted.
+- **Changing a setting recalculates everything**, because nothing was baked in at import time.
+- Imports replay in order of `observedAt` — the moment the export DESCRIBES, which the admin
+  sets at upload (it defaults to the file's modified time). Uploading an old export late slots
+  it into the past where it belongs.
+
+**Do not add a "current status" column anywhere, and do not cache a computed figure.** The
+first time one is stale against the imports, the page is wrong with nothing to show for it.
+The whole replay over ~750 members and nine imports runs in ~150 ms.
+
+### Three precisions, never blurred
+
+Every event carries `precision`:
+
+| | Meaning | Example |
+|---|---|---|
+| `exact` | a date something actually stated | CSV join date; "Trial canceled Oct 1, 2026" |
+| `estimated` | derived from a rule | trial end = start + trial length; first payment placed on the trial end |
+| `window` | only bounded by two observations | went missing between the Sep 25 and Oct 7 exports |
+
+For a `window` event, `day` is the day it was **observed** and `window` holds the bounds.
+**Nothing invents a date inside a window.** `dailySeries()` returns a parallel `soft` count
+per metric per day, and the timeline draws those days with hollow points.
+
+### What the dashboard must never conclude
+
+These are the rules the tests exist to hold. Each was a tempting shortcut.
+
+- **Missing from an export is not a cancellation.** It is `missing_unverified`, labelled
+  "Missing From Latest Export — Status Unverified", counted nowhere as churn, and excluded
+  from verified MRR (shown separately as MRR at risk).
+- **A trial ending is not a payment.** Outcome is `converted` only on evidence: recorded LTV
+  above zero, a pasted "paid" status, or a payment recorded by hand. Otherwise it is
+  `unresolved`, and it is in NEITHER half of the conversion rate.
+- **Conversion rate = verified converted ÷ trials with a KNOWN outcome**, always shown with
+  coverage and with the floor and ceiling if every unresolved trial went one way.
+- **A shared name is not a shared account.** Matching is profile id → username → email, all
+  trusted; a name alone matches automatically only when exactly one member has it, nothing
+  contradicts it AND the join date agrees. Anything else is "uncertain" and Confirm-and-save
+  is disabled until an administrator decides. The decision is stored ON the import.
+- **No member is attributed to an ad.** `adEntities().community` is whole-community activity
+  on the days an entity delivered, with `concurrentAds` beside it. Every spend-based ratio is
+  labelled *blended*. `member.attribution` exists (settable by an `override` manual record)
+  so real attribution can be added later with no rebuild; until a member has one,
+  `profitability().attributed` is false and nothing says CAC or ROAS without "blended".
+- **Revenue on a day does not belong to that day's ads.** `periodSummary()` returns
+  `activity` (what happened in the window) and `cohort` (what became of the people who
+  JOINED in it, however much later). Advertising is judged on `cohort`. With a 7-day trial,
+  a week's own joiners cannot pay inside that week.
+- **Recorded LTV is not MRR**, and a forecast is not money collected — every forecast panel
+  wears `.gi-forecast-flag`.
+
+### Money
+
+**Skool reports a running lifetime total per member, not a ledger.** So the TOTAL is verified
+and the DATES are modelled: `derive()` places payments on the billing anchor (first payment,
+then monthly or yearly) until the recorded LTV is used up, marks them `estimated`, and they
+always sum to the LTV exactly (tested across the whole demo). Payments recorded by hand are
+exact and come off the top.
+
+- LTV the price and dates cannot explain → `ltv_ahead` flag, not silent absorption.
+- A payment that should have shown in LTV and did not → `payment_overdue`. The member stays
+  "paying" until verified otherwise; the flag is the prompt to check.
+- Annual plans: one twelfth toward MRR, the whole charge toward cash, on the day it landed.
+- Fees are settings (`netOf()`). The 2.9% + $0.30 default is Skool Pro; Hobby is 10%.
+
+### Sparse exports flatter the conversion rate
+
+**Someone who joins and leaves between two exports is in neither.** With a 7-day trial that is
+most of the people who did not convert. `dataQuality()` raises `export_gap` whenever two
+exports are further apart than the trial. The demo data was first built with exports 35–40
+days apart and reported a 62% conversion rate against a simulated 46% — the engine was right
+about what it could see. **Export at least weekly**, and paste the ended-trial and churned
+lists, or the rate reads high.
+
+### Storage
+
+Three kinds of object under `growth/`, all through `lib/secure-store` (namespace
+`peps-growth-intelligence` — do not change it; it is the key):
+
+- `growth/db.enc` — settings, import index, manual records, audit trail. Versioned; a stale
+  save is a 409 handing back the winner, exactly as the ledger does.
+- `growth/imports/<id>.enc` — one per import: normalised rows **and the original text as
+  submitted**. Written once. There is no update or delete path.
+- `growth/meta.enc` — the daily per-ad history.
+
+- **Imports are separate objects because a request body is capped at 4.5 MB.** One document
+  holding every CSV would eventually stop saving, on the day there was most to lose.
+- **The import blob is written before the index names it.** A failure between the two leaves
+  an unreferenced blob, which loses nothing; the other order leaves an index pointing at
+  nothing.
+- **A PUT cannot add or remove imports and cannot rewrite the audit trail** — it may flip
+  `reverted` and append audit entries. Tested: a PUT sending empty arrays changes nothing.
+- The original text is only served with `?raw=1`; nothing but an audit reads it.
+
+### The Meta sync
+
+- **Read-only by construction.** Every request is a GET. The only credential is the same
+  `ads_read` token the Performance tab uses, reached through helpers now EXPORTED from
+  `api/meta-insights.js` — so there is still one place that reads a Meta token, one backoff
+  policy and one definition of a registration. Do not re-implement any of them in `lib/growth`.
+- Level `ad`, `time_increment=1`. First sync is `date_preset=maximum`; after that each sync
+  re-reads the last **35 days** and REPLACES that window, because Meta keeps revising recent
+  days. A full re-sync replaces what Meta still reports and **keeps anything older** — Meta
+  caps history at 37 months, and aged-out days are exactly what this store is for.
+- **"When an ad ran" is its delivery days**, grouped into runs by `adRuns()`; a gap is a
+  pause. Explicit pause/resume times come from `/activities` when that edge answers, and a
+  failure there is a logged note, never a failed sync.
+- Rows are stored positionally (`[day, adId, spend, impressions, reach, clicks, linkClicks,
+  lpv, conv]`) because there are a great many of them; `indexMeta()` is the only reader.
+- Ad spend is in the **ad account's** timezone; membership days are in the **business**
+  timezone from Settings. When they differ the page says so (`tz_mismatch`).
+
+### Scheduled jobs
+
+`vercel.json` declares two crons: the daily sync (`/api/growth-meta?cron=1`) and the Monday
+report (`/api/growth-report?cron=1`). **Both require `CRON_SECRET`**, which Vercel sends as a
+bearer token. Without the variable there is no way to tell Vercel's scheduler from anyone
+else, so the cron path refuses — it does not fall back to being open.
+
+### The AI analyst
+
+- **It is handed one thing: `buildDigest(ctx)`**, built in the browser from the data on
+  screen. The model can only see figures the engine computed, already labelled estimated /
+  blended / unresolved. The digest carries **no member names or emails** (tested).
+- Forced tool call (`answer_question`), same reasoning as the analysis panels. `basis[].kind`
+  is checked against a fixed set — verified / estimate / forecast / correlation / missing.
+- **To change what it says, edit `lib/growth/analyst-prompt.js` and nothing else.**
+- `insights()` in the engine is the rule-based layer: no model, always available, each line
+  labelled with its kind. Any insight naming an ad must say it is not attribution (tested).
+- Uses Anthropic, not OpenAI, because the key and the calling pattern were already here.
+
+### The weekly report
+
+Built by `weeklyReport()`, last complete Monday–Sunday. On screen it prints to PDF through a
+print stylesheet keyed on `html.gi-print` — no library. By email it is rebuilt **on the
+server from the same engine file**, so the mailed figures cannot drift from the page.
+Email needs Resend (`RESEND_API_KEY`, `GROWTH_REPORT_FROM`); a scheduled run with nowhere to
+send is a quiet no-op, not a failure every Monday.
+
+The CAC-versus-LTV recommendation is judged on the last four **settled** weekly cohorts, never
+the report week's own: that cohort is still mid-trial and its cost per customer reads far too
+high.
+
+### Theming
+
+A third palette — forest green, sage, cream, white, charcoal — scoped to
+`:root[data-view="dave"][data-pane="growth"]` in `dashboard.html`, beside the other two.
+`showPane()` sets `data-pane` on the root. Every token is restated, for the reason the
+Theming section above gives. `growth.css` reads tokens and hardcodes no colour; the chart
+palette is the `C` object in `ui.js`, because a canvas cannot resolve `var()`.
+
+### Demonstration data
+
+Settings → "Show demonstration data". Held in memory only, never written, banner on every
+page, flagged in the digest and the report. The real data is parked and restored untouched.
+It is generated as CSV and pasted-card TEXT and run through the real parsers, so it exercises
+the import path, and it deliberately contains the awkward cases (same-name members, vanished
+members, leave-and-return, a paused and restarted ad, a mid-week budget change, annual, free
+and legacy plans).
+
+### Running it locally
+
+There is no dev script. `vercel dev` works; so does any static server plus a shim that maps
+`/api/<name>` to the handler's default export with `{method, headers, query, body}` and a
+`status().json()` response, with `secure.useBlobClient()` pointed at an in-memory map.
 
 ---
 

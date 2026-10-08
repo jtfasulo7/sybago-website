@@ -2,11 +2,45 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    { "source": "/services",      "destination": "/",                  "statusCode": 308 },
-    { "source": "/services.html", "destination": "/",                  "statusCode": 308 },
-    { "source": "/pricing",       "destination": "/",                  "statusCode": 308 },
-    { "source": "/pricing.html",  "destination": "/",                  "statusCode": 308 },
-    { "source": "/junk-removal",  "destination": "/lp/junk-removal",   "statusCode": 308 },
-    { "source": "/concrete",      "destination": "/lp/concrete",       "statusCode": 308 }
+    {
+      "source": "/services",
+      "destination": "/",
+      "statusCode": 308
+    },
+    {
+      "source": "/services.html",
+      "destination": "/",
+      "statusCode": 308
+    },
+    {
+      "source": "/pricing",
+      "destination": "/",
+      "statusCode": 308
+    },
+    {
+      "source": "/pricing.html",
+      "destination": "/",
+      "statusCode": 308
+    },
+    {
+      "source": "/junk-removal",
+      "destination": "/lp/junk-removal",
+      "statusCode": 308
+    },
+    {
+      "source": "/concrete",
+      "destination": "/lp/concrete",
+      "statusCode": 308
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/growth-meta?cron=1",
+      "schedule": "15 10 * * *"
+    },
+    {
+      "path": "/api/growth-report?cron=1",
+      "schedule": "0 13 * * 1"
+    }
   ]
 }

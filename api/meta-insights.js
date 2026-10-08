@@ -1421,3 +1421,11 @@ export default async function handler(req, res) {
     return res.status(e.http || 502).json(payload);
   }
 }
+
+/* Shared with the Growth Intelligence sync (lib/growth/meta-sync.js), which
+   stores a daily per-ad history. Exported from here rather than re-implemented
+   there so there is still exactly one place that reads a Meta token, one
+   backoff policy and one definition of what counts as a registration. */
+export {
+  API_VERSION, resolveAccount, resolveToken, fetchWithBackoff, extractMetrics, scrubSecrets,
+};
