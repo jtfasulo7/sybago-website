@@ -339,7 +339,7 @@ function shell() {
       <nav class="gi-side" aria-label="Growth Intelligence sections">
         <label class="sr-only" for="gi-jump">Section</label>
         <select id="gi-jump" class="gi-jump" data-change="page">${PAGES.map(([k, l]) => `<option value="${k}">${h(l)}</option>`).join('')}</select>
-        <div class="gi-rail"><ol class="gi-nav">${PAGES.map(([k, l], i) => `<li><button type="button" data-act="page" data-page="${k}" title="${h(l)}"><span class="gi-nav-n">${String(i + 1).padStart(2, '0')}</span><span class="gi-nav-l">${h(l)}</span></button></li>`).join('')}</ol></div>
+        <div class="gi-rail"><ol class="gi-nav">${PAGES.map(([k, l]) => `<li><button type="button" data-act="page" data-page="${k}" title="${h(l)}"><span class="gi-nav-n" aria-hidden="true"></span><span class="gi-nav-l">${h(l)}</span></button></li>`).join('')}</ol></div>
       </nav>
       <div class="gi-main" id="gi-main" tabindex="-1"></div>
     </div>

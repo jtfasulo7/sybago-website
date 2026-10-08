@@ -1580,10 +1580,10 @@ type, a cream panel beside it, **Fraunces** for display with the last word in it
   `data-pane="growth"` — in `dashboard.html`, not `growth.css`, so the pane does not jump
   sideways when the stylesheet arrives.
 
-**The navigator is a rail that opens on hover.** Closed: 60px of section numbers. Hovered, or
+**The navigator is a rail that opens on hover.** Closed: 56px of dots, one per section, the current one a cream pill — the sections are deliberately NOT numbered. Hovered, or
 focused from the keyboard: it slides open to 252px over the page.
 
-- **It overlays, it does not push.** The grid column stays 60px and the rail is absolutely
+- **It overlays, it does not push.** The grid column stays 56px and the rail is absolutely
   positioned, so nothing reflows and no chart redraws as the pointer passes.
 - **`:has(:focus-visible)`, not `:focus-within`.** A mouse click focuses the button too, and
   `:focus-within` then holds the rail open after the pointer has left.

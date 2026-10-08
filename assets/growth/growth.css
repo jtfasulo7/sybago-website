@@ -406,14 +406,14 @@ td .gi-tag { white-space:normal; }
 /* ==========================================================================
    THE NAVIGATOR — a slim rail that opens when the pointer is over it.
 
-   Closed, it is a column of section numbers, 60px wide, and the page has the
+   Closed, it is a column of dots, 56px wide, and the page has the
    rest. Hovering it (or tabbing into it) slides it open to show the names. It
    opens OVER the page rather than pushing it, so nothing reflows and a chart
    is not redrawn every time the pointer passes.
 
    Three things that are easy to get wrong:
    - It must open for KEYBOARD focus as well as :hover, or a keyboard user tabs
-     through thirteen unlabelled numbers. It uses :has(:focus-visible), not
+     through thirteen unlabelled dots. It uses :has(:focus-visible), not
      :focus-within: a mouse click also focuses the button, and :focus-within
      would then hold the rail open after the pointer had left.
    - Devices with no hover (a tablet) cannot open it, so there it stays open.
@@ -425,10 +425,10 @@ td .gi-tag { white-space:normal; }
    desktops with a rail that never collapses. Touch-only screens are the
    exception, undone in the block after this one. */
 @media (min-width:1081px) {
-  .gi-shell { grid-template-columns:60px minmax(0,1fr); gap:1.15rem; }
+  .gi-shell { grid-template-columns:56px minmax(0,1fr); gap:1.15rem; }
   .gi-side { position:sticky; top:72px; height:0; z-index:40; }       /* takes no height: the rail hangs from it */
   .gi-rail {
-    position:absolute; left:0; top:0; width:60px; overflow:hidden;
+    position:absolute; left:0; top:0; width:56px; overflow:hidden;
     padding:.45rem; border-radius:var(--r-md);
     background:var(--brand-green); color:var(--brand-cream);
     box-shadow:var(--lift-1);
@@ -441,9 +441,14 @@ td .gi-tag { white-space:normal; }
     font-size:.9rem; font-weight:500; white-space:nowrap; background:transparent; box-shadow:none;
   }
   .gi-rail .gi-nav button:hover { background:rgba(243,238,226,.10); color:var(--brand-cream); }
-  .gi-rail .gi-nav-n { flex:0 0 31px; height:31px; display:grid; place-items:center; border-radius:8px; font-size:.72rem; font-weight:700; letter-spacing:.02em; color:rgba(243,238,226,.7); }
+  /* No numbers: closed, each section is a dot, and the current one is a cream
+     pill. The names are one hover away, and a number told nobody anything. */
+  .gi-rail .gi-nav-n { flex:0 0 24px; height:24px; display:grid; place-items:center; border-radius:8px; }
+  .gi-rail .gi-nav-n::before { content:''; width:6px; height:6px; border-radius:50%; background:rgba(243,238,226,.5); transition:background .2s var(--eo), transform .2s var(--eo); }
+  .gi-rail .gi-nav button:hover .gi-nav-n::before { background:var(--brand-cream); transform:scale(1.25); }
   .gi-rail .gi-nav button[aria-current="page"] { background:rgba(243,238,226,.10); color:var(--brand-cream); font-weight:700; }
-  .gi-rail .gi-nav button[aria-current="page"] .gi-nav-n { background:var(--brand-cream); color:var(--brand-green); }
+  .gi-rail .gi-nav button[aria-current="page"] .gi-nav-n { background:var(--brand-cream); }
+  .gi-rail .gi-nav button[aria-current="page"] .gi-nav-n::before { background:var(--brand-green); }
   .gi-rail .gi-nav-l { opacity:0; transform:translateX(-6px); transition:opacity .2s var(--eo), transform .28s var(--eo); }
   .gi-side:hover .gi-nav-l, .gi-side:has(:focus-visible) .gi-nav-l { opacity:1; transform:none; transition-delay:.06s; }
   .gi-rail :focus-visible { outline-color:var(--brand-cream); }
