@@ -44,7 +44,7 @@ export function adminPages(kit) {
           <div><dt>Joined</dt><dd>${dayFull(m.joinDay)}</dd></div>
           <div><dt>Plan</dt><dd>${h(E.planLabel(c.settings, m))}</dd></div>
           <div><dt>Recorded lifetime value</dt><dd>${money(m.ltv, 2)}${m.ltvDay ? ` <small>as of ${dayLabel(m.ltvDay)}</small>` : ''}</dd></div>
-          <div><dt>Trial</dt><dd>${d.hasTrial ? `${dayLabel(d.trialStart)} – ${dayLabel(d.trialEnd, true)}${d.trialStartInferred ? ' <small>(start inferred from join date)</small>' : ''}` : 'No trial'}</dd></div>
+          <div><dt>Trial</dt><dd>${!d.hasTrial && m.price > 0 && m.joinDay && c.settings.trialAppliesFrom && m.joinDay < c.settings.trialAppliesFrom ? `No trial — joined before the offer began (${dayLabel(c.settings.trialAppliesFrom, true)})` : d.hasTrial ? `${dayLabel(d.trialStart)} – ${dayLabel(d.trialEnd, true)}${d.trialStartInferred ? ' <small>(start inferred from join date)</small>' : ''}` : 'No trial'}</dd></div>
           <div><dt>Trial outcome</dt><dd>${h({ none: '—', active: 'Active', converted: 'Verified converted to paid', canceled: 'Canceled', declined: 'Declined', unresolved: 'Ended — payment outcome unknown' }[d.trialOutcome])}</dd></div>
           <div><dt>First payment</dt><dd>${d.firstPaidDay ? `${dayFull(d.firstPaidDay)} ${precisionTag(d.firstPaidPrecision, d.firstPaidWindow)} <small>evidence: ${h(d.paidEvidence)}</small>` : 'No payment evidence'}</dd></div>
           <div><dt>In latest export</dt><dd>${m.present === true ? 'Yes' : m.present === false ? `No — last listed ${dayLabel(m.missingFrom, true)}` : 'Never seen in an export'}</dd></div>
@@ -169,7 +169,7 @@ export function adminPages(kit) {
       <h4>MRR</h4>
       <p>Gross MRR ${money(rep.mrr.gross)} (from ${money(rep.mrr.grossBefore)} at the start of the week) · Net MRR ${money(rep.mrr.net)} · New MRR ${money(rep.mrr.newMrr)} · Churned MRR ${money(rep.mrr.churnedMrr)}</p>
       <h4>This week's joining cohort</h4>
-      <p>${int(rep.cohort.joined)} joined · ${int(rep.cohort.trials)} trials started · ${int(rep.cohort.converted)} verified paying · ${int(rep.cohort.nonConverted)} canceled or declined · ${int(rep.cohort.unresolved)} with no verified outcome · ${int(rep.cohort.active)} still on trial${rep.cohort.active ? ' (not final)' : ''}.</p>
+      <p>${int(rep.cohort.joined)} joined · ${int(rep.cohort.trials)} trials started · ${int(rep.cohort.converted)} of them verified paying · ${int(rep.cohort.directPaid)} paying with no trial · ${int(rep.cohort.nonConverted)} canceled or declined · ${int(rep.cohort.unresolved)} with no verified outcome · ${int(rep.cohort.active)} still on trial${rep.cohort.active ? ' (not final)' : ''}.</p>
       <h4>Ads, on the available evidence</h4>
       ${rep.ads.all.length ? `<p>Ranked by ${h(rep.ads.basis)} — Meta's own reporting, not verified member attribution.</p>
       <table class="gi-table"><thead><tr><th scope="col">Ad</th><th scope="col" class="num">Spend</th><th scope="col" class="num">Clicks</th><th scope="col" class="num">LP views</th><th scope="col" class="num">Meta conv.</th><th scope="col"></th></tr></thead><tbody>
@@ -428,7 +428,7 @@ export function adminPages(kit) {
           <label>Business timezone<select data-change="set" data-path="timezone">${[...new Set([s.timezone, ...TIMEZONES])].map((z) => `<option${z === s.timezone ? ' selected' : ''}>${h(z)}</option>`).join('')}</select><small>Which calendar day a join or payment falls on. Timestamps are stored in UTC.</small></label>
           <label>CSV timestamps with no zone are<select data-change="set" data-path="csvTimestamps"><option value="utc"${s.csvTimestamps === 'utc' ? ' selected' : ''}>UTC</option><option value="local"${s.csvTimestamps === 'local' ? ' selected' : ''}>Already in the business timezone</option></select><small>Skool exports in UTC.</small></label>
           <label>Free trial length (days)${num('trialDays', s.trialDays)}</label>
-          <label>Trial offer began on<input type="date" value="${h(s.trialAppliesFrom || '')}" data-change="set" data-path="trialAppliesFrom"><small>Paid members who joined before this are treated as having had no trial. Leave empty if there has always been one.</small></label>
+          <label>Trial offer began on<input type="date" value="${h(s.trialAppliesFrom || '')}" data-change="set" data-path="trialAppliesFrom"><small>The first full day the free trial was available. Members on a paid plan who joined before it are paying members who never had a trial, and are left out of every trial count and conversion rate.</small></label>
           <label>Grace before a payment is flagged overdue (days)${num('graceDays', s.graceDays)}</label>
           <label>Weekly report email<input type="text" inputmode="email" value="${h(s.reportEmail || '')}" data-change="set" data-path="reportEmail" placeholder="name@example.com"></label>
         </div>`)}

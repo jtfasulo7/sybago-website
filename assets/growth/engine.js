@@ -154,7 +154,10 @@ export const DEFAULT_SETTINGS = {
   timezone: 'America/New_York',
   csvTimestamps: 'utc',          // how to read a CSV timestamp that names no zone
   trialDays: 7,
-  trialAppliesFrom: null,        // paid joins before this day are treated as having had no trial
+  // The first full day the free trial was offered. Anyone on a paid plan who
+  // joined before it PAID TO JOIN — they are paying members, never trial
+  // members, and are in no trial count, conversion rate or trial forecast.
+  trialAppliesFrom: '2026-09-27',
   plans: [
     { id: 'm19', label: '$19 / month', price: 19, interval: 'month' },
     { id: 'm9', label: '$9 / month (legacy)', price: 9, interval: 'month' },
@@ -178,6 +181,10 @@ export function withDefaults(settings) {
     ...DEFAULT_SETTINGS,
     ...s,
     fees: { ...DEFAULT_SETTINGS.fees, ...(s.fees || {}) },
+    // An empty value means "not set", which is the default date — never "the
+    // trial always existed". That reading is what made every pre-trial paying
+    // member count as a trial conversion.
+    trialAppliesFrom: isDay(s.trialAppliesFrom) ? s.trialAppliesFrom : DEFAULT_SETTINGS.trialAppliesFrom,
     plans: Array.isArray(s.plans) && s.plans.length ? s.plans : DEFAULT_SETTINGS.plans,
     expenses: Array.isArray(s.expenses) ? s.expenses : [],
   };
@@ -1130,6 +1137,7 @@ function derive(m, state) {
         : `Trial ended ${d.trialEnd}; no payment or cancellation evidence yet.`,
     });
   }
+  if (!d.hasTrial && m.price > 0 && !d.paidEvidence) flags.push({ code: 'no_trial_unpaid', message: `Joined on a paid plan ${st.trialAppliesFrom && m.joinDay && m.joinDay < st.trialAppliesFrom ? `before the free trial began (${st.trialAppliesFrom})` : 'with no trial'}, but there is no payment evidence yet.` });
   if (!d.planKnown) flags.push({ code: 'plan_unknown', message: 'Membership price is not known for this member.' });
   if (m.possibleDuplicateOf && m.possibleDuplicateOf.length) flags.push({ code: 'possible_duplicate', message: 'Shares a name with another member and could not be matched with confidence.' });
   if (d.status === 'missing_unverified') flags.push({ code: 'missing', message: `Last listed in the export of ${m.missingFrom}; absent since the export of ${m.missingDay}. Left, removed or churned — unverified.` });
@@ -1198,7 +1206,8 @@ export const SERIES = [
   { key: 'joins', label: 'New member signups', unit: 'count', group: 'members' },
   { key: 'trialStarts', label: 'Free trial starts', unit: 'count', group: 'members' },
   { key: 'trialCancels', label: 'Trial cancellations', unit: 'count', group: 'members' },
-  { key: 'conversions', label: 'Paid conversions', unit: 'count', group: 'members' },
+  { key: 'conversions', label: 'Trial-to-paid conversions', unit: 'count', group: 'members' },
+  { key: 'directPaid', label: 'New paying, no trial', unit: 'count', group: 'members' },
   { key: 'churn', label: 'Paid member churn', unit: 'count', group: 'members' },
   { key: 'returns', label: 'Returning members', unit: 'count', group: 'members' },
   { key: 'net', label: 'Net member growth', unit: 'count', group: 'members' },
@@ -1248,7 +1257,9 @@ export function dailySeries(ctx, from, to, sel) {
     if (d.hasTrial && d.trialStart) bump('trialStarts', d.trialStart, 1, d.trialStartInferred ? 'estimated' : 'exact');
     if (d.trialOutcome === 'canceled' || d.trialOutcome === 'declined') bump('trialCancels', d.trialOutcomeDay, 1, d.trialOutcomePrecision);
     if (d.firstPaidDay) {
-      bump('conversions', d.firstPaidDay, 1, d.firstPaidPrecision);
+      // A trial that converted and a member who simply paid to join are two
+      // different things, and only the first belongs in a conversion count.
+      bump(d.hasTrial ? 'conversions' : 'directPaid', d.firstPaidDay, 1, d.firstPaidPrecision);
       bump('newMrr', d.firstPaidDay, d.monthly, d.firstPaidPrecision);
     }
     for (const c of d.churns) bump('churn', c.day, 1, c.precision);
@@ -1267,8 +1278,12 @@ export function dailySeries(ctx, from, to, sel) {
 }
 
 const sum = (a) => a.reduce((s, v) => s + v, 0);
+/** Paid to join with no trial — the offer did not exist yet, or does not apply. */
+export const paidWithoutTrial = (m) => !m.d.hasTrial && !!m.d.firstPaidDay;
 const r2 = (n) => Math.round(n * 100) / 100;
 const ratio = (a, b) => (b > 0 ? a / b : null);
+/** A cost per something. No spend on record is "unknown", not "free". */
+const costPer = (spend, n) => (spend > 0 ? ratio(spend, n) : null);
 
 /* ----------------------------------------------------------- trial stats -- */
 
@@ -1399,6 +1414,7 @@ export function periodSummary(ctx, from, to, sel) {
   const cohort = ctx.members.filter((m) => m.joinDay && m.joinDay >= from && m.joinDay <= to);
   const t = trialStats(cohort);
   const cohortRevenue = r2(sum(cohort.map((m) => m.d.revenue)));
+  const directPaid = cohort.filter(paidWithoutTrial).length;
   const spend = r2(sum(M.spend));
   const revenue = r2(sum(M.revenue));
   const fees = r2(sum(ctx.members.map((m) => sum(m.d.payments.filter((p) => p.amount > 0 && p.day >= from && p.day <= to).map((p) => p.amount - netOf(p.amount, ctx.settings, m.source))))));
@@ -1412,6 +1428,7 @@ export function periodSummary(ctx, from, to, sel) {
       cpc: ratio(spend, sum(M.clicks)), cpm: ratio(spend * 1000, sum(M.impressions)), ctr: ratio(sum(M.clicks) * 100, sum(M.impressions)),
       costPerLpv: ratio(spend, sum(M.lpv)),
       joins: sum(M.joins), trialStarts: sum(M.trialStarts), trialCancels: sum(M.trialCancels), conversions: sum(M.conversions),
+      directPaid: sum(M.directPaid), newPaying: sum(M.conversions) + sum(M.directPaid),
       churn: sum(M.churn), returns: sum(M.returns), missing: sum(M.missing), net: sum(M.net),
       revenue, newMrr: r2(sum(M.newMrr)), fees, otherExpenses: other,
       netCash: r2(revenue - fees - spend - other),
@@ -1428,8 +1445,12 @@ export function periodSummary(ctx, from, to, sel) {
       stillPaying: cohort.filter((m) => m.d.status === 'paying').length,
       revenue: cohortRevenue,
       // Blended, never "attributed": every join in the window over every dollar in it.
-      blendedCostPerTrial: ratio(spend, t.trials),
-      blendedCac: ratio(spend, t.converted),
+      blendedCostPerTrial: costPer(spend, t.trials),
+      // Paying members who never had a trial: joined before the offer began.
+      directPaid, newPaying: t.converted + directPaid,
+      // Acquisition cost is over EVERY new paying member, trial or not —
+      // dividing by trial conversions alone would price a pre-trial cohort at infinity.
+      blendedCac: costPer(spend, t.converted + directPaid),
       blendedRoas: ratio(cohortRevenue, spend),
       fullyMatured: t.active === 0,
     },
@@ -1479,6 +1500,7 @@ export function cohorts(ctx, grain = 'week') {
     for (const d of daysBetween(k, minDay(end, ctx.today))) for (const r of ctx.meta.byDay.get(d) || []) spend += r.spend;
     const revenue = r2(sum(list.map((m) => m.d.revenue)));
     const paid = list.filter((m) => m.d.firstPaidDay);
+    const directPaid = list.filter(paidWithoutTrial).length;
     return {
       key: k, from: k, to: end, joined: list.length, free: list.filter((m) => m.d.isFree).length, ...t,
       churned: list.filter((m) => m.d.churns.length).length,
@@ -1487,7 +1509,8 @@ export function cohorts(ctx, grain = 'week') {
       stillPaying: list.filter((m) => m.d.status === 'paying').length,
       revenue, spend: r2(spend),
       spendPerDay: r2(spend / (diffDays(k, minDay(end, ctx.today)) + 1)),
-      blendedCostPerTrial: ratio(spend, t.trials), blendedCac: ratio(spend, t.converted), blendedRoas: ratio(revenue, spend),
+      directPaid, newPaying: t.converted + directPaid,
+      blendedCostPerTrial: costPer(spend, t.trials), blendedCac: costPer(spend, t.converted + directPaid), blendedRoas: ratio(revenue, spend),
       r30: retentionOf(paid, ctx.today, 30), r60: retentionOf(paid, ctx.today, 60), r90: retentionOf(paid, ctx.today, 90),
     };
   });
@@ -1617,6 +1640,7 @@ export function adEntities(ctx, level = 'ad', from = null, to = null) {
       daily: rows,
       community: {
         joins, trials: t.trials, converted: t.converted, nonConverted: t.nonConverted, unresolved: t.unresolved, activeTrials: t.active,
+        directPaid: cohort.filter(paidWithoutTrial).length,
         revenue: r2(sum(cohort.map((m) => m.d.revenue))), concurrentAds: concurrent,
       },
     };
@@ -1646,6 +1670,7 @@ export function profitability(ctx, from, to) {
     from, to,
     spend: p.activity.spend,
     trials: p.cohort.trials, converted: p.cohort.converted, unresolved: p.cohort.unresolved, activeTrials: p.cohort.active,
+    directPaid: p.cohort.directPaid, newPaying: p.cohort.newPaying,
     blendedCostPerTrial: p.cohort.blendedCostPerTrial,
     blendedCac: cac,
     cohortRevenue: p.cohort.revenue,
@@ -1761,14 +1786,16 @@ export function insights(ctx) {
   }
 
   // The most recent weekly cohort old enough for every trial to have ended.
-  const cs = cohorts(ctx, 'week').filter((c) => c.trials > 0 && c.active === 0 && diffDays(c.to, today) >= ctx.settings.trialDays);
+  const cs = cohorts(ctx, 'week').filter((c) => (c.trials > 0 || c.directPaid > 0) && c.active === 0 && diffDays(c.to, today) >= ctx.settings.trialDays);
   const last = cs[cs.length - 1];
   if (last) {
-    add('fact', `The week of ${last.from} acquisition cohort generated ${plural(last.trials, 'trial')}, of which ${plural(last.converted, 'verified member')} became paying subscribers` +
-      (last.unresolved ? `; ${last.unresolved} more have no verified outcome.` : '.'));
+    add('fact', last.trials
+      ? `The week of ${last.from} acquisition cohort generated ${plural(last.trials, 'trial')}, of which ${plural(last.converted, 'verified member')} became paying subscribers` +
+        (last.unresolved ? `; ${last.unresolved} more have no verified outcome.` : '.') + (last.directPaid ? ` A further ${last.directPaid} joined as paying members with no trial.` : '')
+      : `The week of ${last.from} predates the free trial: ${plural(last.directPaid, 'member')} joined as paying members with no trial.`);
     const before = cs[cs.length - 2];
-    if (before && last.spend > before.spend * 1.15 && last.converted <= before.converted) {
-      add('correlation', `Advertising spending increased from ${money(before.spend)} to ${money(last.spend)} between the weeks of ${before.from} and ${last.from}, but paying customer acquisition did not improve (${before.converted} then ${last.converted} verified conversions).`);
+    if (before && last.spend > before.spend * 1.15 && last.newPaying <= before.newPaying) {
+      add('correlation', `Advertising spending increased from ${money(before.spend)} to ${money(last.spend)} between the weeks of ${before.from} and ${last.from}, but paying customer acquisition did not improve (${before.newPaying} then ${last.newPaying} verified new paying members).`);
     }
   }
 
@@ -1856,7 +1883,7 @@ export function dataQuality(ctx) {
   const noSource = count((m) => !m.source || m.source === 'unknown');
   if (ctx.members.length && noSource / ctx.members.length > 0.5) add('info', 'sources', `${pct(noSource / ctx.members.length)} of members have no acquisition source on record.`);
   const estPaid = count((m) => m.d.firstPaidDay && m.d.firstPaidPrecision !== 'exact');
-  if (estPaid) add('info', 'est_dates', `${plural(estPaid, 'conversion date')} are estimated from the trial end date rather than a recorded payment.`);
+  if (estPaid) add('info', 'est_dates', `${plural(estPaid, 'conversion date')} are estimated from the billing date rather than a recorded payment.`);
   for (const x of ctx.state.warnings) w.push(x);
   return w;
 }
@@ -1920,8 +1947,8 @@ export function weeklyReport(ctx, range) {
   }
   // Judged on cohorts whose trials have all ended. This week's own cohort is
   // still mid-trial, and its cost per customer would read far too high.
-  const settled = cohorts(ctx, 'week').filter((c) => c.trials > 0 && c.active === 0 && c.to <= wk.to).slice(-4);
-  const settledCac = ratio(sum(settled.map((c) => c.spend)), sum(settled.map((c) => c.converted)));
+  const settled = cohorts(ctx, 'week').filter((c) => (c.trials > 0 || c.directPaid > 0) && c.active === 0 && c.to <= wk.to).slice(-4);
+  const settledCac = ratio(sum(settled.map((c) => c.spend)), sum(settled.map((c) => c.newPaying)));
   if (settledCac != null && o.profitability.estimatedLtv != null) {
     const span = `the ${settled.length} most recent settled weekly cohort${settled.length === 1 ? '' : 's'}`;
     rec.push(settledCac < o.profitability.estimatedLtv
@@ -1938,7 +1965,8 @@ export function weeklyReport(ctx, range) {
       ['New members acquired', a.joins, b.joins, delta('joins')],
       ['Free trials started', a.trialStarts, b.trialStarts, delta('trialStarts')],
       ['Free trial cancellations', a.trialCancels, b.trialCancels, delta('trialCancels')],
-      ['Verified paying conversions', a.conversions, b.conversions, delta('conversions')],
+      ['Trial-to-paid conversions (verified)', a.conversions, b.conversions, delta('conversions')],
+      ['New paying members with no trial', a.directPaid, b.directPaid, delta('directPaid')],
       ['Paid member churn', a.churn, b.churn, delta('churn')],
       ['Returning members', a.returns, b.returns, delta('returns')],
       ['Revenue collected', money(a.revenue), money(b.revenue), delta('revenue')],
@@ -1960,7 +1988,7 @@ export function reportText(rep) {
   if (rep.demo) L.push('*** DEMONSTRATION DATA — NOT REAL BUSINESS DATA ***', '');
   for (const [label, cur, prev, d] of rep.rows) L.push(`${label}: ${cur}  (previous ${prev}${d == null ? '' : `, ${d >= 0 ? '+' : ''}${d.toFixed(0)}%`})`);
   L.push('', `Gross MRR: ${money(rep.mrr.gross)}  |  Net MRR: ${money(rep.mrr.net)}  |  New MRR: ${money(rep.mrr.newMrr)}  |  Churned MRR: ${money(rep.mrr.churnedMrr)}`);
-  L.push('', `This week's joining cohort: ${rep.cohort.joined} joined, ${rep.cohort.trials} trials, ${rep.cohort.converted} verified paying, ${rep.cohort.nonConverted} canceled or declined, ${rep.cohort.unresolved} unresolved, ${rep.cohort.active} still on trial.`);
+  L.push('', `This week's joining cohort: ${rep.cohort.joined} joined, ${rep.cohort.trials} trials, ${rep.cohort.converted} of them verified paying, ${rep.cohort.directPaid} paying with no trial, ${rep.cohort.nonConverted} canceled or declined, ${rep.cohort.unresolved} unresolved, ${rep.cohort.active} still on trial.`);
   if (rep.ads.best) L.push('', `Best ad by ${rep.ads.basis}: ${rep.ads.best.name} (${money(rep.ads.best.spend)} spent).`);
   if (rep.ads.worst) L.push(`Weakest ad by ${rep.ads.basis}: ${rep.ads.worst.name} (${money(rep.ads.worst.spend)} spent).`);
   L.push('', 'ADVERTISING VS MEMBER GROWTH');
@@ -1991,7 +2019,7 @@ export function buildDigest(ctx) {
   for (const m of ctx.members) count[m.d.status] = (count[m.d.status] || 0) + 1;
   return {
     asOf: today, timezone: ctx.settings.timezone, demoData: ctx.demo,
-    business: { trialDays: ctx.settings.trialDays, plans: ctx.settings.plans.map((p) => ({ label: p.label, price: p.price, interval: p.interval })), fees: ctx.settings.fees },
+    business: { trialDays: ctx.settings.trialDays, trialOfferBeganOn: ctx.settings.trialAppliesFrom, trialNote: 'Paid members who joined before trialOfferBeganOn never had a trial. They are paying members, not trial conversions, and are excluded from every trial count and conversion rate.', plans: ctx.settings.plans.map((p) => ({ label: p.label, price: p.price, interval: p.interval })), fees: ctx.settings.fees },
     dataCoverage: {
       latestSkoolExport: ctx.lastCsv ? ctx.lastCsv.day : null, exportsImported: ctx.csvImports.length,
       metaFirstDay: ctx.meta.first, metaLastDay: ctx.meta.last, adAccountTimezone: ctx.meta.account ? ctx.meta.account.timezone : null,
@@ -2003,7 +2031,7 @@ export function buildDigest(ctx) {
     retention: { r30: o.retention.r30, r60: o.retention.r60, r90: o.retention.r90, blendedMonthlyChurn: o.retention.blendedMonthlyChurn, months: o.retention.months.slice(-6) },
     last30Days: { activity: o.cur.activity, joiningCohort: o.cur.cohort, previous30Days: o.prev.activity },
     weeklyCohortsByJoinWeek: cohorts(ctx, 'week').slice(-16).map((c) => ({
-      week: c.from, joined: c.joined, trials: c.trials, converted: c.converted, canceledOrDeclined: c.nonConverted, unresolved: c.unresolved,
+      week: c.from, joined: c.joined, trials: c.trials, trialsConvertedToPaid: c.converted, paidWithNoTrial: c.directPaid, newPayingTotal: c.newPaying, canceledOrDeclined: c.nonConverted, unresolved: c.unresolved,
       stillOnTrial: c.active, churnedLater: c.churned, returned: c.returned, revenueSoFar: c.revenue, adSpendThatWeek: c.spend,
       blendedCostPerTrial: c.blendedCostPerTrial, blendedCac: c.blendedCac,
     })),
@@ -2014,9 +2042,9 @@ export function buildDigest(ctx) {
       communityDuringActiveDays: { note: 'whole-community figures on days this ad delivered; NOT attribution', ...a.community },
     })),
     daily: {
-      columns: ['day', 'adSpend', 'joins', 'trialStarts', 'trialCancels', 'paidConversions', 'paidChurn', 'returns', 'revenueCollected'],
-      note: 'paidConversions and revenueCollected days are often estimated from the trial end date; joins are exact.',
-      rows: s.days.map((d, i) => [d, s.metrics.spend[i], s.metrics.joins[i], s.metrics.trialStarts[i], s.metrics.trialCancels[i], s.metrics.conversions[i], s.metrics.churn[i], s.metrics.returns[i], s.metrics.revenue[i]]),
+      columns: ['day', 'adSpend', 'joins', 'trialStarts', 'trialCancels', 'trialToPaidConversions', 'newPayingNoTrial', 'paidChurn', 'returns', 'revenueCollected'],
+      note: 'trialToPaidConversions and revenueCollected days are often estimated from the trial end date; joins are exact. newPayingNoTrial are members who paid to join without a trial (before the trial offer began).',
+      rows: s.days.map((d, i) => [d, s.metrics.spend[i], s.metrics.joins[i], s.metrics.trialStarts[i], s.metrics.trialCancels[i], s.metrics.conversions[i], s.metrics.directPaid[i], s.metrics.churn[i], s.metrics.returns[i], s.metrics.revenue[i]]),
     },
     forecast: forecast(ctx),
     ruleBasedInsights: insights(ctx),

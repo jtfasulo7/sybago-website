@@ -263,6 +263,7 @@ const STYLE = {
   trialStarts: { color: C.green, dash: [6, 3] },
   trialCancels: { color: C.clay, dash: [2, 3] },
   conversions: { color: C.slate, dash: [] },
+  directPaid: { color: C.slate, dash: [2, 2] },
   churn: { color: C.clay, dash: [8, 4] },
   returns: { color: C.plum, dash: [4, 2, 1, 2] },
   net: { color: C.charcoal, dash: [10, 3] },
@@ -397,6 +398,13 @@ export function render() {
   main.scrollTop = scroll;
 }
 
+/** Current paying members, split by whether they ever had a free trial. */
+function paySplit(c) {
+  const paying = c.members.filter((m) => m.d.status === 'paying');
+  const viaTrial = paying.filter((m) => m.d.hasTrial).length;
+  return { viaTrial, noTrial: paying.length - viaTrial };
+}
+
 /* ------------------------------------------------------------- overview -- */
 
 function qualityBlock() {
@@ -416,6 +424,7 @@ const overviewPage = {
     const a = o.cur.activity; const b = o.prev.activity; const co = o.cur.cohort;
     const days = o.cur.days;
     const t = o.trials; const p = o.profitability;
+    const split = paySplit(c);
     const mature = co.fullyMatured ? '' : `${co.active} of this period's trials are still running — not final.`;
     return `
     <div class="gi-pagehead"><h3>Overview</h3><p class="sub">How the business is doing in the selected period, against the one before it.</p></div>
@@ -427,7 +436,7 @@ const overviewPage = {
       { label: 'Cost per click', value: money(a.cpc, 2), delta: delta(a.cpc, b.cpc, true) },
       { label: 'Cost per landing-page view', value: money(a.costPerLpv, 2), delta: delta(a.costPerLpv, b.costPerLpv, true) },
       { label: 'Cost per trial', value: money(co.blendedCostPerTrial, 2), basis: 'blended', note: 'All spend ÷ all trials started in the period. Not attributed to ads.' },
-      { label: 'Customer acquisition cost', value: money(co.blendedCac, 2), basis: 'blended', note: mature || 'All spend ÷ verified new paying members from this period\'s joiners.' },
+      { label: 'Customer acquisition cost', value: money(co.blendedCac, 2), basis: 'blended', note: mature || 'All spend ÷ every verified new paying member from this period\'s joiners, with or without a trial.' },
     ]), { sub: c.meta.available ? `From Meta, in ${h((c.meta.account && c.meta.account.timezone) || 'the ad account')} time.` : 'No Meta history stored yet.' })}
     ${panel('Membership', tiles([
       { label: 'Total members', value: int(o.members.total), note: h(o.members.totalBasis) },
@@ -435,15 +444,16 @@ const overviewPage = {
       { label: 'Active free trials', value: int(o.members.activeTrials), note: 'Right now' },
       { label: 'Canceled or declined trials', value: int(a.trialCancels), delta: delta(a.trialCancels, b.trialCancels, true), note: 'Verified, in the period' },
       { label: 'Completed trials', value: int(t.matured), note: `${int(t.known)} with a verified outcome, all time` },
-      { label: 'Paid conversions', value: int(a.conversions), delta: delta(a.conversions, b.conversions), basis: a.soft.conversions ? 'dates estimated' : '', note: 'Verified by payment evidence' },
-      { label: 'Paying subscribers', value: int(o.members.paying), note: 'Verified, right now' },
+      { label: 'Trial-to-paid conversions', value: int(a.conversions), delta: delta(a.conversions, b.conversions), basis: a.soft.conversions ? 'dates estimated' : '', note: 'Free trials that became paying, verified by payment evidence' },
+      { label: 'New paying, no trial', value: int(a.directPaid), delta: delta(a.directPaid, b.directPaid), note: `Paid to join without a trial — the offer began ${dayFull(c.settings.trialAppliesFrom)}` },
+      { label: 'Paying subscribers', value: int(o.members.paying), note: `Verified, right now · ${int(split.viaTrial)} came through a free trial, ${int(split.noTrial)} never had one` },
       { label: 'Churned subscribers', value: int(a.churn), delta: delta(a.churn, b.churn, true), note: 'Verified, in the period' },
       { label: 'Returning members', value: int(a.returns), delta: delta(a.returns, b.returns) },
     ]), { sub: o.members.missing ? `${int(o.members.missing)} more are missing from the latest export with no verified reason; they are in none of these counts.` : '' })}
     ${panel('Financial performance', tiles([
       { label: 'Gross MRR', value: money(o.mrr.gross), delta: delta(o.mrr.gross, o.mrr.grossBefore), note: `${int(o.mrr.payers)} verified paying members` },
       { label: 'Net MRR', value: money(o.mrr.net), note: 'After the fees in Settings' },
-      { label: 'New MRR', value: money(a.newMrr), delta: delta(a.newMrr, b.newMrr), note: 'From conversions in the period' },
+      { label: 'New MRR', value: money(a.newMrr), delta: delta(a.newMrr, b.newMrr), note: 'From everyone who started paying in the period' },
       { label: 'Revenue collected', value: money(a.revenue), delta: delta(a.revenue, b.revenue), basis: a.soft.revenue ? 'dates estimated' : '', note: 'Totals are Skool\'s recorded LTV' },
       { label: 'Advertising expenses', value: money(a.spend), delta: delta(a.spend, b.spend, true) },
       { label: 'Net cash contribution', value: money(a.netCash), note: `Revenue − fees (${money(a.fees)}) − ad spend − other expenses (${money(a.otherExpenses)})` },
@@ -457,7 +467,7 @@ const overviewPage = {
       { label: 'Monthly churn rate', value: pct(o.retention.blendedMonthlyChurn, 1), note: o.retention.churnBasisMonths ? `Verified churn over the last ${o.retention.churnBasisMonths} complete month${o.retention.churnBasisMonths === 1 ? '' : 's'}` : 'Needs a complete month of paying members.' },
       { label: 'Advertising efficiency', value: co.blendedRoas == null ? '—' : dec(co.blendedRoas, 2) + '×', basis: 'blended', note: mature || 'Revenue so far from this period\'s joiners ÷ ad spend in the period.' },
     ]))}
-    ${panel('Members and spend', `<div class="gi-chart"><canvas id="gi-ov-chart" role="img" aria-label="Daily ad spend against new member signups and paid conversions"></canvas></div>`, { sub: 'Daily ad spend (bars) against signups and verified paid conversions. Open Growth Timeline for the full comparison.' })}
+    ${panel('Members and spend', `<div class="gi-chart"><canvas id="gi-ov-chart" role="img" aria-label="Daily ad spend against new member signups and new paying members"></canvas></div>`, { sub: 'Daily ad spend (bars) against signups and verified new paying members. Open Growth Timeline for the full comparison.' })}
     ${panel('What the data shows', insightList(E.insights(c)), { sub: 'Each line is labelled by what kind of statement it is. A correlation is not attribution.' })}`;
   },
   after() {
@@ -467,7 +477,7 @@ const overviewPage = {
       data: { labels: s.days, datasets: [
         { type: 'bar', label: 'Ad spend', data: s.metrics.spend, backgroundColor: C.sage, yAxisID: 'y', order: 3 },
         { type: 'line', label: 'New member signups', data: s.metrics.joins, borderColor: C.forest, backgroundColor: C.forest, yAxisID: 'y2', tension: 0.25, pointRadius: 0, borderWidth: 2, order: 1 },
-        { type: 'line', label: 'Paid conversions', data: s.metrics.conversions, borderColor: C.slate, backgroundColor: C.slate, borderDash: [5, 3], yAxisID: 'y2', tension: 0.25, pointRadius: 0, borderWidth: 2, order: 2 },
+        { type: 'line', label: 'New paying members', data: s.metrics.conversions.map((v, i) => v + s.metrics.directPaid[i]), borderColor: C.slate, backgroundColor: C.slate, borderDash: [5, 3], yAxisID: 'y2', tension: 0.25, pointRadius: 0, borderWidth: 2, order: 2 },
       ] },
       options: { scales: { x: xAxis(s.days), y: axis('left', true, 'Ad spend'), y2: axis('right', false, 'Members') }, plugins: { legend: { display: true, position: 'bottom', labels: { color: C.text, boxWidth: 18 } } } },
     });
@@ -563,14 +573,14 @@ const timelinePage = {
         { label: 'Revenue collected', value: money(a.revenue), basis: a.soft.revenue ? 'dates estimated' : '' },
       ]), { sub: 'Activity dated inside the window.' })}
       ${panel('What became of the people who joined then', tiles([
-        { label: 'Joined in the window', value: int(co.joined), note: `${int(co.trials)} on a paid plan with a trial · ${int(co.free)} free` },
-        { label: 'Eventually paid', value: int(co.converted), note: co.known ? `${pct(co.rate)} of the ${int(co.known)} trials with a known outcome` : '', basis: 'verified', basisKind: 'is-ok' },
+        { label: 'Joined in the window', value: int(co.joined), note: `${int(co.trials)} started a free trial · ${int(co.joined - co.trials - co.free)} on a paid plan with no trial · ${int(co.free)} free` },
+        { label: 'Eventually paid', value: int(co.newPaying), note: `${int(co.converted)} converted from a trial${co.known ? ` (${pct(co.rate)} of the ${int(co.known)} with a known outcome)` : ''} · ${int(co.directPaid)} paid with no trial`, basis: 'verified', basisKind: 'is-ok' },
         { label: 'Canceled or declined', value: int(co.nonConverted), basis: 'verified', basisKind: 'is-ok' },
         { label: 'Outcome unknown', value: int(co.unresolved), note: 'Trial ended, no payment or cancellation evidence.' },
         { label: 'Still on trial', value: int(co.active), note: co.active ? 'This cohort is not final yet.' : 'Every trial in this cohort has ended.' },
         { label: 'Later churned', value: int(co.churned), note: `${int(co.returned)} returned · ${int(co.stillPaying)} still paying` },
         { label: 'Verified revenue from this cohort', value: money(co.revenue), note: 'Everything these members have paid, to date.' },
-        { label: 'Spend ÷ verified paying', value: money(co.blendedCac, 2), basis: 'blended', note: 'Not ad-level CAC: all spend in the window over all verified conversions from it.' },
+        { label: 'Spend ÷ verified paying', value: money(co.blendedCac, 2), basis: 'blended', note: 'Not ad-level CAC: all spend in the window over every verified new paying member from it, trial or not.' },
       ]), { sub: `Followed forward however long it took. The trial is ${trialDays} days, so someone who joined on day one cannot pay before day ${trialDays + 1} — revenue on a given day belongs to an earlier cohort.` })}
     </div>
 
@@ -650,7 +660,8 @@ function adDetail(ent) {
     ${tiles([
       { label: 'Community signups on active days', value: int(cm.joins) },
       { label: 'Of those, trials started', value: int(cm.trials) },
-      { label: 'Paid conversions observed afterward', value: int(cm.converted), note: 'From people who joined on those days, whenever they paid.', basis: 'verified', basisKind: 'is-ok' },
+      { label: 'Trial conversions observed afterward', value: int(cm.converted), note: 'Trials started on those days that later paid.', basis: 'verified', basisKind: 'is-ok' },
+      { label: 'Paid with no trial', value: int(cm.directPaid), note: 'Joined on those days as paying members, before the trial offer.', basis: 'verified', basisKind: 'is-ok' },
       { label: 'Canceled or declined', value: int(cm.nonConverted) },
       { label: 'Outcome unknown', value: int(cm.unresolved), note: cm.activeTrials ? `${int(cm.activeTrials)} still on trial` : '' },
       { label: 'Revenue from those joiners', value: money(cm.revenue), note: 'Recorded LTV to date.' },
@@ -750,11 +761,13 @@ const trialsPage = {
     const rows = E.conversionBy(c, by);
     const label = { week: 'Join week', month: 'Join month', trialWeek: 'Trial-start week', plan: 'Membership plan', source: 'Acquisition source' };
     const active = c.members.filter((m) => m.d.trialOutcome === 'active').sort((a, b) => String(a.d.trialEnd).localeCompare(String(b.d.trialEnd)));
+    const noTrial = c.members.filter((m) => !m.d.hasTrial && m.price > 0);
     const unresolved = c.members.filter((m) => m.d.trialOutcome === 'unresolved').sort((a, b) => String(b.d.trialEnd).localeCompare(String(a.d.trialEnd)));
     const fmtKey = (k) => (by === 'week' || by === 'trialWeek' ? (E.isDay(k) ? 'Week of ' + dayLabel(k, true) : k) : by === 'month' && /^\d{4}-\d{2}$/.test(k) ? new Date(k + '-15T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : k);
     const who = (m) => `<button type="button" class="gi-link" data-act="member-open" data-id="${h(m.id)}">${h(m.name)}</button>`;
     return `
     <div class="gi-pagehead"><h3>Free Trial Tracking</h3><p class="sub">Every ${c.settings.trialDays}-day trial, from start to a verified outcome. A trial ending is never taken as a payment.</p></div>
+    <div class="notice notice-info"><span><strong>The free trial began ${dayFull(c.settings.trialAppliesFrom)}.</strong> Only members who joined a paid plan on or after that day are trial members. ${int(noTrial.length)} member${noTrial.length === 1 ? '' : 's'} joined a paid plan before it: they paid to join, are counted as paying members (${int(noTrial.filter((m) => m.d.status === 'paying').length)} still paying), and are in none of the trial counts or the conversion rate below.</span></div>
     ${panel('Where every trial stands', tiles([
       { label: 'Trials started', value: int(t.trials), note: 'All time' },
       { label: 'Trial active', value: int(t.active) },
@@ -823,7 +836,7 @@ const revenuePage = {
     ${panel('Recurring revenue', tiles([
       { label: 'Gross MRR', value: money(o.mrr.gross), note: `${int(o.mrr.payers)} verified paying members, as of ${dayLabel(E.minDay(r.to, c.today))}` },
       { label: 'Net MRR', value: money(o.mrr.net), note: `After ${dec(f.platformPct + f.processingPct, 1)}% + ${money(f.perTransaction, 2)} per charge` },
-      { label: 'New MRR', value: money(o.mrr.newMrr), note: 'Added by conversions in the period' },
+      { label: 'New MRR', value: money(o.mrr.newMrr), note: 'Added by everyone who started paying in the period' },
       { label: 'Churned MRR', value: money(o.mrr.churnedMrr), note: 'Lost to verified churn in the period' },
     ]), { sub: 'An annual plan counts at one twelfth of its price. A trial counts at nothing until a payment is verified.' })}
     ${panel('Cash', tiles([
@@ -869,7 +882,7 @@ const retentionPage = {
   html() {
     const c = S.ctx;
     const ret = E.retention(c);
-    const cs = E.cohorts(c, 'month').filter((x) => x.converted > 0);
+    const cs = E.cohorts(c, 'month').filter((x) => x.newPaying > 0);
     const rate = (x) => (x.eligible - x.unknown > 0 ? `${pct(x.rate)} <small>(${int(x.retained)}/${int(x.eligible - x.unknown)})</small>` : '<small>too recent</small>');
     // Do cohorts acquired on heavier spend keep their members better or worse?
     const measurable = cs.filter((x) => x.r30.eligible - x.r30.unknown >= 5 && x.spend > 0);
@@ -884,7 +897,7 @@ const retentionPage = {
     return `
     <div class="gi-pagehead"><h3>Retention &amp; Churn</h3><p class="sub">Who stays once they are paying. Confirmed paid churn is kept apart from trial cancellations and from members whose status is simply unknown.</p></div>
     ${panel('Now', tiles([
-      { label: 'Active paying members', value: int(ret.activePaying), basis: 'verified', basisKind: 'is-ok' },
+      { label: 'Active paying members', value: int(ret.activePaying), basis: 'verified', basisKind: 'is-ok', note: `${int(paySplit(c).viaTrial)} came through a free trial · ${int(paySplit(c).noTrial)} never had one` },
       { label: 'Ever paid', value: int(ret.everPaid) },
       { label: 'Paid cancellations', value: int(ret.paidChurned), basis: 'verified', basisKind: 'is-ok', note: 'Confirmed churn of a paying member' },
       { label: 'Trial cancellations', value: int(ret.trialCanceled), note: 'Never paid. Not churn.' },
@@ -910,7 +923,7 @@ const retentionPage = {
     ], ret.months.slice().reverse(), { empty: 'No paying members yet.', caption: 'Churn rate = verified paid churn in the month ÷ paying members at its start.' }))}
     <div class="gi-two">
       ${panel('Retention by join-date cohort', table([
-        { label: 'Joined in', cell: (x) => h(x.key.slice(0, 7)) }, { label: 'Converted', num: true, cell: (x) => int(x.converted) },
+        { label: 'Joined in', cell: (x) => h(x.key.slice(0, 7)) }, { label: 'New paying', num: true, cell: (x) => int(x.newPaying) },
         { label: 'Ad spend / day', num: true, cell: (x) => money(x.spendPerDay, 2) },
         { label: '30 days', num: true, cell: (x) => rate(x.r30) }, { label: '60 days', num: true, cell: (x) => rate(x.r60) }, { label: '90 days', num: true, cell: (x) => rate(x.r90) },
       ], cs.slice().reverse(), { empty: 'No cohort has a verified paying member yet.' }), { sub: `<span class="gi-kind">Correlation</span> ${h(spendNote)}` })}
@@ -937,7 +950,8 @@ const cohortsPage = {
       { label: 'Ad spend', num: true, cell: (x) => money(x.spend) },
       { label: 'Joined', num: true, cell: (x) => int(x.joined) },
       { label: 'Trials', num: true, cell: (x) => int(x.trials) },
-      { label: 'Paid', num: true, title: 'Verified converted to paid', cell: (x) => int(x.converted) },
+      { label: 'Trial → paid', num: true, title: 'Trials verified converted to paid', cell: (x) => int(x.converted) },
+      { label: 'Paid, no trial', num: true, title: 'Joined as paying members without a trial', cell: (x) => int(x.directPaid) },
       { label: 'Canceled / declined', num: true, cell: (x) => int(x.nonConverted) },
       { label: 'Unknown', num: true, cell: (x) => int(x.unresolved) },
       { label: 'On trial', num: true, cell: (x) => (x.active ? `<strong>${int(x.active)}</strong>` : '0') },
@@ -961,7 +975,7 @@ const cohortsPage = {
       data: { labels, datasets: [
         { type: 'bar', label: 'Ad spend in the period', data: cs.map((x) => x.spend), backgroundColor: C.sage, yAxisID: 'y', order: 3 },
         { type: 'line', label: 'Trials started', data: cs.map((x) => x.trials), borderColor: C.green, borderDash: [6, 3], borderWidth: 2, pointRadius: 2, yAxisID: 'y2', order: 2 },
-        { type: 'line', label: 'Verified paying', data: cs.map((x) => x.converted), borderColor: C.slate, borderWidth: 2, pointRadius: 2, yAxisID: 'y2', order: 1 },
+        { type: 'line', label: 'Verified new paying (trial or not)', data: cs.map((x) => x.newPaying), borderColor: C.slate, borderWidth: 2, pointRadius: 2, yAxisID: 'y2', order: 1 },
       ] },
       options: {
         scales: { x: { grid: { display: false }, ticks: { color: C.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 10, callback(v) { return g === 'month' ? labels[v].slice(0, 7) : dayLabel(labels[v]); } } }, y: axis('left', true, 'Ad spend'), y2: axis('right', false, 'Members') },
@@ -1008,9 +1022,9 @@ const profitPage = {
       <div class="notice notice-info"><span><strong>Aggregate efficiency, not ad-level attribution.</strong> ${p.attributed ? 'Some members carry attribution; figures below are still account-wide.' : 'No member is linked to a specific ad, so nothing here is a verified per-ad CAC or ROAS.'} Each figure divides all ad spend in the period by everyone who joined in it — including people who came from direct traffic and the Skool network.</span></div>
       ${tiles([
         { label: 'Advertising spend', value: money(p.spend) },
-        { label: 'Trials started', value: int(p.trials), note: 'By people who joined in the period' },
+        { label: 'Free trials started', value: int(p.trials), note: 'By people who joined in the period' },
         { label: 'Cost per trial', value: money(p.blendedCostPerTrial, 2), basis: 'blended' },
-        { label: 'Verified new paying customers', value: int(p.converted), basis: 'verified', basisKind: 'is-ok', note: p.fullyMatured ? (p.unresolved ? `${int(p.unresolved)} more have no verified outcome` : '') : `${int(p.activeTrials)} still on trial — not final` },
+        { label: 'Verified new paying customers', value: int(p.newPaying), basis: 'verified', basisKind: 'is-ok', note: `${int(p.converted)} from a free trial · ${int(p.directPaid)} with no trial. ` + (p.fullyMatured ? (p.unresolved ? `${int(p.unresolved)} more have no verified outcome` : '') : `${int(p.activeTrials)} still on trial — not final`) },
         { label: 'CAC', value: money(p.blendedCac, 2), basis: 'blended', note: p.fullyMatured ? '' : 'Overstated until this period\'s trials finish.' },
         { label: 'Collected from this cohort', value: money(p.cohortRevenue), note: 'Recorded LTV of the period\'s joiners, to date' },
         { label: 'Observed ROAS', value: p.blendedRoas == null ? '—' : dec(p.blendedRoas, 2) + '×', basis: 'blended', note: 'Cohort revenue to date ÷ ad spend. Keeps rising while members keep paying.' },

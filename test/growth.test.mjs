@@ -52,7 +52,8 @@ function pasteImport(id, day, text, opts = {}) {
 }
 function world(imports, { today = '2026-10-08', manual = [], reverted = [], meta = null, settings } = {}) {
   const db = E.emptyDb();
-  if (settings) db.settings = { ...db.settings, ...settings };
+  // Most fixtures are about trials, so the offer is in force throughout unless a test says otherwise.
+  db.settings = { ...db.settings, trialAppliesFrom: '2026-01-01', ...(settings || {}) };
   db.imports = imports.map((i) => ({ id: i.id, kind: i.kind, observedAt: i.observedAt, hash: i.hash, reverted: reverted.includes(i.id) ? { at: 'x' } : null }));
   db.manual = manual;
   return E.buildContext(db, imports, meta, { today });
@@ -274,6 +275,63 @@ await t('members who joined before the trial offer began have no trial', () => {
   assert.equal(m.d.hasTrial, false);
   assert.equal(m.d.status, 'paying');
 });
+await t('the trial offer began on 2026-09-27 by default, and an unset date means that default', () => {
+  assert.equal(E.DEFAULT_SETTINGS.trialAppliesFrom, '2026-09-27');
+  assert.equal(E.withDefaults({ trialAppliesFrom: null }).trialAppliesFrom, '2026-09-27');
+  assert.equal(E.withDefaults({ trialAppliesFrom: '' }).trialAppliesFrom, '2026-09-27');
+  assert.equal(E.withDefaults({ trialAppliesFrom: '2026-06-01' }).trialAppliesFrom, '2026-06-01');
+});
+const cutoffWorld = () => world([csvImport('a', '2026-10-07', [
+  'Pre,Paid,pre@x.com,,2026-09-10 15:00:00,$19,month,$19',       // before the offer: paid to join
+  'Eve,Before,eve@x.com,,2026-09-26 15:00:00,$19,month,$19',     // the day before: still no trial
+  'Day,One,day1@x.com,,2026-09-27 15:00:00,$19,month,$19',       // first day of the offer: a trial, converted
+  'Tri,Open,tri@x.com,,2026-10-04 15:00:00,$19,month,$0',        // on trial now
+])], { settings: { trialAppliesFrom: '2026-09-27' }, meta: { ads: { a: { name: 'A' } }, daily: [['2026-09-10', 'a', 100, 1, 1, 1, 1, 1, 0], ['2026-09-27', 'a', 60, 1, 1, 1, 1, 1, 0]] } });
+await t('members who joined before the cutoff are paying members, never trial members', () => {
+  const ctx = cutoffWorld();
+  for (const name of ['Pre Paid', 'Eve Before']) {
+    const m = one(ctx, name);
+    assert.equal(m.d.hasTrial, false, name);
+    assert.equal(m.d.trialOutcome, 'none', name);
+    assert.equal(m.d.status, 'paying', name);
+    assert.equal(m.d.firstPaidDay, m.joinDay, name);        // they paid on joining, not a week later
+  }
+  assert.equal(one(ctx, 'Day One').d.hasTrial, true);
+  assert.equal(one(ctx, 'Day One').d.trialOutcome, 'converted');
+});
+await t('trial counts and the conversion rate only see members from the cutoff on', () => {
+  const s = E.trialStats(cutoffWorld().members);
+  assert.deepEqual([s.trials, s.converted, s.active, s.known], [2, 1, 1, 1]);
+  near(s.rate, 1);
+});
+await t('pre-trial payers are "new paying, no trial" in the series, not trial conversions', () => {
+  const s = E.dailySeries(cutoffWorld(), '2026-09-01', '2026-10-08');
+  const total = (k) => s.metrics[k].reduce((a, b) => a + b, 0);
+  assert.equal(total('trialStarts'), 2);
+  assert.equal(total('conversions'), 1);
+  assert.equal(total('directPaid'), 2);
+  assert.equal(s.metrics.directPaid[s.days.indexOf('2026-09-10')], 1);
+  near(total('newMrr'), 57);                                // all three still add MRR
+});
+await t('acquisition cost divides by every new paying member, trial or not', () => {
+  const pre = E.periodSummary(cutoffWorld(), '2026-09-01', '2026-09-26').cohort;
+  assert.deepEqual([pre.trials, pre.converted, pre.directPaid, pre.newPaying], [0, 0, 2, 2]);
+  assert.equal(pre.blendedCostPerTrial, null);              // no trials, so no cost per trial
+  near(pre.blendedCac, 50);
+  assert.equal(pre.rate, null);                             // and no conversion rate to quote
+  const wk = E.cohorts(cutoffWorld(), 'week').find((c) => c.from === '2026-09-21');
+  assert.deepEqual([wk.trials, wk.converted, wk.directPaid, wk.newPaying], [1, 1, 1, 2]);
+});
+await t('the forecast is built from real trials only', () => {
+  const f = E.forecast(cutoffWorld());
+  assert.equal(f.activeTrials, 1);
+  assert.equal(f.sample, 1);                                // not 3
+});
+await t('a pasted trial status still counts as a trial, whatever the join date', () => {
+  const imp = csvImport('a', '2026-10-07', ['Pre,Paid,pre@x.com,,2026-09-10 15:00:00,$19,month,$0']);
+  const p = pasteImport('p', '2026-10-07', 'Pre Paid\n@pre\nTrial canceled Sep 14, 2026\nJoined Sep 10, 2026');
+  assert.equal(one(world([imp, p], { settings: { trialAppliesFrom: '2026-09-27' } }), 'Pre Paid').d.trialOutcome, 'canceled');
+});
 
 /* --------------------------------------------------------------- paste -- */
 console.log('\nPasted membership status');
@@ -466,6 +524,7 @@ await t('revenue is credited to the cohort that JOINED, not to the days it was c
   assert.equal(wk.activity.revenue, 0);                   // nobody can pay inside their own trial week
   assert.equal(wk.cohort.revenue, 76);                    // but the people who joined then have paid $76 since
   assert.equal(wk.cohort.converted, 3);
+  assert.equal(wk.cohort.directPaid, 0);
   near(wk.cohort.blendedCac, 410 / 3);
   const later = E.periodSummary(ctx, '2026-09-08', '2026-09-14');
   assert.equal(later.activity.spend, 0);
@@ -534,7 +593,7 @@ await t('the weekly report covers the last complete Monday-to-Sunday week', () =
   assert.deepEqual(E.lastCompleteWeek('2026-10-08'), { from: '2026-09-28', to: '2026-10-04' });
   const demo = buildDemo('2026-10-08');
   const rep = E.weeklyReport(E.buildContext(demo.db, demo.imports, demo.meta, { today: '2026-10-08', demo: true }));
-  assert.equal(rep.rows.length, 9);
+  assert.equal(rep.rows.length, 10);
   assert.ok(rep.recommendations.length > 0);
   assert.match(E.reportText(rep), /DEMONSTRATION DATA/);
 });

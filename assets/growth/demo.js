@@ -149,6 +149,8 @@ export function buildDemo(today) {
   /* ---------------------------------------------- what Skool would give -- */
   const imports = [];
   const db = emptyDb();
+  // The simulated community has offered a trial for its whole ad history.
+  db.settings.trialAppliesFrom = day0;
   const pushImport = (imp) => {
     imports.push(imp);
     db.imports.push({ id: imp.id, kind: imp.kind, observedAt: imp.observedAt, filename: imp.filename, hash: imp.hash, rowCount: imp.rows.length, label: imp.label, reverted: null, createdAt: imp.observedAt });

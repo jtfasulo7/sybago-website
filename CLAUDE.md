@@ -1337,6 +1337,27 @@ These are the rules the tests exist to hold. Each was a tempting shortcut.
 - **Recorded LTV is not MRR**, and a forecast is not money collected — every forecast panel
   wears `.gi-forecast-flag`.
 
+### The free trial began 2026-09-27
+
+**Members on a paid plan who joined before `settings.trialAppliesFrom` never had a trial.
+They paid to join.** They are paying members and appear in no trial count, no conversion
+rate and no trial forecast. The default is `2026-09-27`, the first full day the offer existed.
+
+- **An empty `trialAppliesFrom` means the DEFAULT, never "there was always a trial".**
+  `withDefaults()` enforces it. The first version read null as "always", so every pre-trial
+  paying member was counted as a trial that converted — inflating trials started, the
+  conversion rate's sample and the forecast, and dating their first payment a week late.
+- **Two series, never one:** `conversions` is trial → paid; `directPaid` is "new paying,
+  no trial" (`paidWithoutTrial()`). `newPaying` is their sum. A non-trial member's first
+  payment is placed on their JOIN day, not join + 7.
+- **CAC divides by `newPaying`, cost per trial by `trials`.** Dividing CAC by trial
+  conversions alone prices every pre-trial cohort at infinity. A cohort with no trials has
+  no cost per trial and no conversion rate (`null`, rendered as a dash) rather than zero.
+- **A pasted trial status still makes someone a trial member whatever their join date** —
+  explicit evidence from Skool outranks the date rule.
+- The demo sets its own `trialAppliesFrom` to the first day of its simulated history, so it
+  still has trials to show.
+
 ### Money
 
 **Skool reports a running lifetime total per member, not a ledger.** So the TOTAL is verified
