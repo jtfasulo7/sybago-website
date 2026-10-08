@@ -362,6 +362,7 @@ export const STATUSES = [
   ['trial_declined', 'Trial declined'],
   ['trial_ended', 'Trial ended'],
   ['paid_verified', 'Paid subscription verified'],
+  ['canceling', 'Canceling — still a member'],
   ['churned', 'Churned member'],
   ['returning', 'Returning member'],
   ['unknown', 'Unknown or unverified'],
@@ -430,6 +431,7 @@ const LABELLED = [
   ['trialStart', '(?:trial\\s+(?:started|began|start)|started\\s+trial)(?:\\s+on)?'],
   ['trialEnd', '(?:(?:free\\s+)?trial\\s+(?:ends|ending|expires|expiring|ended|expired|end)|trial\\s+until|expires|ends)(?:\\s+on)?'],
   ['canceledAt', '(?:cancel+ed|cancels|cancel+ation|declined)(?:\\s+on)?'],
+  ['endsAt', '(?:access\\s+(?:ends|until)|membership\\s+ends|churns|will\\s+churn|leaving)(?:\\s+on)?'],
   ['churnedAt', '(?:churned|removed|left|expired\\s+membership)(?:\\s+on)?'],
   ['paidAt', '(?:paid|first\\s+payment|converted|subscribed)(?:\\s+on)?'],
   ['returnedAt', '(?:returned|rejoined|re-joined|reactivated)(?:\\s+on)?'],
@@ -443,7 +445,10 @@ function detectStatus(text) {
   if (/re-?joined|returned|returning|reactivat/.test(s)) return 'returning';
   if (/trial (?:has )?(?:ended|expired|over)/.test(s)) return 'trial_ended';
   if (/trial/.test(s)) return 'active_trial';
-  if (/cancel/.test(s)) return 'churned';
+  // "Canceled" with no mention of a trial is somebody who has asked to stop
+  // and is STILL A MEMBER until their period runs out. Calling that churn is
+  // the confusion the separate canceling and churned uploads exist to end.
+  if (/cancel/.test(s)) return 'canceling';
   if (/\bpaid\b|paying|active subscri|subscribed/.test(s)) return 'paid_verified';
   return null;
 }
@@ -508,7 +513,7 @@ export function parsePaste(text, opts = {}) {
     const flat = blockLines.join(' • ').replace(/\t/g, ' • ');
     const row = {
       k: String(idx), name: '', handle: null, email: null, status: null,
-      joinDay: null, trialStart: null, trialEnd: null, canceledAt: null, churnedAt: null, paidAt: null, returnedAt: null,
+      joinDay: null, trialStart: null, trialEnd: null, canceledAt: null, endsAt: null, churnedAt: null, paidAt: null, returnedAt: null,
       price: null, interval: null, source: null, approx: {}, issues: [], raw,
     };
 
@@ -542,9 +547,22 @@ export function parsePaste(text, opts = {}) {
       if (m && /trial/i.test(flat)) { row.trialEnd = addDays(pastedDay, +m[1]); row.approx.trialEnd = true; }
     }
 
-    row.status = detectStatus(flat) || opts.defaultStatus || 'unknown';
-    // A section-level default beats a weak guess from a single keyword.
-    if (opts.defaultStatus && opts.forceStatus) row.status = opts.defaultStatus;
+    const detected = detectStatus(flat);
+    row.status = detected || opts.defaultStatus || 'unknown';
+    // Which list it was pasted into says more than any keyword in it. The
+    // canceling and churned lists use much the same words ("canceled"), so
+    // inside them the LIST decides — except that wording explicitly about a
+    // trial is kept, because a trial that was canceled never became a
+    // subscription and must not be filed as one ending.
+    if (opts.defaultStatus === 'canceling' || opts.defaultStatus === 'churned') {
+      row.status = ['trial_canceled', 'trial_declined'].includes(detected) ? detected : opts.defaultStatus;
+      if (opts.defaultStatus === 'churned' && row.status === 'churned' && !row.churnedAt && row.canceledAt) { row.churnedAt = row.canceledAt; if (row.approx.canceledAt) row.approx.churnedAt = true; }
+    }
+    if (row.status === 'canceling' && !row.endsAt && row.trialEnd) {
+      // "Ends Oct 20" on a canceling member is when their access ends, not a trial.
+      row.endsAt = row.trialEnd; if (row.approx.trialEnd) row.approx.endsAt = true;
+      row.trialEnd = null; delete row.approx.trialEnd;
+    }
     row.source = normaliseSource((flat.match(/(?:source|via|from|joined via)\s*:?\s*([a-z ]{3,24})/i) || [])[1]);
     if (/invited by/i.test(flat) && !row.source) row.source = 'referral';
 
@@ -562,6 +580,7 @@ export const EVENT_LABEL = {
   joined: 'Joined',
   trial_started: 'Trial started',
   trial_canceled: 'Trial canceled',
+  cancel_scheduled: 'Cancellation requested — still a member',
   trial_declined: 'Trial declined',
   trial_ended: 'Trial ended — outcome unknown',
   paid_verified: 'Paid subscription verified',
@@ -868,11 +887,26 @@ function applyPaste(state, imp) {
           : trialEnd && trialEnd <= tDay ? { day: trialEnd, precision: 'estimated' }
             : { day: tDay, precision: 'window', window: sinceJoin });
         break;
-      case 'churned':
+      case 'canceling': {
+        // Asked to cancel, still in the community. Recorded as its own event:
+        // it is NOT a departure and must not close a paying interval.
+        const endsOn = row.endsAt || null;
+        addEvent(state, m, imp, 'cancel_scheduled', row.canceledAt
+          ? { day: row.canceledAt, precision: px('canceledAt'), data: { endsOn, endsApprox: !!(row.approx && row.approx.endsAt) } }
+          : { day: tDay, precision: 'window', window: { from: m.lastSeenDay || m.joinDay || null, to: tDay }, data: { endsOn, endsApprox: !!(row.approx && row.approx.endsAt) } });
+        break;
+      }
+      case 'churned': {
+        // No date given, but they were canceling with a known end date that
+        // has passed: that end date is when they left.
+        const sched = m.events.filter((e) => e.type === 'cancel_scheduled').pop();
+        const endsOn = sched && sched.data && sched.data.endsOn && sched.data.endsOn <= tDay ? sched.data.endsOn : null;
         addEvent(state, m, imp, 'churned', row.churnedAt
           ? { day: row.churnedAt, precision: px('churnedAt') }
-          : { day: tDay, precision: 'window', window: { from: m.lastSeenDay || m.joinDay || null, to: tDay } });
+          : endsOn ? { day: endsOn, precision: 'estimated' }
+            : { day: tDay, precision: 'window', window: { from: (sched && sched.precision !== 'window' && sched.day) || m.lastSeenDay || m.joinDay || null, to: tDay } });
         break;
+      }
       case 'returning':
         addEvent(state, m, imp, 'returned', row.returnedAt
           ? { day: row.returnedAt, precision: px('returnedAt') }
@@ -937,8 +971,10 @@ export function buildState(db, imports, opts = {}) {
 
 export const MEMBER_STATUS_LABEL = {
   paying: 'Paying — verified',
+  canceling: 'Canceling — still a member',
   trial_active: 'Active trial',
   trial_canceled: 'Trial canceled',
+  cancel_scheduled: 'Cancellation requested — still a member',
   trial_declined: 'Trial declined',
   trial_unresolved: 'Trial ended — payment outcome unknown',
   churned: 'Churned',
@@ -1014,7 +1050,9 @@ function derive(m, state) {
   }
 
   /* ---- trial outcome. Ending is NOT converting. ---- */
-  const canceled = first('trial_canceled');
+  // Somebody on a trial who asked to cancel, or who left without ever paying,
+  // canceled their TRIAL. Neither is a paying member churning.
+  const canceled = first('trial_canceled') || (!d.paidEvidence ? first('cancel_scheduled') || first('churned') : null) || null;
   const declined = first('trial_declined');
   d.trialOutcome = 'none';
   d.trialOutcomeDay = null;
@@ -1059,17 +1097,37 @@ function derive(m, state) {
   d.intervals = intervals;
   d.returned = d.returnDays.length > 0;
   const lastChurn = d.churns.length ? d.churns[d.churns.length - 1] : null;
+  // "Churn" everywhere downstream means a PAYING member leaving. A trial
+  // member who left is already counted as a trial cancellation.
+  if (!d.paidEvidence) d.churns = [];
   d.churnDay = lastChurn ? lastChurn.day : null;
   d.churnPrecision = lastChurn ? lastChurn.precision : null;
   d.churnWindow = lastChurn ? lastChurn.window : null;
   const payingNow = intervals.some((i) => !i.end);
 
+  /* ---- canceling: asked to stop, still here ---- */
+  const scheds = ev('cancel_scheduled');
+  const sched = scheds[scheds.length - 1] || null;
+  // A payment that can only have happened after the request means they changed their mind.
+  const resumed = !!sched && m.events.some((p) =>
+    (p.type === 'payment_observed' && p.window && p.window.from && p.window.from >= sched.day) ||
+    (p.type === 'payment' && p.day > sched.day) ||
+    ((p.type === 'reactivated' || p.type === 'returned' || p.type === 'rejoined') && p.day >= sched.day && p.seq > sched.seq));
+  d.canceling = !!(sched && d.paidEvidence && payingNow && !resumed);
+  d.cancelRequestedDay = d.canceling ? sched.day : null;
+  d.cancelRequestedPrecision = d.canceling ? sched.precision : null;
+  d.cancelRequestedWindow = d.canceling ? sched.window : null;
+  d.accessEnds = d.canceling && sched.data ? sched.data.endsOn || null : null;
+  d.accessEndsApprox = !!(d.canceling && sched.data && sched.data.endsApprox);
+
   /* ---- one status, with the evidence ranked ---- */
   const lastLife = lastLifecycle(m);
-  if (lastChurn && lastLife === lastChurn) d.status = 'churned';
-  else if (!d.paidEvidence && canceled) d.status = 'trial_canceled';
+  if (lastChurn && lastLife === lastChurn && d.paidEvidence) d.status = 'churned';
+  else if (!d.paidEvidence && d.hasTrial && canceled) d.status = 'trial_canceled';
+  else if (lastChurn && lastLife === lastChurn) d.status = 'churned';
   else if (!d.paidEvidence && declined) d.status = 'trial_declined';
   else if (m.present === false) d.status = 'missing_unverified';
+  else if (d.canceling) d.status = 'canceling';
   else if (payingNow) d.status = 'paying';
   else if (returnUnverified || (lastChurn && d.returned)) d.status = 'returned_unverified';
   else if (d.isFree) d.status = 'free';
@@ -1077,11 +1135,13 @@ function derive(m, state) {
   else if (d.trialOutcome === 'unresolved') d.status = 'trial_unresolved';
   else d.status = 'unknown';
   d.statusLabel = MEMBER_STATUS_LABEL[d.status];
-  d.verified = ['paying', 'trial_canceled', 'trial_declined', 'churned', 'free'].includes(d.status);
+  d.verified = ['paying', 'canceling', 'trial_canceled', 'trial_declined', 'churned', 'free'].includes(d.status);
 
   d.monthly = monthlyValue(m.price, m.interval);
   d.monthlyNet = !m.price ? 0 : m.interval === 'year' ? netOf(m.price, st, m.source) / 12 : m.interval === 'month' ? netOf(m.price, st, m.source) : 0;
-  d.countsToMrr = d.status === 'paying';
+  // A canceling member is still paying until their period ends.
+  d.countsToMrr = d.status === 'paying' || d.status === 'canceling';
+  d.isPaying = d.countsToMrr;
 
   /* ---- payments: verified TOTAL, dates as good as the evidence allows ---- */
   const payments = [];
@@ -1115,7 +1175,7 @@ function derive(m, state) {
       if (lastPlaced) lastPlaced.amount = Math.round((lastPlaced.amount + remaining) * 100) / 100;
       else payments.push({ day: minDay(d.firstPaidDay, cap), amount: remaining, precision: 'estimated', kind: 'payment' });
       flags.push({ code: 'ltv_ahead', message: `Recorded LTV ($${ltv.toFixed(2)}) is more than the current price explains — a price change, an annual payment or an earlier membership.` });
-    } else if (step && m.price > 0 && d.status === 'paying') {
+    } else if (step && m.price > 0 && d.status === 'paying') {   // not while canceling: no further charge is expected
       const due = addDays(day, st.graceDays);
       if (due <= cap) flags.push({ code: 'payment_overdue', message: `A payment was expected around ${day} but recorded LTV has not moved. Possible failed payment or cancellation — unverified.` });
     }
@@ -1140,6 +1200,9 @@ function derive(m, state) {
   if (!d.hasTrial && m.price > 0 && !d.paidEvidence) flags.push({ code: 'no_trial_unpaid', message: `Joined on a paid plan ${st.trialAppliesFrom && m.joinDay && m.joinDay < st.trialAppliesFrom ? `before the free trial began (${st.trialAppliesFrom})` : 'with no trial'}, but there is no payment evidence yet.` });
   if (!d.planKnown) flags.push({ code: 'plan_unknown', message: 'Membership price is not known for this member.' });
   if (m.possibleDuplicateOf && m.possibleDuplicateOf.length) flags.push({ code: 'possible_duplicate', message: 'Shares a name with another member and could not be matched with confidence.' });
+  if (d.canceling) flags.push({ code: 'canceling', message: `Asked to cancel${sched.precision === 'window' ? '' : ` on ${sched.day}`}; still a member${d.accessEnds ? ` until ${d.accessEnds}` : ''}. Counted as paying, not as churned, until the churned list confirms they have left.` });
+  if (d.canceling && d.accessEnds && d.accessEnds < today) flags.push({ code: 'cancel_overdue', message: `Access was due to end ${d.accessEnds}. Upload the churned list to confirm they have left.` });
+  if (d.status === 'missing_unverified' && sched && !resumed) flags.push({ code: 'missing_after_cancel', message: 'Had asked to cancel before disappearing from the export — very likely churned. Upload the churned list to confirm.' });
   if (d.status === 'missing_unverified') flags.push({ code: 'missing', message: `Last listed in the export of ${m.missingFrom}; absent since the export of ${m.missingDay}. Left, removed or churned — unverified.` });
 
   m.d = d;
@@ -1208,7 +1271,8 @@ export const SERIES = [
   { key: 'trialCancels', label: 'Trial cancellations', unit: 'count', group: 'members' },
   { key: 'conversions', label: 'Trial-to-paid conversions', unit: 'count', group: 'members' },
   { key: 'directPaid', label: 'New paying, no trial', unit: 'count', group: 'members' },
-  { key: 'churn', label: 'Paid member churn', unit: 'count', group: 'members' },
+  { key: 'cancelRequests', label: 'Cancellations requested (still members)', unit: 'count', group: 'members' },
+  { key: 'churn', label: 'Paid member churn (left)', unit: 'count', group: 'members' },
   { key: 'returns', label: 'Returning members', unit: 'count', group: 'members' },
   { key: 'net', label: 'Net member growth', unit: 'count', group: 'members' },
   { key: 'revenue', label: 'Revenue collected', unit: 'money', group: 'money' },
@@ -1263,6 +1327,7 @@ export function dailySeries(ctx, from, to, sel) {
       bump('newMrr', d.firstPaidDay, d.monthly, d.firstPaidPrecision);
     }
     for (const c of d.churns) bump('churn', c.day, 1, c.precision);
+    if (d.paidEvidence) for (const e of mem.events) if (e.type === 'cancel_scheduled') bump('cancelRequests', e.day, 1, e.precision);
     for (const r of d.returnDays) bump('returns', r.day, 1, r.precision);
     for (const e of mem.events) if (e.type === 'missing_from_export') bump('missing', e.day, 1, 'window');
     for (const p of d.payments) if (p.amount) bump('revenue', p.day, p.amount, p.precision);
@@ -1363,6 +1428,12 @@ export function mrrAt(ctx, day) {
   return { day, payers, gross: r2(gross), net: r2(net), byPlan: [...byPlan.values()].map((p) => ({ ...p, gross: r2(p.gross), net: r2(p.net) })) };
 }
 
+/** MRR that is still coming in but is scheduled to stop: members who have asked to cancel. */
+export function mrrCanceling(ctx) {
+  const list = ctx.members.filter((m) => m.d.status === 'canceling');
+  return { members: list.length, gross: r2(sum(list.map((m) => m.d.monthly))), net: r2(sum(list.map((m) => m.d.monthlyNet))) };
+}
+
 /** Unverified MRR: members who were paying when they vanished from an export. */
 export function mrrAtRisk(ctx) {
   let gross = 0; let n = 0;
@@ -1429,7 +1500,7 @@ export function periodSummary(ctx, from, to, sel) {
       costPerLpv: ratio(spend, sum(M.lpv)),
       joins: sum(M.joins), trialStarts: sum(M.trialStarts), trialCancels: sum(M.trialCancels), conversions: sum(M.conversions),
       directPaid: sum(M.directPaid), newPaying: sum(M.conversions) + sum(M.directPaid),
-      churn: sum(M.churn), returns: sum(M.returns), missing: sum(M.missing), net: sum(M.net),
+      churn: sum(M.churn), cancelRequests: sum(M.cancelRequests), returns: sum(M.returns), missing: sum(M.missing), net: sum(M.net),
       revenue, newMrr: r2(sum(M.newMrr)), fees, otherExpenses: other,
       netCash: r2(revenue - fees - spend - other),
       soft: { conversions: softCount('conversions'), churn: softCount('churn'), returns: softCount('returns'), revenue: softCount('revenue'), trialCancels: softCount('trialCancels') },
@@ -1442,7 +1513,8 @@ export function periodSummary(ctx, from, to, sel) {
       churned: cohort.filter((m) => m.d.churns.length).length,
       returned: cohort.filter((m) => m.d.returned).length,
       missing: cohort.filter((m) => m.d.status === 'missing_unverified').length,
-      stillPaying: cohort.filter((m) => m.d.status === 'paying').length,
+      stillPaying: cohort.filter((m) => m.d.isPaying).length,
+      canceling: cohort.filter((m) => m.d.status === 'canceling').length,
       revenue: cohortRevenue,
       // Blended, never "attributed": every join in the window over every dollar in it.
       blendedCostPerTrial: costPer(spend, t.trials),
@@ -1506,7 +1578,8 @@ export function cohorts(ctx, grain = 'week') {
       churned: list.filter((m) => m.d.churns.length).length,
       returned: list.filter((m) => m.d.returned).length,
       missing: list.filter((m) => m.d.status === 'missing_unverified').length,
-      stillPaying: list.filter((m) => m.d.status === 'paying').length,
+      stillPaying: list.filter((m) => m.d.isPaying).length,
+      canceling: list.filter((m) => m.d.status === 'canceling').length,
       revenue, spend: r2(spend),
       spendPerDay: r2(spend / (diffDays(k, minDay(end, ctx.today)) + 1)),
       directPaid, newPaying: t.converted + directPaid,
@@ -1520,7 +1593,7 @@ export function cohorts(ctx, grain = 'week') {
 
 export function retention(ctx) {
   const paid = ctx.members.filter((m) => m.d.firstPaidDay);
-  const paying = ctx.members.filter((m) => m.d.status === 'paying');
+  const paying = ctx.members.filter((m) => m.d.isPaying);
   const tenures = paying.map((m) => diffDays(m.d.firstPaidDay, ctx.today)).sort((a, b) => a - b);
   const months = [];
   const first = paid.map((m) => m.d.firstPaidDay).sort()[0];
@@ -1549,6 +1622,7 @@ export function retention(ctx) {
     activePaying: paying.length,
     everPaid: paid.length,
     paidChurned: ctx.members.filter((m) => m.d.status === 'churned' && m.d.firstPaidDay).length,
+    canceling: ctx.members.filter((m) => m.d.status === 'canceling').length,
     trialCanceled: ctx.members.filter((m) => ['trial_canceled', 'trial_declined'].includes(m.d.status)).length,
     unknownOutcome: ctx.members.filter((m) => ['missing_unverified', 'trial_unresolved', 'returned_unverified', 'unknown'].includes(m.d.status)).length,
     returning: ctx.members.filter((m) => m.d.returned).length,
@@ -1661,7 +1735,7 @@ export function wilson(successes, n, z = 1.2816) {       // ~80% two-sided
 export function profitability(ctx, from, to) {
   const p = periodSummary(ctx, from, to);
   const ret = retention(ctx);
-  const paying = ctx.members.filter((m) => m.d.status === 'paying');
+  const paying = ctx.members.filter((m) => m.d.isPaying);
   const avgMargin = paying.length ? sum(paying.map((m) => m.d.monthlyNet)) / paying.length : null;
   const churn = ret.blendedMonthlyChurn;
   const lifetimeMonths = churn && churn > 0 ? 1 / churn : null;
@@ -1875,6 +1949,10 @@ export function dataQuality(ctx) {
   const unresolved = count((m) => m.d.trialOutcome === 'unresolved');
   if (unresolved) add('warn', 'unresolved', `${plural(unresolved, 'trial')} ended without a verified payment or cancellation.`);
   const overdue = count((m) => m.d.flags.some((f) => f.code === 'payment_overdue'));
+  const late = count((m) => m.d.flags.some((f) => f.code === 'cancel_overdue'));
+  if (late) add('warn', 'cancel_overdue', `${plural(late, 'canceling member')} ${late === 1 ? 'is' : 'are'} past the date their access was due to end and still counted as paying. Upload the churned list to confirm who has left.`);
+  const gone = count((m) => m.d.flags.some((f) => f.code === 'missing_after_cancel'));
+  if (gone) add('warn', 'missing_after_cancel', `${plural(gone, 'member')} had asked to cancel and ${gone === 1 ? 'has' : 'have'} since disappeared from the export. Very likely churned — upload the churned list to confirm.`);
   if (overdue) add('warn', 'overdue', `${plural(overdue, 'paying member')} show no LTV movement for a payment that should have happened. Counted as paying until verified otherwise.`);
   const ahead = count((m) => m.d.flags.some((f) => f.code === 'ltv_ahead' || f.code === 'ltv_behind'));
   if (ahead) add('info', 'reconcile', `${plural(ahead, 'member')} have a recorded LTV that the current price and billing dates do not explain. See Revenue & MRR.`);
@@ -1907,14 +1985,14 @@ export function overview(ctx, from, to, sel) {
     members: {
       total: ctx.lastCsv ? count((m) => m.present === true) : ctx.members.length,
       totalBasis: ctx.lastCsv ? `Listed in the export of ${ctx.lastCsv.day}` : 'No export yet',
-      activeTrials: t.active, paying: count((m) => m.d.status === 'paying'),
+      activeTrials: t.active, paying: count((m) => m.d.isPaying), canceling: count((m) => m.d.status === 'canceling'),
       free: count((m) => m.d.status === 'free'),
       churned: count((m) => m.d.status === 'churned'),
       missing: count((m) => m.d.status === 'missing_unverified'),
       completedTrials: t.matured, returning: count((m) => m.d.returned),
     },
     trials: t,
-    mrr: { gross: now.gross, net: now.net, payers: now.payers, grossBefore: then.gross, newMrr: cur.activity.newMrr, churnedMrr: r2(churnedMrr), atRisk: mrrAtRisk(ctx), byPlan: now.byPlan },
+    mrr: { gross: now.gross, net: now.net, payers: now.payers, grossBefore: then.gross, newMrr: cur.activity.newMrr, churnedMrr: r2(churnedMrr), atRisk: mrrAtRisk(ctx), canceling: mrrCanceling(ctx), byPlan: now.byPlan },
     retention: ret, profitability: prof,
   };
 }
@@ -1967,7 +2045,8 @@ export function weeklyReport(ctx, range) {
       ['Free trial cancellations', a.trialCancels, b.trialCancels, delta('trialCancels')],
       ['Trial-to-paid conversions (verified)', a.conversions, b.conversions, delta('conversions')],
       ['New paying members with no trial', a.directPaid, b.directPaid, delta('directPaid')],
-      ['Paid member churn', a.churn, b.churn, delta('churn')],
+      ['Cancellations requested (still members)', a.cancelRequests, b.cancelRequests, delta('cancelRequests')],
+      ['Paid member churn (left the community)', a.churn, b.churn, delta('churn')],
       ['Returning members', a.returns, b.returns, delta('returns')],
       ['Revenue collected', money(a.revenue), money(b.revenue), delta('revenue')],
       ['Net cash contribution', money(a.netCash), money(b.netCash), null],
@@ -2042,9 +2121,9 @@ export function buildDigest(ctx) {
       communityDuringActiveDays: { note: 'whole-community figures on days this ad delivered; NOT attribution', ...a.community },
     })),
     daily: {
-      columns: ['day', 'adSpend', 'joins', 'trialStarts', 'trialCancels', 'trialToPaidConversions', 'newPayingNoTrial', 'paidChurn', 'returns', 'revenueCollected'],
+      columns: ['day', 'adSpend', 'joins', 'trialStarts', 'trialCancels', 'trialToPaidConversions', 'newPayingNoTrial', 'cancellationsRequested', 'paidChurn', 'returns', 'revenueCollected'],
       note: 'trialToPaidConversions and revenueCollected days are often estimated from the trial end date; joins are exact. newPayingNoTrial are members who paid to join without a trial (before the trial offer began).',
-      rows: s.days.map((d, i) => [d, s.metrics.spend[i], s.metrics.joins[i], s.metrics.trialStarts[i], s.metrics.trialCancels[i], s.metrics.conversions[i], s.metrics.directPaid[i], s.metrics.churn[i], s.metrics.returns[i], s.metrics.revenue[i]]),
+      rows: s.days.map((d, i) => [d, s.metrics.spend[i], s.metrics.joins[i], s.metrics.trialStarts[i], s.metrics.trialCancels[i], s.metrics.conversions[i], s.metrics.directPaid[i], s.metrics.cancelRequests[i], s.metrics.churn[i], s.metrics.returns[i], s.metrics.revenue[i]]),
     },
     forecast: forecast(ctx),
     ruleBasedInsights: insights(ctx),
@@ -2089,7 +2168,9 @@ export function previewImport(db, imports, candidate, opts = {}) {
     priceChanges: mine('price_changed'),
     ltvChanges: [...mine('payment_observed'), ...mine('refund_observed')],
     trialUpdates: [...mine('trial_started'), ...mine('trial_ended'), ...mine('paid_verified')],
-    cancellations: [...mine('trial_canceled'), ...mine('trial_declined'), ...mine('churned')],
+    cancellations: [...mine('trial_canceled'), ...mine('trial_declined')],
+    canceling: mine('cancel_scheduled'),
+    churned: mine('churned'),
     statusChanges: after.members.filter((m) => { const b = before.byId.get(m.id); return b && b.d.status !== m.d.status; })
       .map((m) => ({ member: m, from: before.byId.get(m.id).d.statusLabel, to: m.d.statusLabel })),
     totals: { before: before.members.length, after: after.members.length },

@@ -22,7 +22,7 @@ export function adminPages(kit) {
 
   /* ============================================================ members == */
 
-  const STATUS_ORDER = ['paying', 'trial_active', 'trial_unresolved', 'trial_canceled', 'trial_declined', 'churned', 'returned_unverified', 'missing_unverified', 'free', 'unknown'];
+  const STATUS_ORDER = ['paying', 'canceling', 'trial_active', 'trial_unresolved', 'trial_canceled', 'trial_declined', 'churned', 'returned_unverified', 'missing_unverified', 'free', 'unknown'];
 
   function importName(id) {
     const i = (S.db.imports || []).find((x) => x.id === id);
@@ -33,7 +33,7 @@ export function adminPages(kit) {
     const c = S.ctx; const d = m.d;
     const dupes = (m.possibleDuplicateOf || []).map((id) => c.byId.get(id)).filter(Boolean);
     const events = m.events.slice().reverse();
-    const eventTypes = [['trial_started', 'Trial started'], ['trial_canceled', 'Trial canceled'], ['trial_declined', 'Trial declined'], ['trial_ended', 'Trial ended — outcome unknown'], ['paid_verified', 'Paid subscription verified'], ['churned', 'Churned'], ['returned', 'Returned'], ['reactivated', 'Subscription reactivated'], ['note', 'Note']];
+    const eventTypes = [['trial_started', 'Trial started'], ['trial_canceled', 'Trial canceled'], ['trial_declined', 'Trial declined'], ['trial_ended', 'Trial ended — outcome unknown'], ['paid_verified', 'Paid subscription verified'], ['cancel_scheduled', 'Cancellation requested — still a member'], ['churned', 'Churned — has left'], ['returned', 'Returned'], ['reactivated', 'Subscription reactivated'], ['note', 'Note']];
     return panel(m.name, `
       <div class="gi-member-top">
         <p class="gi-status-line">${tag(d.statusLabel, d.verified ? 'is-ok' : 'is-win')} ${d.returned ? tag('returning member', 'is-est') : ''}</p>
@@ -47,6 +47,7 @@ export function adminPages(kit) {
           <div><dt>Trial</dt><dd>${!d.hasTrial && m.price > 0 && m.joinDay && c.settings.trialAppliesFrom && m.joinDay < c.settings.trialAppliesFrom ? `No trial — joined before the offer began (${dayLabel(c.settings.trialAppliesFrom, true)})` : d.hasTrial ? `${dayLabel(d.trialStart)} – ${dayLabel(d.trialEnd, true)}${d.trialStartInferred ? ' <small>(start inferred from join date)</small>' : ''}` : 'No trial'}</dd></div>
           <div><dt>Trial outcome</dt><dd>${h({ none: '—', active: 'Active', converted: 'Verified converted to paid', canceled: 'Canceled', declined: 'Declined', unresolved: 'Ended — payment outcome unknown' }[d.trialOutcome])}</dd></div>
           <div><dt>First payment</dt><dd>${d.firstPaidDay ? `${dayFull(d.firstPaidDay)} ${precisionTag(d.firstPaidPrecision, d.firstPaidWindow)} <small>evidence: ${h(d.paidEvidence)}</small>` : 'No payment evidence'}</dd></div>
+          ${d.canceling ? `<div><dt>Cancellation</dt><dd>Requested ${d.cancelRequestedPrecision === 'window' ? '' : dayFull(d.cancelRequestedDay)} ${precisionTag(d.cancelRequestedPrecision, d.cancelRequestedWindow)}<small>${d.accessEnds ? `Access ends ${dayFull(d.accessEnds)}${d.accessEndsApprox ? ' (approximate)' : ''}` : 'End date not known'} · still a member, still counted as paying</small></dd></div>` : ''}
           <div><dt>In latest export</dt><dd>${m.present === true ? 'Yes' : m.present === false ? `No — last listed ${dayLabel(m.missingFrom, true)}` : 'Never seen in an export'}</dd></div>
           <div><dt>Acquisition source</dt><dd>
             <select data-change="member-source" data-id="${h(m.id)}" aria-label="Acquisition source">${E.SOURCES.map((s) => `<option value="${s}"${(m.source || 'unknown') === s ? ' selected' : ''}>${h(E.SOURCE_LABELS[s])}</option>`).join('')}</select>
@@ -281,7 +282,9 @@ export function adminPages(kit) {
         { label: 'Changed membership prices', value: int(p.priceChanges.length) },
         { label: 'Changed recorded LTV', value: int(p.ltvChanges.length) },
         { label: 'Updated trial statuses', value: int(p.trialUpdates.length) },
-        { label: 'Updated cancellation statuses', value: int(p.cancellations.length) },
+        { label: 'Now canceling — still members', value: int(p.canceling.length), note: p.canceling.length ? 'Not counted as churn.' : '' },
+        { label: 'Churned — left the community', value: int(p.churned.length) },
+        { label: 'Trial cancellations', value: int(p.cancellations.length) },
         { label: 'Possible duplicate accounts', value: int(p.uncertain.length), note: undecided.length ? `${int(undecided.length)} need a decision` : '' },
       ])}
       ${p.uncertain.length ? `<div class="gi-decide"><h4 class="gi-h4">Needs your decision</h4>
@@ -297,7 +300,9 @@ export function adminPages(kit) {
       ${list('Changed membership prices', p.priceChanges, (x) => `${ev(x)} — ${money(x.event.data.from, 2)} → ${money(x.event.data.to, 2)}`)}
       ${list('Changed recorded LTV', p.ltvChanges, (x) => `${ev(x)} — ${x.event.type === 'refund_observed' ? '−' : '+'}${money(x.event.data.amount, 2)} <small>now ${money(x.event.data.ltv, 2)}</small>`)}
       ${list('Updated trial statuses', p.trialUpdates, (x) => `${ev(x)} — ${h(E.EVENT_LABEL[x.event.type])} ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}`)}
-      ${list('Updated cancellation statuses', p.cancellations, (x) => `${ev(x)} — ${h(E.EVENT_LABEL[x.event.type])} ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}`)}
+      ${list('Now canceling — still members', p.canceling, (x) => `${ev(x)} — requested ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}${x.event.data && x.event.data.endsOn ? ` · access ends ${h(dayLabel(x.event.data.endsOn, true))}` : ''}`, true)}
+      ${list('Churned — left the community', p.churned, (x) => `${ev(x)} — ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}${x.member.d.paidEvidence ? '' : ' <small>never paid: recorded as a trial that did not convert</small>'}`, true)}
+      ${list('Trial cancellations', p.cancellations, (x) => `${ev(x)} — ${h(E.EVENT_LABEL[x.event.type])} ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}`)}
       ${list('Members whose status changes', p.statusChanges, (x) => `${h(x.member.name)} — ${h(x.from)} → <strong>${h(x.to)}</strong>`)}
       <p class="gi-actions">
         <button type="button" class="btn btn-primary" data-act="recon-save" ${undecided.length ? 'aria-disabled="true"' : ''}>Confirm and save</button>
@@ -337,8 +342,9 @@ export function adminPages(kit) {
         { label: 'Joined', cell: (r) => cell(r, 'joinDay', 'date') },
         { label: 'Trial started', cell: (r) => cell(r, 'trialStart', 'date') },
         { label: 'Trial ends', cell: (r) => cell(r, 'trialEnd', 'date') },
-        { label: 'Canceled', cell: (r) => cell(r, 'canceledAt', 'date') },
-        { label: 'Churned', cell: (r) => cell(r, 'churnedAt', 'date') },
+        { label: 'Canceled on', cell: (r) => cell(r, 'canceledAt', 'date') },
+        { label: 'Access ends', cell: (r) => cell(r, 'endsAt', 'date') },
+        { label: 'Left on', cell: (r) => cell(r, 'churnedAt', 'date') },
         { label: 'Price', cell: (r) => cell(r, 'price', 'number', 'is-narrow') },
         { label: 'Source', cell: (r) => `<select data-change="paste-edit" data-k="${h(r.k)}" data-field="source" aria-label="Source"><option value="">—</option>${E.SOURCES.map((s) => `<option value="${s}"${r.source === s ? ' selected' : ''}>${h(E.SOURCE_LABELS[s])}</option>`).join('')}</select>` },
         { label: '', cell: (r) => `<details class="gi-rawcell"><summary>Original</summary><pre>${h(r.raw)}</pre></details><button type="button" class="gi-link" data-act="paste-remove" data-k="${h(r.k)}">Remove</button>` },
@@ -368,24 +374,35 @@ export function adminPages(kit) {
       const c = S.ctx; const r = S.recon;
       const dupes = c.members.filter((m) => m.possibleDuplicateOf && m.possibleDuplicateOf.length);
       const start = `
-        <div class="gi-three">
-          <div class="gi-card">
+        <div class="gi-cards">
+          <div class="gi-card is-wide">
+            <p class="gi-card-kicker">Everyone currently in the community</p>
             <h4>Upload Skool CSV</h4>
             <p class="sub">The member export from Skool. Each upload is kept as its own snapshot and compared with the ones before it. Nothing is overwritten.</p>
             <label class="btn btn-primary gi-btn-sm gi-file">Choose a CSV file<input type="file" accept=".csv,text/csv" data-change="recon-file" class="sr-only"></label>
           </div>
           <form class="gi-card" data-form="recon-paste" data-context="active_trial">
+            <p class="gi-card-kicker">On a free trial now</p>
             <h4>Paste active trials</h4>
             <p class="sub">Select the members in Skool's active-trial list, copy, and paste here.</p>
             <label class="sr-only" for="gi-paste-a">Active trials, pasted from Skool</label>
             <textarea id="gi-paste-a" name="text" rows="5" placeholder="Jane Doe&#10;@jane-doe-1234&#10;Free trial ends in 5 days&#10;Joined Oct 3, 2026&#10;$19/month"></textarea>
             <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
           </form>
-          <form class="gi-card" data-form="recon-paste" data-context="unknown">
-            <h4>Paste ended trials and churned members</h4>
-            <p class="sub">Canceled trials, declined trials, churned and former members. The status of each is read from its own wording.</p>
-            <label class="sr-only" for="gi-paste-b">Ended trials and churned members, pasted from Skool</label>
-            <textarea id="gi-paste-b" name="text" rows="5" placeholder="John Smith&#10;@john-smith-88&#10;Trial canceled Oct 1, 2026&#10;&#10;Ana Ruiz&#10;@ana-ruiz-2&#10;Churned Sep 28, 2026"></textarea>
+          <form class="gi-card" data-form="recon-paste" data-context="canceling">
+            <p class="gi-card-kicker">Asked to cancel — still in the community</p>
+            <h4>Paste canceling members</h4>
+            <p class="sub">People who have canceled but have not left yet. They stay counted as members, and paying ones as paying, until they show up in the churned list. Everyone pasted here is treated as canceling.</p>
+            <label class="sr-only" for="gi-paste-c">Canceling members, pasted from Skool</label>
+            <textarea id="gi-paste-c" name="text" rows="5" placeholder="John Smith&#10;@john-smith-88&#10;Canceled Oct 1, 2026&#10;Access ends Oct 20, 2026"></textarea>
+            <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
+          </form>
+          <form class="gi-card" data-form="recon-paste" data-context="churned">
+            <p class="gi-card-kicker">Fully churned — no longer in the community</p>
+            <h4>Paste churned members</h4>
+            <p class="sub">People who have actually left. Everyone pasted here is treated as churned. Someone who left without ever paying is recorded as a trial that did not convert, not as paid churn.</p>
+            <label class="sr-only" for="gi-paste-b">Churned members, pasted from Skool</label>
+            <textarea id="gi-paste-b" name="text" rows="5" placeholder="Ana Ruiz&#10;@ana-ruiz-2&#10;Churned Sep 28, 2026"></textarea>
             <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
           </form>
         </div>`;
@@ -615,7 +632,7 @@ export function adminPages(kit) {
       const f = el.dataset.field;
       let v = el.value.trim();
       if (f === 'price') v = v === '' ? null : Number(v);
-      else if (['joinDay', 'trialStart', 'trialEnd', 'canceledAt', 'churnedAt'].includes(f)) v = E.isDay(v) ? v : null;
+      else if (['joinDay', 'trialStart', 'trialEnd', 'canceledAt', 'endsAt', 'churnedAt'].includes(f)) v = E.isDay(v) ? v : null;
       else if (f === 'handle') v = v.replace(/^@/, '').toLowerCase() || null;
       else if (f === 'source') v = v || null;
       r[f] = v;
@@ -670,7 +687,7 @@ export function adminPages(kit) {
       if (!rows.length) { S.error = 'No member records could be read from that text. Each member needs at least a name or a @username.'; render(); return; }
       S.recon.draft = {
         kind: 'paste', raw: text, rows, decisions: {}, context, observedLocal: local, observedAt, hash: E.contentHash(text),
-        label: context === 'active_trial' ? 'Active trials' : 'Ended trials and churned members',
+        label: { active_trial: 'Active trials', canceling: 'Canceling members', churned: 'Churned members' }[context] || 'Pasted membership status',
       };
       S.error = '';
       refreshPreview(); render();

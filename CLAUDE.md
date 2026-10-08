@@ -1358,6 +1358,38 @@ rate and no trial forecast. The default is `2026-09-27`, the first full day the 
 - The demo sets its own `trialAppliesFrom` to the first day of its simulated history, so it
   still has trials to show.
 
+### Canceling is not churned
+
+Two different states, two separate uploads on Data Reconciliation, and they are never added
+together:
+
+| | Means | Event | Counts as |
+|---|---|---|---|
+| **Canceling** | asked to cancel, STILL in the community | `cancel_scheduled` | a member, and paying, until they leave |
+| **Churned** | has actually left | `churned` | gone; closes the paying interval |
+
+- **Which list it was pasted into decides the status**, not the wording. Skool uses "canceled"
+  for both, so inside the canceling and churned uploads `parsePaste()` takes the list's word
+  for it (`defaultStatus`). The one exception is wording explicitly about a TRIAL, which is
+  kept in either list. A bare "canceled" with no list context now reads as `canceling` — it
+  used to read as `churned`, which is how people still in the community got counted as gone.
+- **`cancel_scheduled` does not close a paying interval.** A canceling member stays in gross
+  MRR and in "paying" counts (`d.isPaying` — use that, not `status === 'paying'`, anywhere
+  that asks "is this person paying"). Their MRR is reported beside the total as
+  `mrr.canceling`, "scheduled to end".
+- **Only the churned list (or a churn recorded by hand) turns canceling into churned.**
+  Passing the access-end date does not, and neither does vanishing from an export: those
+  raise `cancel_overdue` and `missing_after_cancel` and ask for the churned list. If the
+  churned row has no date and a known access-end date has passed, that date is used
+  (`estimated`) rather than the paste day.
+- **A payment that can only have happened after the request clears it** — they changed
+  their mind.
+- **"Churn" means a PAYING member leaving.** Someone who never paid and is in the canceling
+  list canceled their trial; in the churned list, they are a trial that did not convert.
+  Either way they are a trial cancellation, `d.churns` is empty for them, and they are in
+  neither paid churn nor churned MRR.
+- Series: `cancelRequests` (still members) and `churn` (left) are separate lines.
+
 ### Money
 
 **Skool reports a running lifetime total per member, not a ledger.** So the TOTAL is verified

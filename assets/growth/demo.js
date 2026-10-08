@@ -203,6 +203,16 @@ export function buildDemo(today) {
   }
   pasteAt(148, 'demo-paste-2', 'Active trials', 'active_trial', trials);
 
+  // And a handful who have asked to cancel but are still members.
+  const canceling = [];
+  for (const p of people) {
+    if (canceling.length >= 7) break;
+    if (p.fate !== 'paid' || p.churnDay || p.interval !== 'month' || p.name === 'Chris Martin' || p.payments.length < 2 || rand() > 0.06) continue;
+    const next = addMonths(p.payments[p.payments.length - 1], 1);
+    canceling.push(card(p, [`Canceled ${longDate(addDays(dayAt(148), -(1 + Math.floor(rand() * 9))))}`, `Access ends ${longDate(next)}`]));
+  }
+  pasteAt(148, 'demo-paste-3', 'Canceling members', 'canceling', canceling);
+
   /* -------------------------------------------------------------- Meta -- */
   const ads = {};
   ADS.forEach((ad) => {

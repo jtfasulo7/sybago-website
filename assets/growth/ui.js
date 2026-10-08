@@ -264,6 +264,7 @@ const STYLE = {
   trialCancels: { color: C.clay, dash: [2, 3] },
   conversions: { color: C.slate, dash: [] },
   directPaid: { color: C.slate, dash: [2, 2] },
+  cancelRequests: { color: C.amber, dash: [3, 3] },
   churn: { color: C.clay, dash: [8, 4] },
   returns: { color: C.plum, dash: [4, 2, 1, 2] },
   net: { color: C.charcoal, dash: [10, 3] },
@@ -400,7 +401,7 @@ export function render() {
 
 /** Current paying members, split by whether they ever had a free trial. */
 function paySplit(c) {
-  const paying = c.members.filter((m) => m.d.status === 'paying');
+  const paying = c.members.filter((m) => m.d.isPaying);
   const viaTrial = paying.filter((m) => m.d.hasTrial).length;
   return { viaTrial, noTrial: paying.length - viaTrial };
 }
@@ -447,7 +448,8 @@ const overviewPage = {
       { label: 'Trial-to-paid conversions', value: int(a.conversions), delta: delta(a.conversions, b.conversions), basis: a.soft.conversions ? 'dates estimated' : '', note: 'Free trials that became paying, verified by payment evidence' },
       { label: 'New paying, no trial', value: int(a.directPaid), delta: delta(a.directPaid, b.directPaid), note: `Paid to join without a trial — the offer began ${dayFull(c.settings.trialAppliesFrom)}` },
       { label: 'Paying subscribers', value: int(o.members.paying), note: `Verified, right now · ${int(split.viaTrial)} came through a free trial, ${int(split.noTrial)} never had one` },
-      { label: 'Churned subscribers', value: int(a.churn), delta: delta(a.churn, b.churn, true), note: 'Verified, in the period' },
+      { label: 'Canceling — still members', value: int(o.members.canceling), note: `Asked to cancel, not yet left. ${int(a.cancelRequests)} requested in the period. Still counted as paying.` },
+      { label: 'Churned subscribers', value: int(a.churn), delta: delta(a.churn, b.churn, true), note: 'Paying members who have actually left, in the period' },
       { label: 'Returning members', value: int(a.returns), delta: delta(a.returns, b.returns) },
     ]), { sub: o.members.missing ? `${int(o.members.missing)} more are missing from the latest export with no verified reason; they are in none of these counts.` : '' })}
     ${panel('Financial performance', tiles([
@@ -458,7 +460,7 @@ const overviewPage = {
       { label: 'Advertising expenses', value: money(a.spend), delta: delta(a.spend, b.spend, true) },
       { label: 'Net cash contribution', value: money(a.netCash), note: `Revenue − fees (${money(a.fees)}) − ad spend − other expenses (${money(a.otherExpenses)})` },
       { label: 'Estimated CAC payback', value: p.cacPaybackMonths == null ? '—' : dec(p.cacPaybackMonths) + ' mo', basis: 'estimate', note: p.cacPaybackMonths == null ? 'Needs verified conversions and paying members.' : 'Blended CAC ÷ average monthly margin per member.' },
-    ]), { sub: o.mrr.atRisk.members ? `${money(o.mrr.atRisk.gross)} of MRR belongs to ${int(o.mrr.atRisk.members)} paying member${o.mrr.atRisk.members === 1 ? '' : 's'} missing from the latest export. It is excluded above until verified.` : 'Trials are never counted as revenue or MRR.' })}
+    ]), { sub: o.mrr.atRisk.members ? `${money(o.mrr.atRisk.gross)} of MRR belongs to ${int(o.mrr.atRisk.members)} paying member${o.mrr.atRisk.members === 1 ? '' : 's'} missing from the latest export. It is excluded above until verified.` : (o.mrr.canceling.members ? `${money(o.mrr.canceling.gross)} of the MRR above comes from ${int(o.mrr.canceling.members)} member${o.mrr.canceling.members === 1 ? '' : 's'} who ${o.mrr.canceling.members === 1 ? 'has' : 'have'} asked to cancel and will stop paying when their period ends. ` : '') + 'Trials are never counted as revenue or MRR.' })}
     ${panel('Business growth', tiles([
       { label: 'Trial-to-paid conversion', value: pct(t.rate), note: `${int(t.converted)} of ${int(t.known)} trials with a known outcome · coverage ${pct(t.coverage)}` },
       { label: 'Net member growth', value: (a.net > 0 ? '+' : '') + int(a.net), delta: delta(a.net, b.net), note: 'Joins + returns − verified departures' },
@@ -567,7 +569,8 @@ const timelinePage = {
         { label: 'Ads delivering', value: int(p.adsRunning.length) },
         { label: 'People who joined', value: int(a.joins) },
         { label: 'Free trials started', value: int(a.trialStarts) },
-        { label: 'Canceled or left', value: int(a.trialCancels + a.churn), note: `${int(a.trialCancels)} trial cancellations · ${int(a.churn)} paid churn — verified only` },
+        { label: 'Left the community', value: int(a.trialCancels + a.churn), note: `${int(a.trialCancels)} trial cancellations · ${int(a.churn)} paid churn — verified only` },
+        { label: 'Asked to cancel', value: int(a.cancelRequests), note: 'Paying members who requested cancellation in these days. Still members until their period ends.' },
         { label: 'Returned', value: int(a.returns) },
         { label: 'Went missing', value: int(a.missing), basis: 'unverified', basisKind: 'is-win', note: 'Absent from an export observed in this window. Reason unknown.' },
         { label: 'Revenue collected', value: money(a.revenue), basis: a.soft.revenue ? 'dates estimated' : '' },
@@ -578,7 +581,7 @@ const timelinePage = {
         { label: 'Canceled or declined', value: int(co.nonConverted), basis: 'verified', basisKind: 'is-ok' },
         { label: 'Outcome unknown', value: int(co.unresolved), note: 'Trial ended, no payment or cancellation evidence.' },
         { label: 'Still on trial', value: int(co.active), note: co.active ? 'This cohort is not final yet.' : 'Every trial in this cohort has ended.' },
-        { label: 'Later churned', value: int(co.churned), note: `${int(co.returned)} returned · ${int(co.stillPaying)} still paying` },
+        { label: 'Later churned', value: int(co.churned), note: `${int(co.returned)} returned · ${int(co.stillPaying)} still paying${co.canceling ? `, of whom ${int(co.canceling)} canceling` : ''}` },
         { label: 'Verified revenue from this cohort', value: money(co.revenue), note: 'Everything these members have paid, to date.' },
         { label: 'Spend ÷ verified paying', value: money(co.blendedCac, 2), basis: 'blended', note: 'Not ad-level CAC: all spend in the window over every verified new paying member from it, trial or not.' },
       ]), { sub: `Followed forward however long it took. The trial is ${trialDays} days, so someone who joined on day one cannot pay before day ${trialDays + 1} — revenue on a given day belongs to an earlier cohort.` })}
@@ -767,7 +770,7 @@ const trialsPage = {
     const who = (m) => `<button type="button" class="gi-link" data-act="member-open" data-id="${h(m.id)}">${h(m.name)}</button>`;
     return `
     <div class="gi-pagehead"><h3>Free Trial Tracking</h3><p class="sub">Every ${c.settings.trialDays}-day trial, from start to a verified outcome. A trial ending is never taken as a payment.</p></div>
-    <div class="notice notice-info"><span><strong>The free trial began ${dayFull(c.settings.trialAppliesFrom)}.</strong> Only members who joined a paid plan on or after that day are trial members. ${int(noTrial.length)} member${noTrial.length === 1 ? '' : 's'} joined a paid plan before it: they paid to join, are counted as paying members (${int(noTrial.filter((m) => m.d.status === 'paying').length)} still paying), and are in none of the trial counts or the conversion rate below.</span></div>
+    <div class="notice notice-info"><span><strong>The free trial began ${dayFull(c.settings.trialAppliesFrom)}.</strong> Only members who joined a paid plan on or after that day are trial members. ${int(noTrial.length)} member${noTrial.length === 1 ? '' : 's'} joined a paid plan before it: they paid to join, are counted as paying members (${int(noTrial.filter((m) => m.d.isPaying).length)} still paying), and are in none of the trial counts or the conversion rate below.</span></div>
     ${panel('Where every trial stands', tiles([
       { label: 'Trials started', value: int(t.trials), note: 'All time' },
       { label: 'Trial active', value: int(t.active) },
@@ -838,6 +841,7 @@ const revenuePage = {
       { label: 'Net MRR', value: money(o.mrr.net), note: `After ${dec(f.platformPct + f.processingPct, 1)}% + ${money(f.perTransaction, 2)} per charge` },
       { label: 'New MRR', value: money(o.mrr.newMrr), note: 'Added by everyone who started paying in the period' },
       { label: 'Churned MRR', value: money(o.mrr.churnedMrr), note: 'Lost to verified churn in the period' },
+      { label: 'MRR scheduled to end', value: money(o.mrr.canceling.gross), note: `${int(o.mrr.canceling.members)} canceling member${o.mrr.canceling.members === 1 ? '' : 's'}. Still included in gross MRR today.` },
     ]), { sub: 'An annual plan counts at one twelfth of its price. A trial counts at nothing until a payment is verified.' })}
     ${panel('Cash', tiles([
       { label: 'Cash collected', value: money(a.revenue), basis: a.soft.revenue ? 'dates estimated' : '', note: 'Annual payments land whole, on the day they were charged.' },
@@ -895,11 +899,12 @@ const retentionPage = {
       spendNote = `Members who joined in the heavier-spend months (about ${money(hi.spend, 2)} a day) show ${pct(hi.rate)} 30-day retention across ${int(hi.n)} paying members; those from lighter-spend months (about ${money(lo.spend, 2)} a day) show ${pct(lo.rate)} across ${int(lo.n)}. This is a correlation across ${measurable.length} cohorts — offers, creative and seasonality changed between them too.`;
     }
     return `
-    <div class="gi-pagehead"><h3>Retention &amp; Churn</h3><p class="sub">Who stays once they are paying. Confirmed paid churn is kept apart from trial cancellations and from members whose status is simply unknown.</p></div>
+    <div class="gi-pagehead"><h3>Retention &amp; Churn</h3><p class="sub">Who stays once they are paying. Churned members (gone) are kept apart from canceling members (asked to stop, still here), from trial cancellations, and from members whose status is simply unknown.</p></div>
     ${panel('Now', tiles([
       { label: 'Active paying members', value: int(ret.activePaying), basis: 'verified', basisKind: 'is-ok', note: `${int(paySplit(c).viaTrial)} came through a free trial · ${int(paySplit(c).noTrial)} never had one` },
       { label: 'Ever paid', value: int(ret.everPaid) },
-      { label: 'Paid cancellations', value: int(ret.paidChurned), basis: 'verified', basisKind: 'is-ok', note: 'Confirmed churn of a paying member' },
+      { label: 'Canceling — still members', value: int(ret.canceling), basis: 'verified', basisKind: 'is-ok', note: 'Asked to cancel, still paying until their period ends. Not churn yet.' },
+      { label: 'Churned', value: int(ret.paidChurned), basis: 'verified', basisKind: 'is-ok', note: 'Paying members who have actually left' },
       { label: 'Trial cancellations', value: int(ret.trialCanceled), note: 'Never paid. Not churn.' },
       { label: 'Unknown outcome', value: int(ret.unknownOutcome), basis: 'unverified', basisKind: 'is-win', note: 'Missing from an export, or a trial with no verified end.' },
       { label: 'Returning members', value: int(ret.returning) },

@@ -365,6 +365,104 @@ await t('a churn with no date is a window between observations, not an invented 
   assert.equal(ana.d.status, 'churned');
 });
 
+/* ----------------------------------------------- canceling vs churned -- */
+console.log('\nCanceling is not churned');
+
+const payer = () => csvImport('a', '2026-10-01', ['Ana,Ruiz,ana@x.com,,2026-06-01 15:00:00,$19,month,$76', 'Bo,Lin,bo@x.com,,2026-06-01 15:00:00,$19,month,$76']);
+const cancelingPaste = (day = '2026-10-02', text = 'Ana Ruiz\n@ana\nCanceled Oct 1, 2026\nAccess ends Oct 20, 2026') =>
+  pasteImport('c', day, text, { defaultStatus: 'canceling', decisions: { 0: 'e:ana@x.com' } });
+
+await t('a canceling member is still a member and still paying — not churned', () => {
+  const ctx = world([payer(), cancelingPaste()]);
+  const ana = one(ctx, 'Ana Ruiz');
+  assert.equal(ana.d.status, 'canceling');
+  assert.equal(ana.d.statusLabel, 'Canceling — still a member');
+  assert.equal(ana.d.churns.length, 0);
+  assert.deepEqual([ana.d.cancelRequestedDay, ana.d.accessEnds], ['2026-10-01', '2026-10-20']);
+  assert.equal(ana.d.intervals[0].end, null);              // the paying interval is NOT closed
+  assert.equal(E.mrrAt(ctx, '2026-10-08').gross, 38);      // both still count
+  assert.deepEqual(E.mrrCanceling(ctx), { members: 1, gross: 19, net: E.mrrCanceling(ctx).net });
+  const r = E.retention(ctx);
+  assert.deepEqual([r.activePaying, r.canceling, r.paidChurned], [2, 1, 0]);
+});
+await t('a cancellation request is its own series, never paid churn', () => {
+  const s = E.dailySeries(world([payer(), cancelingPaste()]), '2026-09-25', '2026-10-08');
+  const total = (k) => s.metrics[k].reduce((a, b) => a + b, 0);
+  assert.equal(total('cancelRequests'), 1);
+  assert.equal(total('churn'), 0);
+  assert.equal(s.metrics.cancelRequests[s.days.indexOf('2026-10-01')], 1);
+});
+await t('the churned list is what turns canceling into churned', () => {
+  const gone = pasteImport('g', '2026-10-21', 'Ana Ruiz\n@ana\nChurned Oct 20, 2026', { defaultStatus: 'churned' });
+  const ctx = world([payer(), cancelingPaste(), gone], { today: '2026-10-22' });
+  const ana = one(ctx, 'Ana Ruiz');
+  assert.equal(ana.d.status, 'churned');
+  assert.equal(ana.d.canceling, false);
+  assert.equal(ana.d.churnDay, '2026-10-20');
+  assert.equal(E.mrrAt(ctx, '2026-10-22').gross, 19);
+  assert.equal(E.mrrAt(ctx, '2026-10-19').gross, 38);      // she was still paying the day before
+  assert.equal(E.mrrCanceling(ctx).members, 0);
+});
+await t('churned with no date uses the known access-end date rather than the paste day', () => {
+  const gone = pasteImport('g', '2026-10-25', 'Ana Ruiz\n@ana', { defaultStatus: 'churned' });
+  const ana = one(world([payer(), cancelingPaste(), gone], { today: '2026-10-26' }), 'Ana Ruiz');
+  assert.deepEqual([ana.d.churnDay, ana.d.churnPrecision], ['2026-10-20', 'estimated']);
+});
+await t('which list it was pasted into decides: the same word means different things', () => {
+  const text = 'John Smith\n@john\nCanceled Oct 1, 2026';
+  assert.equal(E.parsePaste(text, { pastedDay: '2026-10-08', defaultStatus: 'canceling' })[0].status, 'canceling');
+  const ch = E.parsePaste(text, { pastedDay: '2026-10-08', defaultStatus: 'churned' })[0];
+  assert.deepEqual([ch.status, ch.churnedAt], ['churned', '2026-10-01']);
+  // No keywords at all: still what the list says.
+  assert.equal(E.parsePaste('John Smith\n@john', { pastedDay: '2026-10-08', defaultStatus: 'canceling' })[0].status, 'canceling');
+  assert.equal(E.parsePaste('John Smith\n@john', { pastedDay: '2026-10-08', defaultStatus: 'churned' })[0].status, 'churned');
+  // "Ends" on a canceling member is when access ends, not a trial.
+  const c = E.parsePaste('John Smith\n@john\nCanceled Oct 1, 2026\nEnds Oct 20, 2026', { pastedDay: '2026-10-08', defaultStatus: 'canceling' })[0];
+  assert.deepEqual([c.endsAt, c.trialEnd], ['2026-10-20', null]);
+  // Wording that is explicitly about a trial is kept in either list.
+  assert.equal(E.parsePaste('John Smith\n@john\nTrial canceled Oct 1, 2026', { pastedDay: '2026-10-08', defaultStatus: 'churned' })[0].status, 'trial_canceled');
+});
+await t('"canceled" with no mention of a trial is no longer read as churned', () => {
+  assert.equal(E.parsePaste('John Smith\n@john\nCanceled Oct 1, 2026', { pastedDay: '2026-10-08' })[0].status, 'canceling');
+});
+await t('a trial member in the canceling list canceled their trial; in the churned list, did not convert', () => {
+  const imp = csvImport('a', '2026-10-06', ['Tri,Al,tri@x.com,,2026-10-03 15:00:00,$19,month,$0']);
+  const c = pasteImport('c', '2026-10-06', 'Tri Al\n@tri\nCanceled Oct 5, 2026', { defaultStatus: 'canceling', decisions: { 0: 'e:tri@x.com' } });
+  const a = one(world([imp, c], { settings: { trialAppliesFrom: '2026-09-27' } }), 'Tri Al');
+  assert.deepEqual([a.d.status, a.d.trialOutcome, a.d.trialOutcomeDay, a.d.canceling], ['trial_canceled', 'canceled', '2026-10-05', false]);
+  const g = pasteImport('g', '2026-10-12', 'Tri Al\n@tri\nChurned Oct 10, 2026', { defaultStatus: 'churned', decisions: { 0: 'e:tri@x.com' } });
+  const ctx = world([imp, g], { today: '2026-10-13', settings: { trialAppliesFrom: '2026-09-27' } });
+  const b = one(ctx, 'Tri Al');
+  assert.deepEqual([b.d.status, b.d.trialOutcome, b.d.churns.length], ['trial_canceled', 'canceled', 0]);
+  const s = E.dailySeries(ctx, '2026-10-01', '2026-10-13');
+  assert.equal(s.metrics.churn.reduce((x, y) => x + y, 0), 0);          // never paid, so never paid churn
+  assert.equal(s.metrics.trialCancels.reduce((x, y) => x + y, 0), 1);
+  assert.equal(E.retention(ctx).paidChurned, 0);
+});
+await t('a payment after the request means they stayed', () => {
+  const later = csvImport('z', '2026-11-05', ['Ana,Ruiz,ana@x.com,,2026-06-01 15:00:00,$19,month,$114', 'Bo,Lin,bo@x.com,,2026-06-01 15:00:00,$19,month,$95']);
+  const mid = csvImport('y', '2026-10-15', ['Ana,Ruiz,ana@x.com,,2026-06-01 15:00:00,$19,month,$95', 'Bo,Lin,bo@x.com,,2026-06-01 15:00:00,$19,month,$95']);
+  const ana = one(world([payer(), cancelingPaste(), mid, later], { today: '2026-11-06' }), 'Ana Ruiz');
+  assert.equal(ana.d.canceling, false);
+  assert.equal(ana.d.status, 'paying');
+});
+await t('canceling past its end date, or vanished after canceling, is flagged — and still not called churned', () => {
+  const late = world([payer(), cancelingPaste()], { today: '2026-10-25' });
+  assert.equal(one(late, 'Ana Ruiz').d.status, 'canceling');
+  assert.ok(E.dataQuality(late).some((w) => w.code === 'cancel_overdue'));
+  const next = csvImport('z', '2026-10-24', ['Bo,Lin,bo@x.com,,2026-06-01 15:00:00,$19,month,$95']);
+  const gone = world([payer(), cancelingPaste(), next], { today: '2026-10-25' });
+  assert.equal(one(gone, 'Ana Ruiz').d.status, 'missing_unverified');
+  assert.ok(E.dataQuality(gone).some((w) => w.code === 'missing_after_cancel'));
+});
+await t('the import preview lists canceling and churned separately', () => {
+  const a = payer();
+  const db = E.emptyDb(); db.imports = [{ id: 'a', kind: 'csv', observedAt: a.observedAt }];
+  const p = E.previewImport(db, [a], cancelingPaste(), { today: '2026-10-08' });
+  assert.deepEqual([p.canceling.length, p.churned.length, p.cancellations.length], [1, 0, 0]);
+  assert.ok(p.statusChanges.some((x) => x.to === 'Canceling — still a member'));
+});
+
 /* ---------------------------------------------------- leave and return -- */
 console.log('\nLeaving and returning');
 
@@ -593,7 +691,7 @@ await t('the weekly report covers the last complete Monday-to-Sunday week', () =
   assert.deepEqual(E.lastCompleteWeek('2026-10-08'), { from: '2026-09-28', to: '2026-10-04' });
   const demo = buildDemo('2026-10-08');
   const rep = E.weeklyReport(E.buildContext(demo.db, demo.imports, demo.meta, { today: '2026-10-08', demo: true }));
-  assert.equal(rep.rows.length, 10);
+  assert.equal(rep.rows.length, 11);
   assert.ok(rep.recommendations.length > 0);
   assert.match(E.reportText(rep), /DEMONSTRATION DATA/);
 });

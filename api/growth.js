@@ -26,7 +26,7 @@ const MAX_ROWS = 20000;
 const MAX_RAW = 3_000_000;
 const STATUS_KEYS = new Set(STATUSES.map((s) => s[0]));
 const INTERVALS = new Set(['month', 'year', 'once', 'none']);
-const MANUAL_EVENTS = new Set(['joined', 'trial_started', 'trial_canceled', 'trial_declined', 'trial_ended', 'paid_verified', 'churned', 'returned', 'reactivated', 'note']);
+const MANUAL_EVENTS = new Set(['joined', 'trial_started', 'trial_canceled', 'trial_declined', 'trial_ended', 'paid_verified', 'cancel_scheduled', 'churned', 'returned', 'reactivated', 'note']);
 const OVERRIDE_FIELDS = new Set(['source', 'price', 'interval', 'attribution', 'name']);
 
 const str = (v, max = 200) => (typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ').slice(0, max) : '');
@@ -64,7 +64,7 @@ function sanitiseRow(r, kind, i) {
     out.tier = line(r.tier, 80) || null;
   } else {
     out.status = STATUS_KEYS.has(r.status) ? r.status : 'unknown';
-    for (const f of ['trialStart', 'trialEnd', 'canceledAt', 'churnedAt', 'paidAt', 'returnedAt']) out[f] = dayOrNull(r[f]);
+    for (const f of ['trialStart', 'trialEnd', 'canceledAt', 'endsAt', 'churnedAt', 'paidAt', 'returnedAt']) out[f] = dayOrNull(r[f]);
     out.approx = {};
     if (r.approx && typeof r.approx === 'object') for (const f of Object.keys(r.approx).slice(0, 10)) if (r.approx[f]) out.approx[line(f, 20)] = true;
     out.raw = str(r.raw, 2000);
