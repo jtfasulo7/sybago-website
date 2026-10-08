@@ -167,6 +167,9 @@ export async function loadAll() {
     S.metaConn = { configured: m.configured, tokenSource: m.tokenSource, accountSource: m.accountSource, error: m.error || null };
     await loadImports(S.db);
     S.loaded = true;
+    if (g.recovered && g.recovered.length) {
+      S.notice = `${g.recovered.length} earlier upload${g.recovered.length === 1 ? ' was' : 's were'} safely stored but missing from the list, and ${g.recovered.length === 1 ? 'has' : 'have'} been restored. Check Data Reconciliation and remove any you do not want.`;
+    }
   } catch (e) {
     S.error = e.message;
   }
@@ -195,28 +198,40 @@ export async function saveDb(mutate, audit) {
   }
 }
 
-/** Save one import. Returns true when it is in. */
+/**
+ * Save one import. Returns a RECEIPT when — and only when — the server has
+ * read the upload back out of storage, and a second, independent request has
+ * then found it in the list. Anything short of that returns null and says why.
+ */
 export async function saveImport(imp) {
   if (S.demo) {
     const id = 'local-' + Date.now().toString(36);
-    const rec = { ...imp, id };
-    S.imports.set(id, rec);
-    S.db.imports.push({ id, kind: imp.kind, observedAt: imp.observedAt, filename: imp.filename, label: imp.label, hash: imp.hash, rowCount: imp.rows.length, reverted: null, createdAt: new Date().toISOString() });
+    const at = new Date().toISOString();
+    S.imports.set(id, { ...imp, id });
+    S.db.imports.push({ id, kind: imp.kind, context: imp.context || null, observedAt: imp.observedAt, filename: imp.filename, label: imp.label, hash: imp.hash, rowCount: imp.rows.length, reverted: null, createdAt: at });
     rebuild();
-    return true;
+    return { id, label: imp.label, filename: imp.filename, rows: imp.rows.length, savedAt: at, demo: true };
   }
-  S.busy = 'Saving import…'; paintStatus();
+  S.busy = 'Saving and confirming the upload…'; paintStatus();
+  const adopt = async (db) => { if (db) { S.db = db; await loadImports(S.db); rebuild(); } };
   try {
     const j = await api('/api/growth', { method: 'POST', body: { op: 'import', import: imp, baseVersion: S.db.version || 0 } });
-    S.db = j.db; S.imports.set(j.import.id, j.import);
-    S.busy = ''; S.error = '';
-    rebuild();
-    return true;
+    if (!j.receipt || !j.receipt.verified) throw Object.assign(new Error('The server did not confirm the upload, so it is not being treated as saved.'), { payload: j });
+    S.imports.set(j.import.id, j.import);
+    // Ask again, from scratch, the way a page refresh would. If a refresh
+    // would not show this upload, it is better to find that out now.
+    const again = await api('/api/growth');
+    const listed = (again.db.imports || []).some((i) => i.id === j.import.id);
+    await adopt(again.db);
+    S.busy = '';
+    if (!listed) { S.error = 'The upload was accepted but is missing from the list on a second check. It has NOT been confirmed — reload the page before trying again.'; return null; }
+    S.error = '';
+    return { ...j.receipt, confirmedAt: new Date().toISOString() };
   } catch (e) {
     S.busy = '';
-    if (e.status === 409 && e.payload && e.payload.db) { S.db = e.payload.db; await loadImports(S.db); rebuild(); }
-    S.error = e.message;
-    return false;
+    await adopt(e.payload && e.payload.db).catch(() => {});
+    S.error = e.status === 0 ? 'The connection dropped while saving. The upload may or may not have been stored — reload the page and check the list before trying again.' : e.message;
+    return null;
   }
 }
 
@@ -284,6 +299,7 @@ export function draw(id, config) {
   if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; }
   const base = {
     responsive: true, maintainAspectRatio: false, animation: false,
+    font: { family: "Manrope, Inter, system-ui, sans-serif" },
     interaction: { mode: 'index', intersect: false },
     plugins: { legend: { display: false }, tooltip: { backgroundColor: '#123B31', titleColor: '#F5F1E7', bodyColor: '#F5F1E7', padding: 10, boxPadding: 4 } },
   };
@@ -307,19 +323,23 @@ const xAxis = (days) => ({
 
 function shell() {
   return `<div class="gi">
-    <header class="gi-head rise">
-      <div>
-        <p class="eyebrow">Peps by Dave</p>
-        <h2 class="gi-title">Growth Intelligence</h2>
+    <header class="gi-hero">
+      <div class="gi-hero-main">
+        <p class="gi-lockup"><span>Peps by Dave</span><small>Peptide community</small></p>
+        <h2 class="gi-hero-title">Growth <em>Intelligence.</em></h2>
+        <p class="gi-hero-sub">Ad spend, sign-ups, trials, cancellations and revenue — lined up day by day.</p>
       </div>
-      <p class="sub gi-status" id="gi-status" role="status" aria-live="polite"></p>
+      <div class="gi-hero-side">
+        <p class="gi-hero-side-title">On record</p>
+        <ul class="gi-hero-facts" id="gi-status" role="status" aria-live="polite"></ul>
+      </div>
     </header>
     <div id="gi-banner"></div>
     <div class="gi-shell">
       <nav class="gi-side" aria-label="Growth Intelligence sections">
         <label class="sr-only" for="gi-jump">Section</label>
         <select id="gi-jump" class="gi-jump" data-change="page">${PAGES.map(([k, l]) => `<option value="${k}">${h(l)}</option>`).join('')}</select>
-        <ol class="gi-nav">${PAGES.map(([k, l], i) => `<li><button type="button" data-act="page" data-page="${k}"><span class="gi-nav-n">${String(i + 1).padStart(2, '0')}</span>${h(l)}</button></li>`).join('')}</ol>
+        <div class="gi-rail"><ol class="gi-nav">${PAGES.map(([k, l], i) => `<li><button type="button" data-act="page" data-page="${k}" title="${h(l)}"><span class="gi-nav-n">${String(i + 1).padStart(2, '0')}</span><span class="gi-nav-l">${h(l)}</span></button></li>`).join('')}</ol></div>
       </nav>
       <div class="gi-main" id="gi-main" tabindex="-1"></div>
     </div>
@@ -329,14 +349,16 @@ function shell() {
 function paintStatus() {
   const el = S.root && S.root.querySelector('#gi-status');
   if (!el) return;
-  if (S.busy) { el.textContent = S.busy; return; }
+  const tick = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.6 3.6 7.4-8.2"/></svg>';
+  const dash = '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5.5 10h9"/></svg>';
+  const item = (ok, text) => `<li class="${ok ? '' : 'is-off'}">${ok ? tick : dash}<span>${h(text)}</span></li>`;
+  if (S.busy) { el.innerHTML = `<li class="is-busy"><span>${h(S.busy)}</span></li>`; return; }
   const c = S.ctx;
-  if (!c) { el.textContent = ''; return; }
-  const bits = [];
-  bits.push(c.lastCsv ? `Skool export ${dayLabel(c.lastCsv.day, true)}` : 'No Skool export yet');
-  bits.push(c.meta.available ? `Meta data to ${dayLabel(c.meta.last, true)}` : 'Meta not synced');
-  bits.push(`${c.settings.timezone.replace(/_/g, ' ')} time`);
-  el.textContent = bits.join(' · ');
+  if (!c) { el.innerHTML = ''; return; }
+  el.innerHTML =
+    item(!!c.lastCsv, c.lastCsv ? `Skool export · ${dayLabel(c.lastCsv.day, true)}` : 'No Skool export yet') +
+    item(c.meta.available, c.meta.available ? `Meta ads · to ${dayLabel(c.meta.last, true)}` : 'Meta ads not synced') +
+    item(true, `${c.settings.timezone.split('/').pop().replace(/_/g, ' ')} time`);
 }
 
 function banner() {
@@ -1142,6 +1164,13 @@ const CHANGES = {
 export function mount(root, opts = {}) {
   S.root = root;
   S.Chart = opts.Chart || window.Chart || null;
+  if (!document.querySelector('link[data-gi-font]')) {
+    // The brand's typefaces. Requested here so only this tab pays for them.
+    const font = document.createElement('link');
+    font.rel = 'stylesheet'; font.dataset.giFont = '1';
+    font.href = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..800&family=Manrope:wght@400..800&display=swap';
+    document.head.appendChild(font);
+  }
   if (!document.querySelector('link[data-gi]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = '/assets/growth/growth.css'; link.dataset.gi = '1';
@@ -1161,6 +1190,21 @@ export function mount(root, opts = {}) {
     if (!el) return;
     const fn = CHANGES[el.dataset.change];
     if (fn) fn(el, ev);
+  });
+  // Dropping a file on a drop zone. Without preventDefault on dragover the
+  // browser never fires drop, and on drop it would navigate to the file.
+  root.addEventListener('dragover', (ev) => {
+    const zone = ev.target.closest('[data-dropzone]');
+    if (!zone) return;
+    ev.preventDefault(); zone.classList.add('is-over');
+  });
+  root.addEventListener('dragleave', (ev) => { const zone = ev.target.closest('[data-dropzone]'); if (zone) zone.classList.remove('is-over'); });
+  root.addEventListener('drop', (ev) => {
+    const zone = ev.target.closest('[data-dropzone]');
+    if (!zone) return;
+    ev.preventDefault(); zone.classList.remove('is-over');
+    const file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+    if (file) admin.dropFile(file);
   });
   root.addEventListener('submit', (ev) => {
     const form = ev.target.closest('form');

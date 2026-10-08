@@ -292,3 +292,178 @@ td .gi-tag { white-space:normal; }
 .gi-confirm { display:inline-flex; flex-wrap:wrap; gap:.4rem; align-items:baseline; font-size:.84rem; color:var(--neg); }
 .gi-table td .gi-link + .gi-link, .gi-table td .gi-link + .gi-confirm, .gi-table td .gi-confirm + .gi-link { margin-left:.7rem; }
 @media print { html.gi-print .gi-report { max-width:none; } html.gi-print .gi-report section, html.gi-print .gi-recs li { break-inside:avoid; } }
+
+/* ------------------------------------------------------------ uploads -- */
+/* Four slots, one upload each. A slot has three states and each LOOKS
+   different at a glance: an empty one invites, one in review waits, a filled
+   one is settled — solid border, tinted head, a check that carries the word. */
+.gi-slots-progress { display:flex; align-items:center; gap:1rem; margin-bottom:1.1rem; }
+.gi-slots-progress p { font-size:.9rem; white-space:nowrap; }
+.gi-meter { flex:1 1 auto; height:6px; border-radius:99px; background:var(--seg-track); overflow:hidden; max-width:320px; }
+.gi-meter span { display:block; height:100%; background:linear-gradient(90deg,var(--accent-b),var(--accent)); border-radius:99px; transition:width .4s var(--eo); }
+.gi-slots { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.1rem; }
+.gi-slot { display:flex; flex-direction:column; border:1px solid var(--hairline); border-radius:var(--r-lg); background:var(--surface-solid); box-shadow:var(--lift-1), inset 0 1px 0 var(--hairline-2); overflow:hidden; transition:box-shadow .25s var(--eo), border-color .25s var(--eo); }
+.gi-slot.is-empty:hover { box-shadow:var(--lift-2), inset 0 1px 0 var(--hairline-2); }
+.gi-slot.is-filled { border-color:rgba(var(--accent-rgb),.45); }
+.gi-slot.is-review { border-color:rgba(var(--warn-rgb),.5); }
+.gi-slot-head { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.8rem; padding:1rem 1.1rem .9rem; border-bottom:1px solid var(--hairline); }
+.gi-slot.is-filled .gi-slot-head { background:linear-gradient(180deg, rgba(var(--accent-rgb),.09), rgba(var(--accent-rgb),.03)); }
+.gi-slot.is-review .gi-slot-head { background:rgba(var(--warn-rgb),.06); }
+.gi-slot-head h4 { font-size:1.02rem; font-weight:700; letter-spacing:-.01em; margin-top:.1rem; }
+.gi-slot-n { width:30px; height:30px; display:grid; place-items:center; border-radius:50%; font-size:.82rem; font-weight:800; font-variant-numeric:tabular-nums; color:var(--accent-d); background:rgba(var(--accent-rgb),.10); border:1px solid rgba(var(--accent-rgb),.22); }
+.gi-slot.is-filled .gi-slot-n { color:var(--on-accent); background:linear-gradient(180deg,var(--accent-b),var(--accent)); border-color:transparent; }
+.gi-pill { display:inline-flex; align-items:center; gap:.3rem; font-size:.68rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:.28rem .6rem; border-radius:99px; white-space:nowrap; color:var(--t3); background:var(--seg-track); border:1px solid var(--hairline); }
+.gi-pill.is-done { color:var(--on-accent); background:linear-gradient(180deg,var(--accent-b),var(--accent)); border-color:transparent; box-shadow:var(--lift-1); }
+.gi-pill.is-review { color:var(--kpi-warn); background:var(--kpi-warn-bg); border-color:rgba(var(--warn-rgb),.35); }
+.gi-slot-help { font-size:.85rem; color:var(--t2); line-height:1.5; padding:.85rem 1.1rem 0; }
+.gi-slot-body { padding:.9rem 1.1rem 1.1rem; display:flex; flex-direction:column; gap:.7rem; flex:1 1 auto; }
+.gi-slot-note, .gi-slot-wait { font-size:.82rem; color:var(--t3); line-height:1.5; }
+.gi-slot-wait { color:var(--t2); }
+
+.gi-dropzone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.3rem; min-height:158px; padding:1.2rem; text-align:center; cursor:pointer; border:1.5px dashed rgba(var(--accent-rgb),.38); border-radius:var(--r-md); background:rgba(var(--accent-rgb),.035); color:var(--accent-d); transition:background .2s var(--eo), border-color .2s var(--eo), transform .2s var(--eo); }
+.gi-dropzone:hover, .gi-dropzone:focus-within, .gi-dropzone.is-over { background:rgba(var(--accent-rgb),.09); border-color:var(--accent); }
+.gi-dropzone.is-over { transform:scale(1.01); border-style:solid; }
+.gi-dropzone-main { font-weight:700; font-size:.98rem; margin-top:.2rem; }
+.gi-dropzone-sub { font-size:.8rem; color:var(--t3); }
+.gi-pasteform { display:flex; flex-direction:column; gap:.7rem; align-items:flex-start; flex:1 1 auto; }
+.gi-pasteform textarea { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.8rem; line-height:1.5; min-height:124px; border-radius:var(--r-md); background:rgba(var(--accent-rgb),.025); box-shadow:none; }
+.gi-pasteform textarea:focus { background:var(--surface-solid); }
+
+.gi-upfile { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.8rem; align-items:start; padding:.85rem .9rem; border:1px solid var(--hairline); border-radius:var(--r-md); background:rgba(var(--accent-rgb),.04); }
+.gi-upfile.is-off { background:var(--seg-track); }
+.gi-upfile-ico { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; color:var(--on-accent); background:linear-gradient(180deg,var(--accent-b),var(--accent)); box-shadow:var(--lift-1); }
+.gi-upfile.is-off .gi-upfile-ico { background:var(--t3); }
+.gi-upfile-name { font-weight:700; font-size:.95rem; overflow-wrap:anywhere; line-height:1.3; }
+.gi-upfile-meta { font-size:.8rem; color:var(--t2); margin-top:.15rem; line-height:1.45; }
+.gi-upfile-ok { font-size:.76rem; font-weight:700; letter-spacing:.02em; color:var(--kpi-good); margin-top:.3rem; }
+.gi-upfile.is-off .gi-upfile-ok { color:var(--kpi-warn); }
+.gi-upfile-actions { display:flex; flex-wrap:wrap; gap:.3rem .9rem; margin-top:.55rem; font-size:.84rem; }
+
+/* The receipt: the one place a successful upload is stated outright. */
+.gi-receipt { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.9rem; align-items:start; padding:1rem 1.1rem; margin-bottom:1.1rem; border-radius:var(--r-md); border:1.5px solid var(--kpi-good); background:var(--kpi-good-bg); box-shadow:var(--lift-1); line-height:1.5; }
+.gi-receipt-ico { width:30px; height:30px; display:grid; place-items:center; border-radius:50%; color:#fff; background:var(--kpi-good); }
+.gi-receipt-title { font-weight:800; color:var(--kpi-good); font-size:1rem; }
+.gi-receipt-fine { font-size:.8rem; color:var(--t2); margin-top:.2rem; max-width:80ch; }
+
+@media (max-width:880px) { .gi-slots { grid-template-columns:minmax(0,1fr); } .gi-slot-head { grid-template-columns:auto minmax(0,1fr); } .gi-slot-head .gi-pill { grid-column:2; justify-self:start; } }
+
+/* ==========================================================================
+   BRAND PASS — from the Peps by Dave lockup.
+
+   Deep green carrying cream type; a cream panel beside it; a soft serif
+   (Fraunces) for anything said out loud, with the last word in italics the
+   way the lockup sets "to the source."; a clean geometric sans (Manrope) for
+   everything that is read or counted; ticked lists. These rules come last so
+   they restyle the components above without those having to know.
+   ========================================================================== */
+
+/* ---- the hero: the lockup itself, as the top of the tab ---- */
+.gi-hero { display:grid; grid-template-columns:minmax(0,1.9fr) minmax(250px,1fr); border-radius:var(--r-lg); overflow:hidden; margin:.2rem 0 1.1rem; box-shadow:var(--lift-2); }
+.gi-hero-main { background:var(--brand-green); color:var(--brand-cream); padding:1.7rem 2rem 1.8rem; }
+.gi-lockup { display:flex; flex-direction:column; gap:.2rem; margin-bottom:1.1rem; }
+.gi-lockup span { font-size:1.02rem; font-weight:600; letter-spacing:.07em; }
+.gi-lockup small { font-size:.62rem; font-weight:600; letter-spacing:.24em; text-transform:uppercase; color:rgba(243,238,226,.72) !important; }
+.gi-hero-title { font-family:var(--ff-display); font-weight:600; font-size:clamp(2.1rem,4.4vw,3.5rem); line-height:1; letter-spacing:-.025em; font-variation-settings:'opsz' 144; }
+.gi-hero-title em { font-style:italic; font-weight:500; }
+.gi-hero-sub { margin-top:.85rem; font-size:1rem; line-height:1.45; color:rgba(243,238,226,.86); max-width:46ch; }
+.gi-hero-side { background:var(--brand-cream); color:var(--brand-green); padding:1.6rem 1.7rem; display:flex; flex-direction:column; justify-content:center; border:1px solid var(--hairline); border-left:0; border-radius:0 var(--r-lg) var(--r-lg) 0; }
+.gi-hero-side-title { font-family:var(--ff-display); font-weight:600; font-size:1.55rem; line-height:1.05; letter-spacing:-.02em; margin-bottom:.8rem; }
+.gi-hero-facts { list-style:none; display:flex; flex-direction:column; gap:.5rem; }
+.gi-hero-facts li { display:flex; align-items:center; gap:.6rem; font-size:.95rem; font-weight:600; }
+.gi-hero-facts li.is-off { color:rgba(18,59,49,.55); font-weight:500; }
+.gi-hero-facts li.is-busy { font-weight:500; font-style:italic; }
+.gi-hero-facts svg { flex:0 0 auto; }
+
+/* ---- type ---- */
+.gi-pagehead h3, .gi-panel > .panel-head h2, .gi-report h3, .gi-welcome h2, .gi-slot-head h4, .gi-card h4 { font-family:var(--ff-display); font-weight:600; letter-spacing:-.015em; }
+.gi-pagehead h3 { font-size:1.75rem; line-height:1.1; font-variation-settings:'opsz' 72; }
+.gi-panel > .panel-head h2 { font-size:1.22rem; }
+.gi-slot-head h4 { font-size:1.12rem; }
+.gi-tile dd, .gi-rate-n, .gi-scen-n { font-family:var(--ff-display); font-weight:600; letter-spacing:-.02em; font-variant-numeric:lining-nums tabular-nums; }
+.gi-tile dd { font-size:1.65rem; }
+.gi-rate-n { font-weight:500; }
+.gi .eyebrow, .gi-card-kicker, .gi-h4, .gi-tile dt, .gi-kind { letter-spacing:.14em; }
+
+/* ---- buttons: the lockup's button, in both of its colourways ---- */
+.gi .btn { border-radius:10px; font-weight:700; letter-spacing:.005em; }
+.gi .btn-primary { background:var(--brand-green); color:var(--brand-cream); box-shadow:var(--lift-1); }
+.gi .btn-primary:hover { background:var(--accent); }
+.gi .btn-ghost { background:var(--brand-cream); border-color:rgba(var(--accent-rgb),.22); color:var(--brand-green); box-shadow:none; }
+.gi .btn-ghost:hover { background:#fff; border-color:rgba(var(--accent-rgb),.45); }
+.gi .seg button[aria-pressed="true"] { background:var(--brand-green); color:var(--brand-cream); }
+.gi-chip[aria-pressed="true"] { border-color:var(--brand-green); }
+.gi-pill.is-done, .gi-slot.is-filled .gi-slot-n, .gi-upfile-ico { background:var(--brand-green); color:var(--brand-cream); }
+
+/* ---- surfaces: cream paper, quiet edges ---- */
+.gi-panel { border-radius:var(--r-lg); background:rgba(255,255,255,.72); }
+.gi-tile { border-radius:var(--r-md); border-color:rgba(var(--accent-rgb),.12); }
+.gi-range { background:rgba(255,255,255,.72); }
+.gi-table thead th { color:var(--brand-green); }
+.gi-insight { background:rgba(var(--accent-rgb),.045); }
+.gi-report { background:#fff; }
+.gi-conn li.is-ok::before { color:var(--brand-green); }
+
+/* ==========================================================================
+   THE NAVIGATOR — a slim rail that opens when the pointer is over it.
+
+   Closed, it is a column of section numbers, 60px wide, and the page has the
+   rest. Hovering it (or tabbing into it) slides it open to show the names. It
+   opens OVER the page rather than pushing it, so nothing reflows and a chart
+   is not redrawn every time the pointer passes.
+
+   Three things that are easy to get wrong:
+   - It must open for KEYBOARD focus as well as :hover, or a keyboard user tabs
+     through thirteen unlabelled numbers. It uses :has(:focus-visible), not
+     :focus-within: a mouse click also focuses the button, and :focus-within
+     would then hold the rail open after the pointer had left.
+   - Devices with no hover (a tablet) cannot open it, so there it stays open.
+   - The closing delay is deliberate: without it the rail snaps shut the moment
+     the pointer drifts a pixel outside on the way to a link.
+   ========================================================================== */
+/* Every desktop-width screen gets the rail. It is NOT gated on (hover:hover):
+   browsers under-report that often enough that a gate would leave some
+   desktops with a rail that never collapses. Touch-only screens are the
+   exception, undone in the block after this one. */
+@media (min-width:1081px) {
+  .gi-shell { grid-template-columns:60px minmax(0,1fr); gap:1.15rem; }
+  .gi-side { position:sticky; top:72px; height:0; z-index:40; }       /* takes no height: the rail hangs from it */
+  .gi-rail {
+    position:absolute; left:0; top:0; width:60px; overflow:hidden;
+    padding:.45rem; border-radius:var(--r-md);
+    background:var(--brand-green); color:var(--brand-cream);
+    box-shadow:var(--lift-1);
+    transition:width .28s var(--eo) .16s, box-shadow .28s var(--eo) .16s;
+  }
+  .gi-side:hover .gi-rail, .gi-side:has(:focus-visible) .gi-rail { width:252px; box-shadow:var(--lift-2), 0 0 0 1px rgba(18,59,49,.2); transition-delay:0s; }
+  .gi-rail .gi-nav { width:236px; gap:2px; }
+  .gi-rail .gi-nav button {
+    color:rgba(243,238,226,.78); border-left:0; border-radius:9px; padding:.5rem .55rem; gap:.75rem; align-items:center;
+    font-size:.9rem; font-weight:500; white-space:nowrap; background:transparent; box-shadow:none;
+  }
+  .gi-rail .gi-nav button:hover { background:rgba(243,238,226,.10); color:var(--brand-cream); }
+  .gi-rail .gi-nav-n { flex:0 0 31px; height:31px; display:grid; place-items:center; border-radius:8px; font-size:.72rem; font-weight:700; letter-spacing:.02em; color:rgba(243,238,226,.7); }
+  .gi-rail .gi-nav button[aria-current="page"] { background:rgba(243,238,226,.10); color:var(--brand-cream); font-weight:700; }
+  .gi-rail .gi-nav button[aria-current="page"] .gi-nav-n { background:var(--brand-cream); color:var(--brand-green); }
+  .gi-rail .gi-nav-l { opacity:0; transform:translateX(-6px); transition:opacity .2s var(--eo), transform .28s var(--eo); }
+  .gi-side:hover .gi-nav-l, .gi-side:has(:focus-visible) .gi-nav-l { opacity:1; transform:none; transition-delay:.06s; }
+  .gi-rail :focus-visible { outline-color:var(--brand-cream); }
+}
+/* No hover to open it with: keep the names on show, in the brand's colours. */
+/* A wide screen with only a coarse pointer and no hover — a tablet. There is
+   nothing to hover with, so the rail stays open and sits in the page flow. */
+@media (min-width:1081px) and (hover:none) and (pointer:coarse) {
+  .gi-shell { grid-template-columns:252px minmax(0,1fr); }
+  .gi-side { height:auto; }
+  .gi-rail { position:static; width:auto; }
+  .gi-rail .gi-nav { width:auto; }
+  .gi-rail .gi-nav-l { opacity:1; transform:none; }
+}
+
+@media (max-width:880px) {
+  .gi-hero { grid-template-columns:minmax(0,1fr); }
+  .gi-hero-main { padding:1.4rem 1.25rem; }
+  .gi-hero-side { border-left:1px solid var(--hairline); border-top:0; border-radius:0 0 var(--r-lg) var(--r-lg); padding:1.1rem 1.25rem; }
+  .gi-hero-side-title { font-size:1.25rem; margin-bottom:.5rem; }
+}
+@media (prefers-reduced-motion:reduce) { .gi-rail, .gi-rail .gi-nav-l { transition:none !important; } }
+@media print { html.gi-print .gi-report h3, html.gi-print .gi-report h4 { color:#123B31; } }

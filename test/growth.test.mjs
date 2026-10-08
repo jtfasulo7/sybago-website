@@ -733,10 +733,23 @@ await t('sparse exports are called out as flattering the conversion rate', () =>
 console.log('\nEndpoints and storage');
 
 const mem = new Map();
+const cdn = new Map();          // what a fetch is served: the FIRST bytes ever put at a path
+const stamps = new Map();
+const overwritten = [];
+let putAge = 0;                 // ms in the past to stamp the next put, for orphan-age tests
+const keyOf = (url) => String(url).replace('https://blob.test/', '').split('?')[0];
 store.useBlobClient({
-  async list({ prefix }) { return { blobs: [...mem.keys()].filter((k) => k.startsWith(prefix)).map((k) => ({ pathname: k, url: 'https://blob.test/' + k })) }; },
-  async put(pathname, body) { mem.set(pathname, body); return { url: 'https://blob.test/' + pathname }; },
-  async del(url) { mem.delete(String(url).replace('https://blob.test/', '')); },
+  async list({ prefix }) {
+    return { blobs: [...mem.keys()].filter((k) => k.startsWith(prefix)).map((k) => ({ pathname: k, url: 'https://blob.test/' + k, uploadedAt: new Date(stamps.get(k)) })) };
+  },
+  async put(pathname, body) {
+    if (mem.has(pathname)) overwritten.push(pathname);
+    mem.set(pathname, body);
+    if (!cdn.has(pathname)) cdn.set(pathname, body);      // the CDN keeps the stale copy
+    stamps.set(pathname, Date.now() - putAge);
+    return { url: 'https://blob.test/' + pathname };
+  },
+  async del(urls) { for (const u of [].concat(urls)) { const k = keyOf(u); mem.delete(k); cdn.delete(k); stamps.delete(k); } },
 });
 const realFetch = globalThis.fetch;
 let metaCalls = [];
@@ -744,7 +757,7 @@ let modelCalls = 0;
 let lastModelRequest = null;
 globalThis.fetch = async (url, init) => {
   const u = String(url);
-  if (u.startsWith('https://blob.test/')) { const v = mem.get(u.replace('https://blob.test/', '')); return new Response(v || '', { status: v ? 200 : 404 }); }
+  if (u.startsWith('https://blob.test/')) { const k = keyOf(u); const v = mem.has(k) ? cdn.get(k) : null; return new Response(v || '', { status: v ? 200 : 404 }); }
   if (u.includes('graph.facebook.com')) {
     metaCalls.push({ url: u, method: (init && init.method) || 'GET' });
     const p = new URL(u);
@@ -777,6 +790,7 @@ function mockRes() {
   return r;
 }
 const call = async (handler, req) => { const res = mockRes(); await handler({ headers: { cookie }, query: {}, ...req }, res); return res; };
+const pasteImportBody = (context, filename) => ({ kind: 'paste', context, observedAt: '2026-10-02T12:00:00Z', filename, label: 'Pasted', hash: 'p-' + context, raw: 'RAW PASTE', rows: [{ k: '0', name: 'Bo Lin', handle: 'bo-lin', status: context }] });
 const goodImport = () => ({ kind: 'csv', observedAt: '2026-10-01T12:00:00Z', filename: 'm.csv', hash: 'abc', raw: 'RAW TEXT', rows: [{ k: '0', name: 'Ana Ruiz', email: 'ANA@x.com', joinDay: '2026-09-01', price: 19, interval: 'month', ltv: 19, evil: '<script>' }] });
 
 await t('every endpoint refuses a request with no session, before doing anything', async () => {
@@ -838,7 +852,7 @@ await t('settings and manual records from the browser are clamped and filtered',
   assert.equal(r.body.db.manual.length, 1);
 });
 await t('one import can be removed permanently, by name, and the removal is audited', async () => {
-  const add = await call(growth, { method: 'POST', body: { op: 'import', import: { ...goodImport(), filename: 'second.csv' }, baseVersion: 5 } });
+  const add = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('canceling', 'second.csv'), baseVersion: 5 } });
   assert.equal(add.code, 200);
   const second = add.body.import.id;
   assert.ok(mem.has(`growth/imports/${second}.enc`));
@@ -859,6 +873,114 @@ await t('removal needs a session, a real id and an existing import', async () =>
   assert.equal((await call(growth, { method: 'DELETE', query: { baseVersion: '7' } })).code, 400);
   assert.equal((await call(growth, { method: 'DELETE', query: { import: 'imp-does-not-exist', baseVersion: '7' } })).code, 404);
   assert.ok(mem.has(`growth/imports/${importId}.enc`));
+});
+await t('an upload is only reported saved after it has been read back out of storage', async () => {
+  const r = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('active_trial'), baseVersion: 7 } });
+  assert.equal(r.code, 200);
+  assert.deepEqual([r.body.receipt.verified, r.body.receipt.rows, r.body.receipt.slot, r.body.receipt.version], [true, 1, 'active_trial', 8]);
+  assert.equal(r.body.receipt.id, r.body.import.id);
+  assert.ok(r.body.db.imports.some((i) => i.id === r.body.receipt.id));
+});
+await t('each list takes one upload: a second is refused until the first is removed', async () => {
+  const again = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('active_trial'), baseVersion: 8 } });
+  assert.equal(again.code, 409);
+  assert.equal(again.body.error, 'slot_occupied');
+  assert.match(again.body.message, /Active trials.*Remove it/);
+  const csvAgain = await call(growth, { method: 'POST', body: { op: 'import', import: goodImport(), baseVersion: 8 } });
+  assert.equal(csvAgain.body.error, 'slot_occupied');
+  assert.equal((await call(growth, { method: 'GET' })).body.db.imports.length, 2);     // nothing was added
+  // A different list is free; and removing frees the list again.
+  const other = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('churned'), baseVersion: 8 } });
+  assert.equal(other.code, 200);
+  const holder = other.body.db.imports.find((i) => i.context === 'active_trial');
+  const gone = await call(growth, { method: 'DELETE', query: { import: holder.id, baseVersion: '9' } });
+  assert.equal(gone.code, 200);
+  const retry = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('active_trial'), baseVersion: 10 } });
+  assert.equal(retry.code, 200);
+});
+await t('THE BUG: back-to-back saves used to drop the earlier upload — every one now survives', async () => {
+  // The stub serves an overwritten path's OLD bytes, exactly as Blob's CDN does.
+  // Under the fixed-path design this sequence lost uploads; here nothing may be overwritten at all.
+  const before = (await call(growth, { method: 'GET' })).body.db;
+  const ids = before.imports.map((i) => i.id);
+  let v = before.version;
+  for (const id of ids) {            // remove everything, one after another, no pause
+    const r = await call(growth, { method: 'DELETE', query: { import: id, baseVersion: String(v) } });
+    assert.equal(r.code, 200); v = r.body.db.version;
+  }
+  const saved = [];
+  for (const imp of [goodImport(), pasteImportBody('active_trial'), pasteImportBody('canceling'), pasteImportBody('churned')]) {
+    const r = await call(growth, { method: 'POST', body: { op: 'import', import: imp, baseVersion: v } });
+    assert.equal(r.code, 200, JSON.stringify(r.body).slice(0, 200));
+    saved.push(r.body.receipt.id); v = r.body.db.version;
+  }
+  const after = (await call(growth, { method: 'GET' })).body.db;       // "refresh the page"
+  assert.deepEqual(after.imports.map((i) => i.id).sort(), saved.slice().sort());
+  assert.equal(after.imports.length, 4);
+  assert.deepEqual(overwritten.filter((p) => p.startsWith('growth/')), []);   // no growth object was ever written twice
+  assert.equal((await call(growth, { method: 'GET' })).body.db.version, after.version);
+});
+await t('old versions are pruned, and the newest is always the one read', async () => {
+  const names = [...mem.keys()].filter((k) => k.startsWith('growth/db/'));
+  assert.ok(names.length >= 2 && names.length <= 12, String(names.length));
+  const current = store.pickCurrent(names.map((pathname) => ({ pathname })));
+  assert.equal(current.pathname, names.slice().sort().pop());
+});
+await t('two saves claiming the same version cannot both win', async () => {
+  const db = await store.loadDb();
+  const next = { ...db, version: db.version + 1 };
+  await store.saveDb(next);
+  await assert.rejects(() => store.saveDb({ ...next, audit: [] }), (e) => e.code === 'conflict');
+  assert.equal((await store.loadDb()).audit.length, db.audit.length);     // the first one stands
+  const stale = await call(growth, { method: 'POST', body: { op: 'import', import: pasteImportBody('churned'), baseVersion: db.version } });
+  assert.equal(stale.code, 409);
+});
+await t('an upload that was stored but dropped from the list is restored, once, and says so', async () => {
+  const before = (await call(growth, { method: 'GET' })).body.db;
+  putAge = 10 * 60 * 1000;                                  // written ten minutes ago, never indexed
+  await store.saveImport({ id: 'imp-lost-0001', kind: 'paste', context: 'unknown', observedAt: '2026-10-03T12:00:00Z', label: 'Ended trials and churned members', rows: [{ k: '0', name: 'Lost One', status: 'churned' }], createdAt: '2026-10-03T12:00:00Z' });
+  putAge = 0;
+  await store.saveImport({ id: 'imp-inflight-01', kind: 'paste', context: 'unknown', observedAt: '2026-10-03T12:00:00Z', label: 'x', rows: [{ k: '0', name: 'New One' }] });
+  const r = await call(growth, { method: 'GET' });
+  assert.deepEqual(r.body.recovered, ['imp-lost-0001']);     // not the one written a moment ago: that save may still be in flight
+  const entry = r.body.db.imports.find((i) => i.id === 'imp-lost-0001');
+  assert.ok(entry.recovered); assert.equal(entry.rowCount, 1);
+  assert.equal(r.body.db.imports.length, before.imports.length + 1);
+  assert.match(r.body.db.audit[r.body.db.audit.length - 1].action, /import recovered/);
+  assert.deepEqual((await call(growth, { method: 'GET' })).body.recovered, []);          // and only once
+});
+await t('an import removed on purpose is never "recovered"', async () => {
+  const db = (await call(growth, { method: 'GET' })).body.db;
+  const gone = await call(growth, { method: 'DELETE', query: { import: 'imp-lost-0001', baseVersion: String(db.version) } });
+  assert.equal(gone.code, 200);
+  assert.ok(gone.body.db.removed.includes('imp-lost-0001'));
+  putAge = 10 * 60 * 1000;
+  await store.saveImport({ id: 'imp-lost-0001', kind: 'paste', observedAt: '2026-10-03T12:00:00Z', label: 'back from the dead', rows: [{ k: '0', name: 'Lost One' }] });
+  putAge = 0;
+  const r = await call(growth, { method: 'GET' });
+  assert.deepEqual(r.body.recovered, []);
+  assert.ok(!r.body.db.imports.some((i) => i.id === 'imp-lost-0001'));
+  // The list of removals survives an ordinary save too.
+  const put = await call(growth, { method: 'PUT', body: { baseVersion: r.body.db.version, db: { settings: {} } } });
+  assert.ok(put.body.db.removed.includes('imp-lost-0001'));
+});
+await t('a document saved by the first version of the store is still read', async () => {
+  const keep = new Map(mem); const keepCdn = new Map(cdn); const keepStamps = new Map(stamps);
+  for (const k of [...mem.keys()]) if (k.startsWith('growth/db/')) { mem.delete(k); cdn.delete(k); stamps.delete(k); }
+  const secure = await import('../lib/secure-store.js');
+  await secure.saveJson('growth/db.enc', { version: 41, imports: [{ id: 'imp-old-00001', kind: 'csv' }], audit: [], manual: [], settings: {} }, 'peps-growth-intelligence');
+  const db = await store.loadDb();
+  assert.equal(db.version, 41);
+  await store.saveDb({ ...db, version: 42 });
+  assert.equal((await store.loadDb()).version, 42);                    // versioned objects take over from here
+  mem.clear(); cdn.clear(); stamps.clear();
+  for (const [k, v] of keep) mem.set(k, v); for (const [k, v] of keepCdn) cdn.set(k, v); for (const [k, v] of keepStamps) stamps.set(k, v);
+});
+await t('slots: which list an import belongs to', () => {
+  assert.equal(E.slotOf({ kind: 'csv' }), 'csv');
+  assert.equal(E.slotOf({ kind: 'paste', context: 'canceling' }), 'canceling');
+  assert.equal(E.slotOf({ kind: 'paste', context: 'unknown' }), null);     // the older combined list occupies nothing
+  assert.deepEqual(E.SLOTS.map((s) => s.key), ['csv', 'active_trial', 'canceling', 'churned']);
 });
 await t('a bad import is rejected with a reason', () => {
   assert.throws(() => sanitiseImport({ kind: 'xml', rows: [] }), /CSV or a pasted block/);
@@ -882,6 +1004,14 @@ await t('a sync stores the daily history and makes only read requests', async ()
   assert.ok(metaCalls.every((c) => c.method === 'GET'));
   assert.ok(!JSON.stringify(r.body).includes(process.env.META_ADS_TOKEN));
   assert.equal(r.body.tokenSource, 'META_ADS_TOKEN');
+});
+await t('each Meta sync is written as a new object, and the latest is the one read', async () => {
+  const again = await call(growthMeta, { method: 'POST', body: {} });
+  assert.equal(again.code, 200);
+  const names = [...mem.keys()].filter((k) => k.startsWith('growth/meta/'));
+  assert.ok(names.length >= 2 && names.length <= 3);
+  assert.equal((await call(growthMeta, { method: 'GET' })).body.meta.syncedAt, again.body.meta.syncedAt);
+  assert.deepEqual(overwritten.filter((p) => p.startsWith('growth/')), []);
 });
 await t('the scheduled sync needs the cron secret', async () => {
   const no = await call(growthMeta, { method: 'GET', headers: {}, query: { cron: '1' } });

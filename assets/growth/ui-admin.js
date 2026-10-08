@@ -436,7 +436,7 @@ export function adminPages(kit) {
       ${list('Trial cancellations', p.cancellations, (x) => `${ev(x)} — ${h(E.EVENT_LABEL[x.event.type])} ${x.event.precision === 'window' ? '' : h(dayLabel(x.event.day, true))} ${precisionTag(x.event.precision, x.event.window)}`)}
       ${list('Members whose status changes', p.statusChanges, (x) => `${h(x.member.name)} — ${h(x.from)} → <strong>${h(x.to)}</strong>`)}
       <p class="gi-actions">
-        <button type="button" class="btn btn-primary" data-act="recon-save" ${undecided.length ? 'aria-disabled="true"' : ''}>Confirm and save</button>
+        <button type="button" class="btn btn-primary" data-act="recon-save" ${undecided.length || S.recon.saving ? 'aria-disabled="true"' : ''}>${S.recon.saving ? 'Saving and confirming…' : 'Confirm and save'}</button>
         <button type="button" class="btn btn-ghost" data-act="recon-discard">Discard</button>
         ${undecided.length ? `<span class="gi-fine">Decide the ${int(undecided.length)} uncertain match${undecided.length === 1 ? '' : 'es'} first.</span>` : `<span class="gi-fine">${int(p.totals.before)} members on record now → ${int(p.totals.after)} after this import. Earlier history is kept either way.</span>`}
       </p>`;
@@ -484,13 +484,115 @@ export function adminPages(kit) {
       ${previewBlock()}`;
   }
 
+  /* ------------------------------------------------------------ slots -- */
+
+  const PLACEHOLDER = {
+    active_trial: 'Jane Doe&#10;@jane-doe-1234&#10;Free trial ends in 5 days&#10;Joined Oct 3, 2026&#10;$19/month',
+    canceling: 'John Smith&#10;@john-smith-88&#10;Canceled Oct 1, 2026&#10;Access ends Oct 20, 2026',
+    churned: 'Ana Ruiz&#10;@ana-ruiz-2&#10;Churned Sep 28, 2026',
+  };
+  const HELP = {
+    csv: 'The member export from Skool. This is the base everything else is matched against.',
+    active_trial: 'Select the members in Skool’s active-trial list, copy, and paste.',
+    canceling: 'People who have canceled but have not left yet. Everyone here is treated as canceling and stays counted as a member.',
+    churned: 'People who have actually left. Everyone here is treated as churned.',
+  };
+
+  const occupants = (key) => (S.db.imports || []).filter((i) => E.slotOf(i) === key)
+    .sort((x, y) => String(y.createdAt || y.observedAt).localeCompare(String(x.createdAt || x.observedAt)));
+  const draftSlot = () => (S.recon.draft ? (S.recon.draft.kind === 'csv' ? 'csv' : S.recon.draft.context) : null);
+  const when = (iso) => (iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
+  const CHECK = '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.6 3.6 7.4-8.2"/></svg>';
+
+  function uploadedFile(i) {
+    return `<div class="gi-upfile${i.reverted ? ' is-off' : ''}">
+      <span class="gi-upfile-ico">${CHECK}</span>
+      <div class="gi-upfile-body">
+        <p class="gi-upfile-name">${h(i.filename || i.label || 'Pasted list')}</p>
+        <p class="gi-upfile-meta">${int(i.rowCount)} ${i.kind === 'csv' ? 'rows' : `member${i.rowCount === 1 ? '' : 's'}`} · describes ${h(when(i.observedAt))} · saved ${h(when(i.createdAt))}</p>
+        <p class="gi-upfile-ok">${i.reverted ? 'Reversed — stored, but not counted in any figure' : 'Saved and confirmed in storage'}${i.recovered ? ' · restored after a failed save' : ''}</p>
+        <p class="gi-upfile-actions">
+          <button type="button" class="gi-link" data-act="import-raw" data-id="${h(i.id)}">View original</button>
+          ${S.recon.removing === i.id
+            ? `<span class="gi-confirm">Delete this upload for good? <button type="button" class="gi-link is-danger" data-act="import-remove-yes" data-id="${h(i.id)}">Yes, remove it</button> <button type="button" class="gi-link" data-act="import-remove-no">Keep</button></span>`
+            : `<button type="button" class="gi-link is-danger" data-act="import-remove" data-id="${h(i.id)}">Remove</button>`}
+        </p>
+      </div>
+    </div>`;
+  }
+
+  function slotCard(slot, n) {
+    const occ = occupants(slot.key);
+    const reviewing = draftSlot() === slot.key;
+    const state = occ.length ? 'filled' : reviewing ? 'review' : 'empty';
+    const pill = { filled: `<span class="gi-pill is-done">${CHECK} Uploaded</span>`, review: '<span class="gi-pill is-review">In review</span>', empty: '<span class="gi-pill">Not uploaded</span>' }[state];
+    let body;
+    if (occ.length) {
+      body = occ.map(uploadedFile).join('') +
+        `<p class="gi-slot-note">${occ.length > 1 ? `This list holds ${occ.length} uploads from before the one-at-a-time rule. Remove them all to upload again.` : `Remove this upload to add a new ${h(slot.noun)}.`}</p>`;
+    } else if (reviewing) {
+      body = '<p class="gi-slot-wait">Open for review below. <strong>Nothing is saved yet</strong> — check it, then press Confirm and save.</p><p><button type="button" class="gi-link" data-act="recon-discard">Discard this upload</button></p>';
+    } else if (S.recon.draft) {
+      body = '<p class="gi-slot-wait">Finish or discard the upload being reviewed below first.</p>';
+    } else if (slot.key === 'csv') {
+      body = `<label class="gi-dropzone" data-dropzone="csv">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+          <span class="gi-dropzone-main">Drop the CSV here</span>
+          <span class="gi-dropzone-sub">or <u>choose a file</u> · .csv, up to 3 MB</span>
+          <input type="file" accept=".csv,text/csv" data-change="recon-file" class="sr-only">
+        </label>`;
+    } else {
+      body = `<form data-form="recon-paste" data-context="${slot.key}" class="gi-pasteform">
+          <label class="sr-only" for="gi-paste-${slot.key}">${h(slot.title)}, pasted from Skool</label>
+          <textarea id="gi-paste-${slot.key}" name="text" rows="5" placeholder="${PLACEHOLDER[slot.key]}"></textarea>
+          <button type="submit" class="btn btn-ghost gi-btn-sm">Review before saving</button>
+        </form>`;
+    }
+    return `<section class="gi-slot is-${state}" aria-labelledby="gi-slot-${slot.key}">
+      <header class="gi-slot-head">
+        <span class="gi-slot-n" aria-hidden="true">${n + 1}</span>
+        <div><p class="gi-card-kicker">${h(slot.kicker)}</p><h4 id="gi-slot-${slot.key}">${h(slot.title)}</h4></div>
+        ${pill}
+      </header>
+      ${occ.length ? '' : `<p class="gi-slot-help">${h(HELP[slot.key])}</p>`}
+      <div class="gi-slot-body">${body}</div>
+    </section>`;
+  }
+
+  function slotsView() {
+    const filled = E.SLOTS.filter((x) => occupants(x.key).length).length;
+    return `<div class="gi-slots-progress" role="status">
+        <p><strong>${filled} of 4</strong> uploaded${filled === 4 ? ' — everything is in.' : ''}</p>
+        <div class="gi-meter" aria-hidden="true"><span style="width:${filled * 25}%"></span></div>
+      </div>
+      <div class="gi-slots">${E.SLOTS.map(slotCard).join('')}</div>`;
+  }
+
+  /** The proof that an upload went in. Stays on screen until dismissed. */
+  function receiptView() {
+    const r = S.recon.receipt;
+    if (!r) return '';
+    return `<div class="gi-receipt" role="status" aria-live="polite">
+      <span class="gi-receipt-ico">${CHECK}</span>
+      <div>
+        <p class="gi-receipt-title">Upload successful — saved and confirmed</p>
+        <p><strong>${h(r.label)}</strong>${r.filename ? ` · ${h(r.filename)}` : ''} · ${int(r.rows)} ${r.rows === 1 ? 'row' : 'rows'}</p>
+        <p class="gi-receipt-fine">${r.demo
+          ? 'Demonstration mode: held in this browser tab only, not sent to the server.'
+          : `Stored at ${h(new Date(r.savedAt).toLocaleTimeString())}, read back from storage by the server, then found again in the list by a second, separate check. It will still be here after a refresh. Reference ${h(r.id)}.`}</p>
+      </div>
+      <button type="button" class="gi-link" data-act="receipt-dismiss">Dismiss</button>
+    </div>`;
+  }
+
   function importHistory() {
     const rows = (S.db.imports || []).slice().sort((a, b) => String(b.observedAt).localeCompare(String(a.observedAt)));
     return table([
       { label: 'Describes', cell: (i) => h(new Date(i.observedAt).toLocaleString()) },
-      { label: 'Import', cell: (i) => `${h(i.label || (i.kind === 'csv' ? 'Skool CSV export' : 'Pasted list'))}${i.filename ? `<br><small>${h(i.filename)}</small>` : ''}` },
+      { label: 'Import', cell: (i) => `${h(i.label || (i.kind === 'csv' ? 'Skool CSV export' : 'Pasted list'))}${i.filename ? `<br><small>${h(i.filename)}</small>` : ''}${i.recovered ? `<br>${tag('restored after a failed save', 'is-est')}` : ''}` },
+      { label: 'List', cell: (i) => { const sl = E.SLOTS.find((x) => x.key === E.slotOf(i)); return sl ? h(sl.title) : '<small>Older combined list</small>'; } },
       { label: 'Rows', num: true, cell: (i) => int(i.rowCount) },
-      { label: 'Saved', cell: (i) => (i.createdAt ? h(new Date(i.createdAt).toLocaleDateString()) : '—') },
+      { label: 'Saved', cell: (i) => h(when(i.createdAt)) },
       { label: 'State', cell: (i) => (i.reverted ? tag('reversed', 'is-win') + ` <small>${h(new Date(i.reverted.at).toLocaleDateString())}</small>` : tag('in use', 'is-ok')) },
       { label: '', cell: (i) => `
         <button type="button" class="gi-link" data-act="import-raw" data-id="${h(i.id)}">View original</button>
@@ -507,43 +609,12 @@ export function adminPages(kit) {
     html() {
       const c = S.ctx; const r = S.recon;
       const dupes = c.members.filter((m) => m.possibleDuplicateOf && m.possibleDuplicateOf.length);
-      const start = `
-        <div class="gi-cards">
-          <div class="gi-card is-wide">
-            <p class="gi-card-kicker">Everyone currently in the community</p>
-            <h4>Upload Skool CSV</h4>
-            <p class="sub">The member export from Skool. Each upload is kept as its own snapshot and compared with the ones before it. Nothing is overwritten.</p>
-            <label class="btn btn-primary gi-btn-sm gi-file">Choose a CSV file<input type="file" accept=".csv,text/csv" data-change="recon-file" class="sr-only"></label>
-          </div>
-          <form class="gi-card" data-form="recon-paste" data-context="active_trial">
-            <p class="gi-card-kicker">On a free trial now</p>
-            <h4>Paste active trials</h4>
-            <p class="sub">Select the members in Skool's active-trial list, copy, and paste here.</p>
-            <label class="sr-only" for="gi-paste-a">Active trials, pasted from Skool</label>
-            <textarea id="gi-paste-a" name="text" rows="5" placeholder="Jane Doe&#10;@jane-doe-1234&#10;Free trial ends in 5 days&#10;Joined Oct 3, 2026&#10;$19/month"></textarea>
-            <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
-          </form>
-          <form class="gi-card" data-form="recon-paste" data-context="canceling">
-            <p class="gi-card-kicker">Asked to cancel — still in the community</p>
-            <h4>Paste canceling members</h4>
-            <p class="sub">People who have canceled but have not left yet. They stay counted as members, and paying ones as paying, until they show up in the churned list. Everyone pasted here is treated as canceling.</p>
-            <label class="sr-only" for="gi-paste-c">Canceling members, pasted from Skool</label>
-            <textarea id="gi-paste-c" name="text" rows="5" placeholder="John Smith&#10;@john-smith-88&#10;Canceled Oct 1, 2026&#10;Access ends Oct 20, 2026"></textarea>
-            <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
-          </form>
-          <form class="gi-card" data-form="recon-paste" data-context="churned">
-            <p class="gi-card-kicker">Fully churned — no longer in the community</p>
-            <h4>Paste churned members</h4>
-            <p class="sub">People who have actually left. Everyone pasted here is treated as churned. Someone who left without ever paying is recorded as a trial that did not convert, not as paid churn.</p>
-            <label class="sr-only" for="gi-paste-b">Churned members, pasted from Skool</label>
-            <textarea id="gi-paste-b" name="text" rows="5" placeholder="Ana Ruiz&#10;@ana-ruiz-2&#10;Churned Sep 28, 2026"></textarea>
-            <button type="submit" class="btn btn-ghost gi-btn-sm">Read this text</button>
-          </form>
-        </div>`;
       return `
-      <div class="gi-pagehead"><h3>Data Reconciliation</h3><p class="sub">Where membership data comes in. Every import is previewed against what is already on record, saved only when you confirm, kept forever, and reversible.</p></div>
-      ${r.draft ? panel(r.draft.kind === 'csv' ? 'Review this CSV before saving' : 'Review this pasted list before saving', r.draft.kind === 'csv' ? csvDraftView() : pasteDraftView(), { id: 'gi-draft' }) : panel('Bring in new data', start)}
-      ${panel('Import history', importHistory() + (r.showRaw ? `<div class="gi-raw"><p><strong>Original submission</strong> — ${h(r.showRaw.title)} <button type="button" class="gi-link" data-act="import-raw-close">Close</button></p><pre>${h(r.showRaw.text)}</pre></div>` : ''), { sub: c.lastCsv ? `Latest export on record: ${dayFull(c.lastCsv.day)}, ${int(c.lastCsv.rows)} rows.` : '' })}
+      <div class="gi-pagehead"><h3>Data Reconciliation</h3><p class="sub">Where membership data comes in. Each upload is reviewed before it is saved, confirmed once it is, and stays in use until you remove it.</p></div>
+      ${receiptView()}
+      ${panel('Uploads', slotsView(), { cls: 'gi-uploads', sub: 'Four lists, one upload each. An upload is only marked Uploaded once it has been saved and read back from storage. To replace one, remove it first.' })}
+      ${r.draft ? panel(r.draft.kind === 'csv' ? 'Review this CSV before saving' : 'Review this pasted list before saving', r.draft.kind === 'csv' ? csvDraftView() : pasteDraftView(), { id: 'gi-draft' }) : ''}
+      ${panel('Import history', importHistory() + (r.showRaw ? `<div class="gi-raw"><p><strong>Original submission</strong> — ${h(r.showRaw.title)} <button type="button" class="gi-link" data-act="import-raw-close">Close</button></p><pre>${h(r.showRaw.text)}</pre></div>` : ''), { sub: `${int((S.db.imports || []).length)} upload${(S.db.imports || []).length === 1 ? '' : 's'} on record. ` + (c.lastCsv ? `Latest export on record: ${dayFull(c.lastCsv.day)}, ${int(c.lastCsv.rows)} rows.` : '') })}
       ${panel(`Possible duplicate accounts (${dupes.length})`, table([
         { label: 'Member', cell: who }, { label: 'Identifier', cell: ident }, { label: 'Joined', cell: (m) => dayLabel(m.joinDay, true) },
         { label: 'Shares a name with', cell: (m) => m.possibleDuplicateOf.map((id) => c.byId.get(id)).filter(Boolean).map((x) => `${who(x)} <small>${ident(x)}, joined ${h(dayLabel(x.joinDay, true))}</small>`).join('<br>') },
@@ -635,6 +706,40 @@ export function adminPages(kit) {
     o[parts[parts.length - 1]] = value;
   }
 
+  const slotFull = (key) => {
+    if (!occupants(key).length) return false;
+    const sl = E.SLOTS.find((x) => x.key === key);
+    S.error = `"${sl.title}" already has an upload. Remove it before uploading another.`;
+    render();
+    return true;
+  };
+
+  function readCsvFile(file) {
+    if (!file) return;
+    if (S.recon.draft) { S.error = 'Finish or discard the upload being reviewed first.'; render(); return; }
+    if (slotFull('csv')) return;
+    if (!/\.csv$/i.test(file.name) && !/csv|text\/plain|excel/i.test(file.type || '')) { S.error = 'That is not a CSV file. Export the member list from Skool as CSV.'; render(); return; }
+    if (file.size > 3_000_000) { S.error = 'That file is larger than 3 MB. Split the export and import it in parts.'; render(); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      const parsed = E.parseCsv(text);
+      if (!parsed.headers.length || !parsed.rows.length) { S.error = 'That file has no rows. Is it the member export from Skool?'; render(); return; }
+      // The file's own modified time is the best first guess at when it was exported.
+      const at = new Date(file.lastModified || Date.now());
+      const local = new Date(at.getTime() - at.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      S.recon.draft = {
+        kind: 'csv', filename: file.name, raw: text, parsed, mapping: E.detectColumns(parsed.headers), decisions: {},
+        observedLocal: local, observedAt: at.toISOString(), hash: E.contentHash(text), label: 'Skool CSV export', rows: [], issues: [],
+      };
+      S.error = ''; S.recon.receipt = null;
+      remapCsv(); render();
+      const d = S.root.querySelector('#gi-draft'); if (d) d.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    };
+    reader.onerror = () => { S.error = 'That file could not be read.'; render(); };
+    reader.readAsText(file);
+  }
+
   /* ============================================================= wiring == */
 
   const manualAdd = (rec, audit) => saveDb((db) => { db.manual = [...(db.manual || []), { id: uid(), at: new Date().toISOString(), ...rec }]; }, audit);
@@ -663,6 +768,7 @@ export function adminPages(kit) {
       window.print();
     },
 
+    'receipt-dismiss': () => { S.recon.receipt = null; render(); },
     'recon-discard': () => { S.recon.draft = null; S.recon.preview = null; render(); },
     'recon-split': (el) => { S.recon.draft.decisions[el.dataset.k] = 'new'; refreshPreview(); render(); },
     'paste-remove': (el) => { const r = S.recon.draft.rows.find((x) => x.k === el.dataset.k); if (r) r.removed = true; refreshPreview(); render(); },
@@ -671,9 +777,12 @@ export function adminPages(kit) {
       const d = S.recon.draft;
       const cand = buildCandidate(d);
       delete cand.id;
-      const ok = await saveImport(cand);
-      if (ok) { S.recon.draft = null; S.recon.preview = null; S.notice = `${d.label} saved: ${cand.rows.length} rows.`; }
+      S.recon.saving = true; S.recon.receipt = null; render();
+      const receipt = await saveImport(cand);
+      S.recon.saving = false;
+      if (receipt) { S.recon.draft = null; S.recon.preview = null; S.recon.receipt = receipt; S.notice = ''; }
       render();
+      if (receipt) { const el2 = S.root.querySelector('.gi-receipt'); if (el2) el2.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
     },
     'import-revert': (el) => { S.recon.confirm = el.dataset.id; render(); },
     'import-revert-no': () => { S.recon.confirm = null; render(); },
@@ -743,28 +852,7 @@ export function adminPages(kit) {
       const m = S.ctx.byId.get(el.dataset.id);
       manualAdd({ type: 'override', memberId: el.dataset.id, field: 'source', value: el.value }, { action: 'source corrected', detail: `${m ? m.name : ''} → ${E.SOURCE_LABELS[el.value]}` });
     },
-    'recon-file': (el) => {
-      const file = el.files && el.files[0];
-      if (!file) return;
-      if (file.size > 3_000_000) { S.error = 'That file is larger than 3 MB. Split the export and import it in parts.'; render(); return; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const text = String(reader.result || '');
-        const parsed = E.parseCsv(text);
-        if (!parsed.headers.length || !parsed.rows.length) { S.error = 'That file has no rows. Is it the member export from Skool?'; render(); return; }
-        // The file's own modified time is the best first guess at when it was exported.
-        const when = new Date(file.lastModified || Date.now());
-        const local = new Date(when.getTime() - when.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        S.recon.draft = {
-          kind: 'csv', filename: file.name, raw: text, parsed, mapping: E.detectColumns(parsed.headers), decisions: {},
-          observedLocal: local, observedAt: when.toISOString(), hash: E.contentHash(text), label: 'Skool CSV export', rows: [], issues: [],
-        };
-        S.error = '';
-        remapCsv(); render();
-      };
-      reader.onerror = () => { S.error = 'That file could not be read.'; render(); };
-      reader.readAsText(file);
-    },
+    'recon-file': (el) => { readCsvFile(el.files && el.files[0]); },
     'recon-map': (el) => {
       const d = S.recon.draft;
       if (el.value === '') delete d.mapping[el.dataset.field]; else d.mapping[el.dataset.field] = Number(el.value);
@@ -840,6 +928,8 @@ export function adminPages(kit) {
       const text = form.elements.text.value;
       if (!text.trim()) return;
       const context = form.dataset.context;
+      if (S.recon.draft) { S.error = 'Finish or discard the upload being reviewed first.'; render(); return; }
+      if (slotFull(context)) return;
       const local = nowLocalInput();
       const observedAt = toIso(local);
       const rows = E.parsePaste(text, { pastedDay: E.dayIn(observedAt, S.ctx.settings.timezone), defaultStatus: context });
@@ -848,10 +938,11 @@ export function adminPages(kit) {
         kind: 'paste', raw: text, rows, decisions: {}, context, observedLocal: local, observedAt, hash: E.contentHash(text),
         label: { active_trial: 'Active trials', canceling: 'Canceling members', churned: 'Churned members' }[context] || 'Pasted membership status',
       };
-      S.error = '';
+      S.error = ''; S.recon.receipt = null;
       refreshPreview(); render();
+      const dEl = S.root.querySelector('#gi-draft'); if (dEl) dEl.scrollIntoView({ block: 'start', behavior: 'smooth' });
     },
   };
 
-  return { members, ai, report, recon, settings, actions, changes, submits };
+  return { members, ai, report, recon, settings, actions, changes, submits, dropFile: readCsvFile };
 }

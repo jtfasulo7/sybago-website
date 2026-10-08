@@ -354,6 +354,28 @@ export function contentHash(text) {
   return (h >>> 0).toString(16).padStart(8, '0') + '-' + s.length.toString(36);
 }
 
+/* ---------------------------------------------------------------- slots -- */
+
+/**
+ * The four things that get uploaded, each of which holds ONE upload at a time.
+ * A slot must be emptied (its upload removed) before it takes another, so what
+ * the dashboard is working from is always exactly what is shown as uploaded.
+ */
+export const SLOTS = [
+  { key: 'csv', title: 'Skool member CSV', kicker: 'Everyone currently in the community', noun: 'CSV file' },
+  { key: 'active_trial', title: 'Active trials', kicker: 'On a free trial right now', noun: 'pasted list' },
+  { key: 'canceling', title: 'Canceling members', kicker: 'Asked to cancel — still in the community', noun: 'pasted list' },
+  { key: 'churned', title: 'Churned members', kicker: 'Fully churned — no longer in the community', noun: 'pasted list' },
+];
+const SLOT_KEYS = new Set(SLOTS.map((s) => s.key));
+
+/** Which slot an import occupies, or null for one that predates the slots. */
+export function slotOf(imp) {
+  if (!imp) return null;
+  if (imp.kind === 'csv') return 'csv';
+  return imp.kind === 'paste' && SLOT_KEYS.has(imp.context) && imp.context !== 'csv' ? imp.context : null;
+}
+
 /* ---------------------------------------------------------------- paste -- */
 
 export const STATUSES = [

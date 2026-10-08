@@ -22,8 +22,8 @@
 
 import crypto from 'node:crypto';
 import { requireSession, noStore } from '../lib/auth.js';
-import { loadDb, saveDb, loadImport, saveImport, deleteImport, storeStatus, ID_RE } from '../lib/growth/store.js';
-import { withDefaults, emptyDb, SOURCES, STATUSES, EVENT_LABEL, isDay } from '../assets/growth/engine.js';
+import { loadDb, saveDb, loadImport, saveImport, deleteImport, listImportBlobs, storeStatus, ID_RE } from '../lib/growth/store.js';
+import { withDefaults, emptyDb, SOURCES, STATUSES, SLOTS, slotOf, isDay } from '../assets/growth/engine.js';
 
 const MAX_ROWS = 20000;
 const MAX_RAW = 3_000_000;
@@ -173,6 +173,54 @@ function sanitiseManual(list) {
   return out;
 }
 
+const indexEntry = (imp) => ({
+  id: imp.id, kind: imp.kind, observedAt: imp.observedAt, filename: imp.filename || null, label: imp.label, context: imp.context || null,
+  hash: imp.hash || null, rowCount: (imp.rows || []).length, note: imp.note || null, createdAt: imp.createdAt || null, reverted: null,
+});
+const describe = (e) => `${e.label || e.kind}${e.filename ? ` (${e.filename})` : ''}: ${e.rowCount} rows, dated ${String(e.observedAt).slice(0, 10)}`;
+const conflict = (res, db) => res.status(409).json({
+  error: 'conflict',
+  message: 'This data was changed somewhere else after you opened it. The page has been brought up to date — check the list, then try again.',
+  db,
+});
+
+/* An import written to storage longer ago than this, that the index does not
+   name and nobody removed, was dropped by a failed or overtaken save. */
+const ORPHAN_AGE_MS = 90 * 1000;
+
+/**
+ * Put back imports that are in storage but missing from the index.
+ *
+ * The import object is written before the index names it, so an index save
+ * that fails — or, in the first version of this store, one that was overtaken
+ * by a stale read — leaves the upload safely stored and invisible. This finds
+ * those and restores them, and says so in the audit trail. It never touches an
+ * import somebody removed on purpose: removals are remembered by id.
+ */
+export async function recoverOrphans(db, session) {
+  const known = new Set((db.imports || []).map((i) => i.id));
+  const removed = new Set(db.removed || []);
+  const blobs = await listImportBlobs();
+  const lost = blobs.filter((b) => !known.has(b.id) && !removed.has(b.id) && Date.now() - b.uploadedAt > ORPHAN_AGE_MS);
+  if (!lost.length) return { db, recovered: [] };
+
+  const entries = [];
+  for (const b of lost) {
+    const imp = await loadImport(b.id).catch(() => null);
+    if (imp && imp.id === b.id && Array.isArray(imp.rows)) entries.push({ ...indexEntry(imp), recovered: new Date().toISOString() });
+  }
+  if (!entries.length) return { db, recovered: [] };
+  const next = {
+    ...db,
+    imports: [...(db.imports || []), ...entries],
+    audit: [...(db.audit || []), ...entries.map((e) => auditEntry(session, 'import recovered', `${describe(e)} — it was stored but missing from the list`))].slice(-2000),
+    version: (Number(db.version) || 0) + 1,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveDb(next);
+  return { db: next, recovered: entries.map((e) => e.id) };
+}
+
 const auditEntry = (session, action, detail) => ({ at: new Date().toISOString(), by: session.role, action: line(action, 60), detail: line(detail, 400) });
 
 export default async function handler(req, res) {
@@ -195,8 +243,13 @@ export default async function handler(req, res) {
         if (!(req.query && req.query.raw)) { const { raw, ...rest } = imp; return res.status(200).json({ import: rest }); }
         return res.status(200).json({ import: imp });
       }
-      const db = await loadDb();
-      return res.status(200).json({ db: db || emptyDb(), store, saved: !!db });
+      let db = await loadDb();
+      let recovered = [];
+      if (db) {
+        // Never let a recovery problem stop the page from loading what it has.
+        try { const r = await recoverOrphans(db, session); db = r.db; recovered = r.recovered; } catch { /* reported next load */ }
+      }
+      return res.status(200).json({ db: db || emptyDb(), store, saved: !!db, recovered });
     } catch (e) {
       return res.status(502).json({ error: 'store_error', message: e.message, store });
     }
@@ -209,14 +262,16 @@ export default async function handler(req, res) {
     try {
       const current = (await loadDb()) || emptyDb();
       if (Number(req.query.baseVersion) !== Number(current.version || 0)) {
-        return res.status(409).json({ error: 'conflict', message: 'This data was changed somewhere else after you opened it. Reload to see that version, then try again.', db: current });
+        return conflict(res, current);
       }
       const entry = (current.imports || []).find((i) => i.id === id);
       if (!entry) return res.status(404).json({ error: 'not_found', message: 'That import does not exist. It may already have been removed.' });
       const next = {
         ...current,
         imports: current.imports.filter((i) => i.id !== id),
-        audit: [...(current.audit || []), auditEntry(session, 'import removed', `${entry.label || entry.kind}${entry.filename ? ` (${entry.filename})` : ''}: ${entry.rowCount} rows, dated ${String(entry.observedAt).slice(0, 10)} — deleted permanently`)].slice(-2000),
+        // Remembered so a removed import can never be "recovered" back into the list.
+        removed: [...(current.removed || []), id].slice(-5000),
+        audit: [...(current.audit || []), auditEntry(session, 'import removed', `${describe(entry)} — deleted permanently`)].slice(-2000),
         version: (Number(current.version) || 0) + 1,
         updatedAt: new Date().toISOString(),
       };
@@ -226,6 +281,7 @@ export default async function handler(req, res) {
       await deleteImport(id).catch(() => {});
       return res.status(200).json({ db: next, removed: id, store, saved: true });
     } catch (e) {
+      if (e.code === 'conflict') return conflict(res, await loadDb().catch(() => null));
       return res.status(502).json({ error: 'store_error', message: e.message, store });
     }
   }
@@ -245,11 +301,7 @@ export default async function handler(req, res) {
     /* Two people importing at once must not silently drop one another's work:
        the second is told, and reloads onto the version that won. */
     if (Number(body.baseVersion) !== Number(current.version || 0)) {
-      return res.status(409).json({
-        error: 'conflict',
-        message: 'This data was changed somewhere else after you opened it. Reload to see that version, then try again.',
-        db: current,
-      });
+      return conflict(res, current);
     }
 
     if (req.method === 'POST') {
@@ -257,6 +309,19 @@ export default async function handler(req, res) {
       let imp;
       try { imp = sanitiseImport(body.import); } catch (e) {
         return res.status(400).json({ error: 'bad_import', message: e.message });
+      }
+      /* One upload per slot. The page hides the uploader for a slot that is
+         full, and this is the rule itself: a second upload is refused until
+         the first has been removed. */
+      const slot = slotOf(imp);
+      const holder = slot ? (current.imports || []).find((i) => slotOf(i) === slot) : null;
+      if (holder) {
+        const s = SLOTS.find((x) => x.key === slot);
+        return res.status(409).json({
+          error: 'slot_occupied',
+          message: `"${s.title}" already has an upload (${holder.filename || holder.label}, saved ${String(holder.createdAt || holder.observedAt).slice(0, 10)}). Remove it before uploading another.`,
+          db: current,
+        });
       }
       imp.id = `imp-${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;
       imp.createdAt = new Date().toISOString();
@@ -266,21 +331,36 @@ export default async function handler(req, res) {
       // other order would leave an index pointing at an import that is not there.
       await saveImport(imp);
 
-      const entry = {
-        id: imp.id, kind: imp.kind, observedAt: imp.observedAt, filename: imp.filename, label: imp.label, context: imp.context,
-        hash: imp.hash, rowCount: imp.rows.length, note: imp.note, createdAt: imp.createdAt, reverted: null,
-      };
+      const entry = indexEntry(imp);
       const next = {
         ...current,
         settings: sanitiseSettings(current.settings),
         imports: [...(current.imports || []), entry],
-        audit: [...(current.audit || []), auditEntry(session, 'import saved', `${imp.label}${imp.filename ? ` (${imp.filename})` : ''}: ${imp.rows.length} rows, dated ${imp.observedAt.slice(0, 10)}`)].slice(-2000),
+        audit: [...(current.audit || []), auditEntry(session, 'import saved', describe(entry))].slice(-2000),
         version: (Number(current.version) || 0) + 1,
         updatedAt: new Date().toISOString(),
       };
       await saveDb(next);
+
+      /* PROVE IT. Read both objects back from storage before telling anybody
+         the upload is saved: the index must name this import, and the import
+         must be there with every row. "Saved" on this page means this check
+         passed, not that a write call returned. */
+      const [checkDb, checkImp] = await Promise.all([loadDb(), loadImport(imp.id)]);
+      const listed = !!(checkDb && (checkDb.imports || []).some((i) => i.id === imp.id));
+      const intact = !!(checkImp && checkImp.id === imp.id && Array.isArray(checkImp.rows) && checkImp.rows.length === imp.rows.length);
+      if (!listed || !intact) {
+        return res.status(502).json({
+          error: 'not_confirmed',
+          message: 'The upload was sent but could not be confirmed in storage, so it is NOT being treated as saved. Reload the page and check the import history before trying again.',
+          db: checkDb || current,
+        });
+      }
       const { raw, ...rest } = imp;
-      return res.status(200).json({ db: next, import: rest, store, saved: true });
+      return res.status(200).json({
+        db: checkDb, import: rest, store, saved: true,
+        receipt: { id: imp.id, slot, label: imp.label, filename: imp.filename, rows: imp.rows.length, savedAt: imp.createdAt, version: checkDb.version, verified: true },
+      });
     }
 
     // PUT — settings, corrections, and the revert / restore flag on an import.
@@ -303,12 +383,14 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString(),
       settings: sanitiseSettings(incoming.settings || current.settings),
       imports,
+      removed: current.removed || [],
       manual: sanitiseManual(incoming.manual !== undefined ? incoming.manual : current.manual),
       audit: [...(current.audit || []), ...appended].slice(-2000),
     };
     await saveDb(next);
     return res.status(200).json({ db: next, store, saved: true });
   } catch (e) {
+    if (e.code === 'conflict') return conflict(res, await loadDb().catch(() => null));
     return res.status(502).json({ error: 'store_error', message: e.message, store });
   }
 }

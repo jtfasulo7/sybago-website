@@ -1413,31 +1413,77 @@ days apart and reported a 62% conversion rate against a simulated 46% — the en
 about what it could see. **Export at least weekly**, and paste the ended-trial and churned
 lists, or the rate reads high.
 
-### Storage
+### Storage — NOTHING IS EVER OVERWRITTEN
 
 Three kinds of object under `growth/`, all through `lib/secure-store` (namespace
 `peps-growth-intelligence` — do not change it; it is the key):
 
-- `growth/db.enc` — settings, import index, manual records, audit trail. Versioned; a stale
-  save is a 409 handing back the winner, exactly as the ledger does.
+- `growth/db/v<version>-<time>-<rand>.enc` — settings, import index, manual records, audit
+  trail. **One new object per save.** The current one is the highest version in a LISTING.
 - `growth/imports/<id>.enc` — one per import: normalised rows **and the original text as
   submitted**. Written once and never edited; deleted only by the explicit Remove action.
-- `growth/meta.enc` — the daily per-ad history.
+- `growth/meta/<time>-<rand>.enc` — the daily per-ad history, a new object per sync.
 
-- **Imports are separate objects because a request body is capped at 4.5 MB.** One document
-  holding every CSV would eventually stop saving, on the day there was most to lose.
-- **The import blob is written before the index names it.** A failure between the two leaves
-  an unreferenced blob, which loses nothing; the other order leaves an index pointing at
-  nothing.
+**This replaced a fixed path, and the fixed path lost people's uploads.** The index used to
+live at `growth/db.enc` and was overwritten on every save. Vercel Blob serves objects through
+a CDN that keeps an overwritten object's OLD bytes for up to a minute, whatever
+`cacheControlMaxAge` asks for. So a save that followed another inside that minute read the
+previous index, added its import to THAT, and wrote it back — dropping the import saved a
+moment before. Uploads "worked", the import history showed fewer imports than had been made,
+and it changed again on refresh as the cache caught up.
+
+- **A URL that has never existed cannot be served stale.** `saveDb()` writes a new name;
+  `loadDb()` asks the Blob API (not the CDN) to list `growth/db/` and reads the top one.
+  `secure.writeNew / listBlobs / readUrl` are the write-once helpers. **Do not "simplify" this
+  back to `saveJson()` on one path** — that is the bug. `lib/finance/store.js` still uses a
+  fixed path and has the same latent problem; it survives because one person saves it rarely.
+- **The test stub models the CDN**: an overwritten path keeps serving its first bytes, and
+  the suite asserts no `growth/` path is ever written twice. A fix that only happened to work
+  against an idealised store would not have been a fix.
+- **A second writer at the same version always backs out** (409), never wins on a tie-break:
+  the first has already listed, seen nobody, and reported success.
+- `growth/db.enc` and `growth/meta.enc` are still READ, once, as a starting point when no
+  versioned object exists. They are never written again.
+- The last 12 index versions and 3 Meta versions are kept; older ones are pruned.
+
+**Lost uploads are recovered.** The import object is written before the index names it, so
+the old bug left uploads stored and invisible. On every load `recoverOrphans()` lists
+`growth/imports/`, and anything the index does not name, that nobody removed, and that is
+older than 90 seconds (younger may be a save still in flight) is put back with a
+`recovered` stamp and an audit entry. **Removed ids are remembered in `db.removed`** so a
+deliberate removal can never be "recovered" back.
+
+**"Saved" means read back.** After writing, the POST loads the index and the import out of
+storage again and only answers 200 — with a `receipt` — if the index names the import and
+every row is there. Otherwise it answers 502 `not_confirmed` and says it is NOT saved. The
+page then makes a second, separate GET, the way a refresh would, and shows the receipt only
+if the import is in that list too.
+
+- **Imports are separate objects because a request body is capped at 4.5 MB.**
 - **A PUT cannot add or remove imports and cannot rewrite the audit trail** — it may flip
-  `reverted` and append audit entries. Tested: a PUT sending empty arrays changes nothing.
-- **Two ways to take an import out, and they are different on purpose.** *Reverse* flags it:
-  out of every figure, kept on file, restorable. *Remove* is `DELETE ?import=<id>`: it names
-  ONE import, drops it from the index, deletes its blob, and writes an audit entry saying so.
-  It is permanent. Each row in Import history has its own Remove button with a second
-  confirming click. Removal can only happen through that explicit call — never as a side
-  effect of a save — and a stale `baseVersion` refuses it without removing anything.
+  `reverted` and append audit entries, and it carries `removed` through untouched.
+- **Two ways to take an import out.** *Reverse* flags it: out of every figure, kept on file,
+  restorable. *Remove* is `DELETE ?import=<id>`: one import, gone for good, audited.
 - The original text is only served with `?raw=1`; nothing but an audit reads it.
+
+### One upload per list
+
+Data Reconciliation has four slots — `E.SLOTS`: the Skool CSV, active trials, canceling
+members, churned members — and **each holds one upload at a time**. `slotOf(import)` says
+which. A full slot shows "Uploaded", the file, its row count and dates, and a Remove button;
+its uploader is not rendered. The server enforces it too (409 `slot_occupied`).
+
+- **This is the owner's explicit rule, and it has a cost worth knowing**: with one CSV at a
+  time there is no second snapshot to compare against, so "missing from export", returns
+  between exports, price changes and LTV deltas — everything the replay learns by diffing two
+  CSVs — only appears if an older import is still in the list. Departures now come from the
+  canceling and churned lists. The engine still supports multiple snapshots; the slot rule is
+  one check in the POST and one in the page. If history across exports is wanted back, relax
+  it for the `csv` slot there and nowhere else.
+- Imports from the older combined "ended trials and churned" box have context `unknown`,
+  occupy no slot, and show only in Import history.
+- A slot can hold more than one upload from before the rule (or after a recovery); it lists
+  them all and stays closed until every one is removed.
 
 ### The Meta sync
 
@@ -1517,13 +1563,35 @@ The CAC-versus-LTV recommendation is judged on the last four **settled** weekly 
 the report week's own: that cohort is still mid-trial and its cost per customer reads far too
 high.
 
-### Theming
+### Theming and brand
 
-A third palette — forest green, sage, cream, white, charcoal — scoped to
-`:root[data-view="dave"][data-pane="growth"]` in `dashboard.html`, beside the other two.
-`showPane()` sets `data-pane` on the root. Every token is restated, for the reason the
-Theming section above gives. `growth.css` reads tokens and hardcodes no colour; the chart
-palette is the `C` object in `ui.js`, because a canvas cannot resolve `var()`.
+Taken from the Peps by Dave brand lockup: deep green `#123B31` carrying cream `#F3EEE2`
+type, a cream panel beside it, **Fraunces** for display with the last word in italics,
+**Manrope** for everything read or counted, ticked lists.
+
+- The palette is a third token block, `:root[data-view="dave"][data-pane="growth"]` in
+  `dashboard.html`, beside the other two; `showPane()` sets `data-pane`. Every token is
+  restated. `--ff` and `--ff-display` are tokens there too, so the page nav and sub-tabs
+  change typeface with the pane.
+- **The two fonts are requested by `ui.js` on first open**, so only this tab pays for them.
+- `growth.css` reads tokens; its last section ("BRAND PASS") restyles the components above
+  it. The chart palette is the `C` object in `ui.js`, because a canvas cannot resolve `var()`.
+- **This pane uses the full width.** `main` drops its 1400px column and wide gutters while
+  `data-pane="growth"` — in `dashboard.html`, not `growth.css`, so the pane does not jump
+  sideways when the stylesheet arrives.
+
+**The navigator is a rail that opens on hover.** Closed: 60px of section numbers. Hovered, or
+focused from the keyboard: it slides open to 252px over the page.
+
+- **It overlays, it does not push.** The grid column stays 60px and the rail is absolutely
+  positioned, so nothing reflows and no chart redraws as the pointer passes.
+- **`:has(:focus-visible)`, not `:focus-within`.** A mouse click focuses the button too, and
+  `:focus-within` then holds the rail open after the pointer has left.
+- **Not gated on `(hover:hover)`.** Browsers under-report it; a gate leaves some desktops
+  with a rail that never collapses. Every screen ≥1081px gets it, and only
+  `(hover:none) and (pointer:coarse)` — a tablet — is switched back to always-open.
+- The close is delayed 160ms so it does not snap shut when the pointer drifts off on the way
+  to a link. Below 1081px the rail is replaced by the `<select>`.
 
 ### Demonstration data
 

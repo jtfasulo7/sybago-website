@@ -142,17 +142,22 @@
    and read these tokens; the colours themselves live here, with the others.
    -------------------------------------------------------------------------- */
 :root[data-view="dave"][data-pane="growth"] {
-  --accent:#1F5A45; --accent-b:#2C7358; --accent-d:#123B31;
-  --accent-rgb:31,90,69; --accent-b-rgb:44,115,88;
+  /* Taken from the Peps by Dave brand lockup: its deep green, its cream, and
+     its two typefaces — Fraunces for display, Manrope for everything read. */
+  --accent:#17483A; --accent-b:#1F5A45; --accent-d:#123B31;
+  --accent-rgb:23,72,58; --accent-b-rgb:31,90,69;
+  --brand-green:#123B31; --brand-green-2:#0E2F27; --brand-cream:#F3EEE2; --brand-sage:#A7CBB7;
+  --ff:'Manrope', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ff-display:'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --neg-rgb:163,58,38; --warn-rgb:138,90,0;
 
   /* Charcoal with a little green in it, so it sits with the forest accent. */
   --t1:#1E2622; --t2:rgba(30,38,34,.74); --t3:rgba(30,38,34,.56); --t4:rgba(30,38,34,.08);
 
-  --ground:#F5F1E7; --ground-2:#EDE8DA;
+  --ground:#F3EEE2; --ground-2:#EBE5D6;
   --surface:rgba(255,255,255,.80); --surface-solid:#ffffff; --surface-rgb:255,255,255; --surface-hover:#ffffff;
   --hairline:rgba(18,59,49,.13); --hairline-2:rgba(255,255,255,.9);
-  --nav-bg:rgba(245,241,231,.86);
+  --nav-bg:rgba(243,238,226,.88);
   --legend-bg:rgba(255,255,255,.9);
   --thead-bg:rgba(250,248,242,.97);
   --on-accent:#ffffff;
@@ -169,6 +174,14 @@
   --kpi-bad:#A33A26;  --kpi-bad-bg:rgba(163,58,38,.10);
 
   color-scheme: light;
+}
+
+/* Growth Intelligence uses the width of the screen. The other panes sit in a
+   1400px column with wide gutters, which on a large display pushes this pane's
+   navigator and hero in from the left edge for no reason. Stated here rather
+   than in growth.css so the pane does not jump sideways when that file loads. */
+@media (min-width:881px) {
+  :root[data-view="dave"][data-pane="growth"] main { max-width:none; padding-left:1.1rem; padding-right:1.4rem; }
 }
 
 html, body { max-width:100%; overflow-x:hidden; overscroll-behavior-x:none; }
