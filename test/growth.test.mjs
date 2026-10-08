@@ -26,7 +26,8 @@ const auth = await import('../lib/auth.js');
 const store = await import('../lib/growth/store.js');
 const { default: growth, sanitiseImport } = await import('../api/growth.js');
 const { default: growthMeta } = await import('../api/growth-meta.js');
-const { default: growthAi, shapeAnswer } = await import('../api/growth-ai.js');
+const { default: growthAi, shapeAnswer, shapeReport } = await import('../api/growth-ai.js');
+const prompts = await import('../lib/growth/analyst-prompt.js');
 const { mergeDaily, shapeDaily } = await import('../lib/growth/meta-sync.js');
 
 let pass = 0;
@@ -740,6 +741,7 @@ store.useBlobClient({
 const realFetch = globalThis.fetch;
 let metaCalls = [];
 let modelCalls = 0;
+let lastModelRequest = null;
 globalThis.fetch = async (url, init) => {
   const u = String(url);
   if (u.startsWith('https://blob.test/')) { const v = mem.get(u.replace('https://blob.test/', '')); return new Response(v || '', { status: v ? 200 : 404 }); }
@@ -755,6 +757,11 @@ globalThis.fetch = async (url, init) => {
   }
   if (u.includes('api.anthropic.com')) {
     modelCalls++;
+    const sent = JSON.parse(init.body);
+    lastModelRequest = sent;
+    if (sent.tool_choice.name === 'write_report') {
+      return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'write_report', input: { verdict: 'wildly-profitable', headline: 'Net cash was $1,200.', summary: 'A.\n\nB.', sections: [{ heading: 'Ad performance', body: 'Spend was $700.' }, { heading: '', body: 'dropped' }], recommendations: [{ action: 'Hold budget', reason: 'x', priority: 'urgent' }, { reason: 'no action' }], caveats: ['Trials unresolved', ''] } }] }), { status: 200 });
+    }
     return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'answer_question', input: { answer: 'Spend was $700.', basis: [{ kind: 'verified', text: 'x' }, { kind: 'made-up', text: 'y' }], confidence: 'high' } }] }), { status: 200 });
   }
   return realFetch(url, init);
@@ -830,6 +837,29 @@ await t('settings and manual records from the browser are clamped and filtered',
   assert.deepEqual([s.timezone, s.trialDays, s.fees.platformPct, s.reportEmail, s.plans[0].price, s.plans[0].interval], ['America/New_York', 90, 100, '', 0, 'month']);
   assert.equal(r.body.db.manual.length, 1);
 });
+await t('one import can be removed permanently, by name, and the removal is audited', async () => {
+  const add = await call(growth, { method: 'POST', body: { op: 'import', import: { ...goodImport(), filename: 'second.csv' }, baseVersion: 5 } });
+  assert.equal(add.code, 200);
+  const second = add.body.import.id;
+  assert.ok(mem.has(`growth/imports/${second}.enc`));
+  const stale = await call(growth, { method: 'DELETE', query: { import: second, baseVersion: '5' } });
+  assert.equal(stale.code, 409);
+  assert.ok(mem.has(`growth/imports/${second}.enc`));     // a refused removal removes nothing
+  const gone = await call(growth, { method: 'DELETE', query: { import: second, baseVersion: '6' } });
+  assert.equal(gone.code, 200);
+  assert.deepEqual(gone.body.db.imports.map((i) => i.id), [importId]);   // only the one named
+  assert.ok(!mem.has(`growth/imports/${second}.enc`));
+  assert.ok(mem.has(`growth/imports/${importId}.enc`));
+  assert.match(gone.body.db.audit[gone.body.db.audit.length - 1].action, /import removed/);
+  assert.match(gone.body.db.audit[gone.body.db.audit.length - 1].detail, /second\.csv/);
+  assert.equal((await call(growth, { method: 'GET', query: { import: second } })).code, 404);
+});
+await t('removal needs a session, a real id and an existing import', async () => {
+  assert.equal((await call(growth, { method: 'DELETE', headers: {}, query: { import: importId, baseVersion: '7' } })).code, 401);
+  assert.equal((await call(growth, { method: 'DELETE', query: { baseVersion: '7' } })).code, 400);
+  assert.equal((await call(growth, { method: 'DELETE', query: { import: 'imp-does-not-exist', baseVersion: '7' } })).code, 404);
+  assert.ok(mem.has(`growth/imports/${importId}.enc`));
+});
 await t('a bad import is rejected with a reason', () => {
   assert.throws(() => sanitiseImport({ kind: 'xml', rows: [] }), /CSV or a pasted block/);
   assert.throws(() => sanitiseImport({ kind: 'csv', observedAt: '2026-10-01T00:00:00Z', rows: [{}] }), /identified/);
@@ -880,6 +910,47 @@ await t('with no data there is no model call', async () => {
   modelCalls = 0;
   const r = await call(growthAi, { method: 'POST', body: { question: 'Anything?', digest: { membersByStatus: {}, dataCoverage: {} } } });
   assert.equal(r.body.skipped, 'no_data'); assert.equal(modelCalls, 0);
+});
+await t('the report digest covers ads, membership, cancellations, churn and money for the chosen period', () => {
+  const d = E.buildReportDigest(dctx, '2026-10-01', '2026-10-07');
+  assert.deepEqual(d.period, { from: '2026-10-01', to: '2026-10-07', days: 7 });
+  assert.deepEqual(d.previousPeriod, { from: '2026-09-24', to: '2026-09-30' });
+  const whole = E.periodSummary(dctx, '2026-10-01', '2026-10-07').activity;
+  assert.equal(d.advertising.period.spend, whole.spend);
+  assert.equal(d.membership.period.newSignups, whole.joins);
+  assert.equal(d.membership.period.cancellationsRequestedStillMembers, whole.cancelRequests);
+  assert.equal(d.membership.period.paidMembersChurned, whole.churn);
+  assert.equal(d.money.period.netCashContribution, whole.netCash);
+  assert.ok(d.advertising.ads.length > 0 && d.daily.rows.length === 7);
+  assert.ok('scheduledToEndFromCancelingMembers' in d.money.mrr);
+  const text = JSON.stringify(d);
+  assert.ok(!/@example\.com/.test(text) && !text.includes('Chris Martin'));   // no member names or emails
+  assert.ok(text.length < 400000);
+});
+await t('the report is requested through its own tool with the shared hard rules, and shaped on the way back', async () => {
+  modelCalls = 0;
+  const r = await call(growthAi, { method: 'POST', body: { report: true, digest: E.buildReportDigest(dctx, '2026-10-01', '2026-10-07') } });
+  assert.equal(r.code, 200); assert.equal(modelCalls, 1);
+  assert.equal(lastModelRequest.tool_choice.name, 'write_report');
+  assert.match(lastModelRequest.system, /Never invent a number/);
+  assert.match(lastModelRequest.system, /never added together/);
+  assert.match(lastModelRequest.messages[0].content, /2026-10-01 to 2026-10-07/);
+  assert.equal(r.body.report.verdict, 'unclear');                       // an invented verdict falls back
+  assert.equal(r.body.report.sections.length, 1);                       // a section with no heading is dropped
+  assert.deepEqual(r.body.report.recommendations, [{ action: 'Hold budget', reason: 'x', priority: 'medium' }]);
+  assert.deepEqual(r.body.report.caveats, ['Trials unresolved']);
+});
+await t('the report prompt keeps every hard rule of the analyst and sets no page limit', () => {
+  const sys = prompts.reportSystem(7);
+  for (const rule of ['No member is attributed to a specific ad', 'A trial ending is not a payment', '"canceling" members have ASKED to cancel']) assert.ok(sys.includes(rule), rule);
+  assert.ok(!sys.includes('HOW TO ANSWER'));
+  assert.ok(!/under \d+ words|no more than \d+/i.test(sys));
+});
+await t('a report with no data is not a model call, and an empty report is an error', async () => {
+  modelCalls = 0;
+  const r = await call(growthAi, { method: 'POST', body: { report: true, digest: { membersByStatus: {}, dataCoverage: {} } } });
+  assert.equal(r.body.report, null); assert.equal(modelCalls, 0);
+  assert.throws(() => shapeReport({ sections: [] }), /empty/);
 });
 await t('an empty answer is an error, not a blank panel', () => assert.throws(() => shapeAnswer({ answer: '  ', basis: [] }), /empty/));
 

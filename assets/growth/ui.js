@@ -88,7 +88,7 @@ export function insightList(items) {
 const PAGES = [
   ['overview', 'Overview'], ['timeline', 'Growth Timeline'], ['ads', 'Meta Ads'], ['members', 'Member Analytics'],
   ['trials', 'Free Trial Tracking'], ['revenue', 'Revenue & MRR'], ['retention', 'Retention & Churn'], ['cohorts', 'Cohort Analysis'],
-  ['profit', 'Profitability'], ['ai', 'AI Insights'], ['recon', 'Data Reconciliation'], ['settings', 'Settings'],
+  ['profit', 'Profitability'], ['ai', 'AI Insights'], ['report', 'Report'], ['recon', 'Data Reconciliation'], ['settings', 'Settings'],
 ];
 
 export const S = {
@@ -243,6 +243,7 @@ export function setDemo(on) {
   }
   S.demo = on;
   S.settingsDraft = null;
+  S.report = null;
   S.members.sel = null; S.ads.sel = null; S.timeline.ids = []; S.recon = { mode: null, draft: null, preview: null, showRaw: null }; S.ai.log = []; S.ai.report = null; S.be = null;
   S.error = ''; S.notice = '';
   rebuild(); render();
@@ -1083,7 +1084,7 @@ const admin = adminPages(kit);
 const ALL_PAGES = {
   overview: overviewPage, timeline: timelinePage, ads: adsPage, trials: trialsPage, revenue: revenuePage,
   retention: retentionPage, cohorts: cohortsPage, profit: profitPage,
-  members: admin.members, ai: admin.ai, recon: admin.recon, settings: admin.settings,
+  members: admin.members, ai: admin.ai, report: admin.report, recon: admin.recon, settings: admin.settings,
 };
 
 function go(page) {

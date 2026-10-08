@@ -42,5 +42,10 @@
       "path": "/api/growth-report?cron=1",
       "schedule": "0 13 * * 1"
     }
-  ]
+  ],
+  "functions": {
+    "api/growth-ai.js": {
+      "maxDuration": 120
+    }
+  }
 }

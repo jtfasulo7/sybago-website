@@ -5,21 +5,24 @@
 //   GET  ?import=<id>&raw=1  -> { import }             ...with the original submitted text, for audit
 //   POST { op:'import', import, baseVersion }          add an import (a CSV or a pasted block)
 //   PUT  { db, baseVersion, audit }                    save settings, corrections, revert/restore flags
+//   DELETE ?import=<id>&baseVersion=<n>                remove one import permanently
 //
 // NOTHING HERE COMPUTES A FIGURE. Member history is replayed from the imports
 // by assets/growth/engine.js, in the browser and in the weekly-report cron
 // alike. This endpoint only guards what is allowed into storage:
 //
-//   - An import is written ONCE. There is no update and no delete: reversing a
-//     bad import sets a flag in the index, and the evidence stays where it was.
+//   - An import is written ONCE and never edited. Reversing one sets a flag in
+//     the index and keeps the evidence; REMOVING one is a separate, explicit
+//     DELETE that names a single import and deletes it for good.
 //   - A PUT cannot add or remove imports, and cannot rewrite the audit trail —
-//     it may only append to it.
+//     it may only append to it. Removal therefore cannot happen as a side
+//     effect of saving something else, and the removal itself is audited.
 //   - Everything from the browser is rebuilt field by field. This is a login-
 //     gated tool, and it is also a write path into a storage bill.
 
 import crypto from 'node:crypto';
 import { requireSession, noStore } from '../lib/auth.js';
-import { loadDb, saveDb, loadImport, saveImport, storeStatus, ID_RE } from '../lib/growth/store.js';
+import { loadDb, saveDb, loadImport, saveImport, deleteImport, storeStatus, ID_RE } from '../lib/growth/store.js';
 import { withDefaults, emptyDb, SOURCES, STATUSES, EVENT_LABEL, isDay } from '../assets/growth/engine.js';
 
 const MAX_ROWS = 20000;
@@ -199,8 +202,36 @@ export default async function handler(req, res) {
     }
   }
 
+  if (req.method === 'DELETE') {
+    if (!store.configured) return res.status(503).json({ error: 'store_unavailable', message: store.hint, store });
+    const id = String((req.query && req.query.import) || '');
+    if (!ID_RE.test(id)) return res.status(400).json({ error: 'bad_request', message: 'Name one import to remove.' });
+    try {
+      const current = (await loadDb()) || emptyDb();
+      if (Number(req.query.baseVersion) !== Number(current.version || 0)) {
+        return res.status(409).json({ error: 'conflict', message: 'This data was changed somewhere else after you opened it. Reload to see that version, then try again.', db: current });
+      }
+      const entry = (current.imports || []).find((i) => i.id === id);
+      if (!entry) return res.status(404).json({ error: 'not_found', message: 'That import does not exist. It may already have been removed.' });
+      const next = {
+        ...current,
+        imports: current.imports.filter((i) => i.id !== id),
+        audit: [...(current.audit || []), auditEntry(session, 'import removed', `${entry.label || entry.kind}${entry.filename ? ` (${entry.filename})` : ''}: ${entry.rowCount} rows, dated ${String(entry.observedAt).slice(0, 10)} — deleted permanently`)].slice(-2000),
+        version: (Number(current.version) || 0) + 1,
+        updatedAt: new Date().toISOString(),
+      };
+      // The index stops naming it first. If deleting the blob then fails, what
+      // is left is an unreferenced object, which no figure can read.
+      await saveDb(next);
+      await deleteImport(id).catch(() => {});
+      return res.status(200).json({ db: next, removed: id, store, saved: true });
+    } catch (e) {
+      return res.status(502).json({ error: 'store_error', message: e.message, store });
+    }
+  }
+
   if (req.method !== 'POST' && req.method !== 'PUT') {
-    res.setHeader('Allow', 'GET, POST, PUT');
+    res.setHeader('Allow', 'GET, POST, PUT, DELETE');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
   if (!store.configured) return res.status(503).json({ error: 'store_unavailable', message: store.hint, store });

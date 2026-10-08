@@ -1421,7 +1421,7 @@ Three kinds of object under `growth/`, all through `lib/secure-store` (namespace
 - `growth/db.enc` — settings, import index, manual records, audit trail. Versioned; a stale
   save is a 409 handing back the winner, exactly as the ledger does.
 - `growth/imports/<id>.enc` — one per import: normalised rows **and the original text as
-  submitted**. Written once. There is no update or delete path.
+  submitted**. Written once and never edited; deleted only by the explicit Remove action.
 - `growth/meta.enc` — the daily per-ad history.
 
 - **Imports are separate objects because a request body is capped at 4.5 MB.** One document
@@ -1431,6 +1431,12 @@ Three kinds of object under `growth/`, all through `lib/secure-store` (namespace
   nothing.
 - **A PUT cannot add or remove imports and cannot rewrite the audit trail** — it may flip
   `reverted` and append audit entries. Tested: a PUT sending empty arrays changes nothing.
+- **Two ways to take an import out, and they are different on purpose.** *Reverse* flags it:
+  out of every figure, kept on file, restorable. *Remove* is `DELETE ?import=<id>`: it names
+  ONE import, drops it from the index, deletes its blob, and writes an audit entry saying so.
+  It is permanent. Each row in Import history has its own Remove button with a second
+  confirming click. Removal can only happen through that explicit call — never as a side
+  effect of a save — and a stale `baseVersion` refuses it without removing anything.
 - The original text is only served with `?raw=1`; nothing but an audit reads it.
 
 ### The Meta sync
@@ -1469,6 +1475,35 @@ else, so the cron path refuses — it does not fall back to being open.
 - `insights()` in the engine is the rule-based layer: no model, always available, each line
   labelled with its kind. Any insight naming an ad must say it is not attribution (tested).
 - Uses Anthropic, not OpenAI, because the key and the calling pattern were already here.
+
+### The Report tab
+
+A written report for any time frame the reader picks: ad performance set against sign-ups,
+cancellations requested and churn, whether that was profitable and by how much, and what to
+change. Sidebar section 11. `report: true` on `api/growth-ai.js`.
+
+- **The model writes the prose; the engine supplies every number.** It is given
+  `buildReportDigest(ctx, from, to)` and nothing else. The "figures" table inside the report
+  is rendered by the PAGE from `E.overview()`, captured at the moment of generation, so the
+  table and the narrative describe the same data and the model never fills in a table cell.
+- **It shares the analyst's hard rules verbatim.** `reportSystem()` takes everything in
+  `ANALYST_SYSTEM` above "HOW TO ANSWER" and swaps only the answering instructions — a long
+  report is where an over-claim does most damage. Add a rule to the analyst and the report
+  gets it too. Tested.
+- **Profitability is stated two ways and kept apart**: cash in the period (revenue − fees −
+  ad spend − other expenses, mostly earned from members acquired earlier) and unit economics
+  (blended cost per paying member against lifetime margin). The verdict may be `unclear`.
+- **No page limit, by instruction** — "comprehensive, not exhaustive, typically 600–1,000
+  words". Do not add a hard cap to the prompt; `max_tokens` is 8000 only as a ceiling.
+- **Forced tool call (`write_report`)**, and `shapeReport()` rebuilds it field by field: an
+  invented verdict becomes `unclear`, an invented priority `medium`, an empty section is
+  dropped. Unlike a question, a prose reply is NOT accepted for a report — there would be no
+  verdict or sections to render.
+- **`vercel.json` gives `api/growth-ai.js` a 120-second limit.** A report takes 20–60
+  seconds to write and the platform default would cut it off mid-reply. Do not remove it.
+- **Nothing is stored.** The report lives in page memory; generating again replaces it, and a
+  failed attempt leaves the previous one on screen. It prints to PDF through the same
+  `html.gi-print` stylesheet as the weekly report.
 
 ### The weekly report
 

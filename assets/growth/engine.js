@@ -2177,4 +2177,88 @@ export function previewImport(db, imports, candidate, opts = {}) {
   };
 }
 
+/**
+ * Everything the Report tab's model is given, for one chosen period.
+ *
+ * Same contract as buildDigest: only figures this engine computed, each
+ * already labelled, and no member names or emails.
+ */
+export function buildReportDigest(ctx, from, to) {
+  const o = overview(ctx, from, to);
+  const a = o.cur.activity; const b = o.prev.activity;
+  const days = o.cur.days;
+  const adSide = (x, n) => ({
+    spend: x.spend, averageDailySpend: r2(x.spend / n), impressions: x.impressions, clicks: x.clicks, landingPageViews: x.lpv,
+    ctrPercent: x.ctr, costPerClick: x.cpc, cpm: x.cpm, costPerLandingPageView: x.costPerLpv, metaReportedConversions: x.metaConv,
+  });
+  const memberSide = (x) => ({
+    newSignups: x.joins, freeTrialsStarted: x.trialStarts, trialCancellations: x.trialCancels,
+    trialToPaidConversions: x.conversions, newPayingWithNoTrial: x.directPaid, newPayingTotal: x.newPaying,
+    cancellationsRequestedStillMembers: x.cancelRequests, paidMembersChurned: x.churn, returningMembers: x.returns,
+    wentMissingUnverified: x.missing, netMemberGrowth: x.net,
+  });
+  const moneySide = (x) => ({
+    revenueCollected: x.revenue, fees: x.fees, adSpend: x.spend, otherExpenses: x.otherExpenses, netCashContribution: x.netCash, newMrr: x.newMrr,
+  });
+  const { series, ...curRest } = o.cur;
+  const count = {};
+  for (const m of ctx.members) count[m.d.status] = (count[m.d.status] || 0) + 1;
+  const s = series;
+  return {
+    kind: 'period_report',
+    asOf: ctx.today, timezone: ctx.settings.timezone, demoData: ctx.demo,
+    period: { from, to, days }, previousPeriod: o.previous,
+    business: {
+      trialDays: ctx.settings.trialDays, trialOfferBeganOn: ctx.settings.trialAppliesFrom,
+      trialNote: 'Paid members who joined before trialOfferBeganOn never had a trial. They are paying members, not trial conversions.',
+      plans: ctx.settings.plans.map((p) => ({ label: p.label, price: p.price, interval: p.interval })), fees: ctx.settings.fees,
+    },
+    dataCoverage: {
+      latestSkoolExport: ctx.lastCsv ? ctx.lastCsv.day : null, exportsImported: ctx.csvImports.length,
+      metaFirstDay: ctx.meta.first, metaLastDay: ctx.meta.last, adAccountTimezone: ctx.meta.account ? ctx.meta.account.timezone : null,
+      warnings: dataQuality(ctx).map((w) => w.message),
+      softDates: { note: 'How many events in the period are dated by estimate or by the day they were observed, not an exact date.', ...a.soft },
+    },
+    advertising: {
+      period: adSide(a, days), previousPeriod: adSide(b, days),
+      ads: adEntities(ctx, 'ad', from, to).filter((x) => x.daysActive > 0).slice(0, 25).map((x) => ({
+        name: x.name, campaign: x.campaign, adset: x.adset, status: x.status, daysDeliveringInPeriod: x.daysActive, pausesInPeriod: x.pauses,
+        runsInPeriod: x.runs.map((r) => `${r.from}..${r.to}`), spend: x.spend, clicks: x.clicks, landingPageViews: x.lpv,
+        costPerClick: x.cpc, costPerLandingPageView: x.costPerLpv, metaReportedConversions: x.conv, costPerMetaConversion: x.costPerConv,
+        communityOnDeliveryDays: { note: 'whole-community figures on days this ad delivered; NOT attribution', signups: x.community.joins, concurrentAds: x.community.concurrentAds },
+      })),
+    },
+    membership: {
+      period: memberSide(a), previousPeriod: memberSide(b),
+      now: o.members, membersByStatusNow: count,
+    },
+    membersByStatus: count,
+    joiningCohort: { note: 'What became of the people who JOINED in the period, to date. Blended figures divide all ad spend in the period by everyone who joined in it, from any source.', ...curRest.cohort },
+    money: {
+      period: moneySide(a), previousPeriod: moneySide(b),
+      mrr: {
+        grossNow: o.mrr.gross, netNow: o.mrr.net, grossAtPeriodStart: o.mrr.grossBefore, payingMembersNow: o.mrr.payers,
+        newInPeriod: o.mrr.newMrr, churnedInPeriod: o.mrr.churnedMrr,
+        scheduledToEndFromCancelingMembers: o.mrr.canceling, unverifiedAtRiskFromMissingMembers: o.mrr.atRisk, byPlan: o.mrr.byPlan,
+      },
+    },
+    profitability: { note: 'blendedCac and blendedRoas are account-wide, never per-ad. estimatedLtv is margin per paying member times expected lifetime.', ...o.profitability },
+    settledCohorts: {
+      note: 'The most recent weekly joining cohorts whose trials have all finished — the reliable basis for acquisition cost.',
+      weeks: cohorts(ctx, 'week').filter((c) => (c.trials > 0 || c.directPaid > 0) && c.active === 0).slice(-6).map((c) => ({
+        week: c.from, adSpend: c.spend, joined: c.joined, trials: c.trials, trialsConvertedToPaid: c.converted, paidWithNoTrial: c.directPaid,
+        newPayingTotal: c.newPaying, unresolved: c.unresolved, blendedCac: c.blendedCac, revenueSoFar: c.revenue,
+      })),
+    },
+    trialsAllTime: o.trials,
+    retention: { r30: o.retention.r30, r60: o.retention.r60, r90: o.retention.r90, blendedMonthlyChurn: o.retention.blendedMonthlyChurn, canceling: o.retention.canceling, paidChurned: o.retention.paidChurned },
+    forecast: forecast(ctx),
+    daily: {
+      columns: ['day', 'adSpend', 'signups', 'trialStarts', 'trialCancels', 'trialToPaid', 'newPayingNoTrial', 'cancellationsRequested', 'paidChurn', 'revenueCollected'],
+      rows: s.days.length <= 120 ? s.days.map((d, i) => [d, s.metrics.spend[i], s.metrics.joins[i], s.metrics.trialStarts[i], s.metrics.trialCancels[i], s.metrics.conversions[i], s.metrics.directPaid[i], s.metrics.cancelRequests[i], s.metrics.churn[i], s.metrics.revenue[i]]) : 'omitted: period longer than 120 days',
+    },
+    ruleBasedInsights: insights(ctx),
+  };
+}
+
 export const format = { money, pct, signed, plural };

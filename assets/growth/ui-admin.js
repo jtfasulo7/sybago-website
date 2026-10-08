@@ -11,7 +11,7 @@
 // same function that computes both.
 
 export function adminPages(kit) {
-  const { S, E, h, money, int, dec, pct, dayLabel, dayFull, tag, precisionTag, panel, table, tiles, insightList, api, saveDb, saveImport, render, setDemo } = kit;
+  const { S, E, h, money, int, dec, pct, dayLabel, dayFull, tag, precisionTag, panel, table, tiles, insightList, api, saveDb, saveImport, rebuild, render, setDemo } = kit;
 
   const uid = () => Math.random().toString(36).slice(2, 10);
   const liveImports = () => [...S.imports.values()];
@@ -238,6 +238,137 @@ export function adminPages(kit) {
     S.ai.asking = false; render();
   }
 
+  /* ============================================================= report == */
+
+  const VERDICT = {
+    profitable: ['Profitable', 'is-good'], breakeven: ['About break-even', 'is-mid'],
+    unprofitable: ['Not profitable', 'is-bad'], unclear: ['Not yet clear', 'is-mid'],
+  };
+
+  function reportState() {
+    if (!S.report) {
+      const today = S.ctx.today;
+      S.report = { from: E.addDays(today, -7), to: E.addDays(today, -1), busy: false, error: '', result: null };
+    }
+    return S.report;
+  }
+
+  /** The period's figures, straight from the engine — the model never supplies a number in this table. */
+  function reportFigures(from, to) {
+    const o = E.overview(S.ctx, from, to);
+    const a = o.cur.activity; const b = o.prev.activity; const co = o.cur.cohort; const p = o.profitability;
+    const m = (v) => money(v, 2); const n = (v) => int(v);
+    const row = (label, cur, prev, fmt, invert) => ({ label, cur: fmt(cur), prev: prev === undefined ? '' : fmt(prev), change: prev === undefined ? null : E.pctChange(cur, prev), invert });
+    return {
+      previous: o.previous,
+      groups: [
+        ['Advertising', [
+          row('Ad spend', a.spend, b.spend, m, true), row('Average daily spend', a.spend / o.cur.days, b.spend / o.cur.days, m, true),
+          row('Clicks', a.clicks, b.clicks, n), row('Cost per click', a.cpc, b.cpc, m, true),
+          row('Landing-page views', a.lpv, b.lpv, n), row('Cost per landing-page view', a.costPerLpv, b.costPerLpv, m, true),
+          row('Meta-reported conversions', a.metaConv, b.metaConv, n),
+        ]],
+        ['Sign-ups and trials', [
+          row('New member sign-ups', a.joins, b.joins, n), row('Free trials started', a.trialStarts, b.trialStarts, n),
+          row('Trial-to-paid conversions', a.conversions, b.conversions, n), row('New paying, no trial', a.directPaid, b.directPaid, n),
+          row('Net member growth', a.net, b.net, n),
+        ]],
+        ['Cancellations and churn', [
+          row('Trial cancellations', a.trialCancels, b.trialCancels, n, true),
+          row('Cancellations requested (still members)', a.cancelRequests, b.cancelRequests, n, true),
+          row('Paid members churned (left)', a.churn, b.churn, n, true),
+          row('Went missing (unverified)', a.missing, b.missing, n, true), row('Returning members', a.returns, b.returns, n),
+        ]],
+        ['Money', [
+          row('Revenue collected', a.revenue, b.revenue, m), row('Fees', a.fees, b.fees, m, true),
+          row('Other expenses', a.otherExpenses, b.otherExpenses, m, true), row('Net cash contribution', a.netCash, b.netCash, m),
+          row('Gross MRR now', o.mrr.gross, o.mrr.grossBefore, m), row('MRR scheduled to end (canceling)', o.mrr.canceling.gross, undefined, m),
+        ]],
+        ['Acquisition — blended, not per ad', [
+          row('Spend ÷ trial started', co.blendedCostPerTrial, undefined, m), row('Spend ÷ new paying member', co.blendedCac, undefined, m),
+          row('Estimated lifetime margin per paying member', p.estimatedLtv, undefined, m),
+        ]],
+      ],
+      stillOnTrial: co.active,
+    };
+  }
+
+  function reportArticle(res) {
+    const r = res.report; const f = res.figures;
+    const [word, cls] = VERDICT[r.verdict] || VERDICT.unclear;
+    const chg = (x) => (x.change == null ? '' : `<span class="gi-delta ${Math.abs(x.change) < 0.5 ? '' : (x.change > 0) !== !!x.invert ? 'is-up' : 'is-down'}">${Math.abs(x.change) < 0.5 ? 'no change' : `${x.change > 0 ? '▲' : '▼'} ${Math.abs(x.change).toFixed(0)}%`}</span>`);
+    const paras = (text) => String(text).split(/\n\s*\n/).map((p) => `<p>${h(p)}</p>`).join('');
+    return `<article class="gi-report" id="gi-report">
+      <header>
+        <p class="eyebrow">Peps by Dave · Growth report</p>
+        <h3>${dayFull(res.from)} – ${dayFull(res.to)}</h3>
+        <p class="sub">${E.diffDays(res.from, res.to) + 1} days, compared with ${dayFull(f.previous.from)} – ${dayFull(f.previous.to)}</p>
+      </header>
+      ${res.demo ? '<p class="gi-demo"><strong>Demonstration data — not real business data.</strong></p>' : ''}
+      <p class="gi-verdict ${cls}"><span class="gi-verdict-word">${h(word)}</span> ${h(r.headline)}</p>
+      <div class="gi-report-summary">${paras(r.summary)}</div>
+
+      <h4>The figures</h4>
+      <p class="gi-fine">Computed by the dashboard from your Skool imports and Meta's reporting. The written analysis below was generated from these same figures.</p>
+      <table class="gi-table"><thead><tr><th scope="col"></th><th scope="col" class="num">This period</th><th scope="col" class="num">Previous period</th><th scope="col" class="num">Change</th></tr></thead>
+      ${f.groups.map(([title, rows]) => `<tbody><tr class="gi-grouprow"><th scope="colgroup" colspan="4">${h(title)}</th></tr>${rows.map((x) => `<tr><th scope="row">${h(x.label)}</th><td class="num">${x.cur}</td><td class="num">${x.prev}</td><td class="num">${chg(x)}</td></tr>`).join('')}</tbody>`).join('')}</table>
+      ${f.stillOnTrial ? `<p class="gi-fine">${int(f.stillOnTrial)} trial${f.stillOnTrial === 1 ? '' : 's'} started in this period ${f.stillOnTrial === 1 ? 'is' : 'are'} still running, so its acquisition cost is not final.</p>` : ''}
+
+      ${r.sections.map((s) => `<section><h4>${h(s.heading)}</h4>${paras(s.body)}</section>`).join('')}
+
+      ${r.recommendations.length ? `<h4>What to change</h4><ol class="gi-recs">${r.recommendations.map((x) => `<li><p><strong>${h(x.action)}</strong> ${tag(x.priority + ' priority', x.priority === 'high' ? 'is-win' : x.priority === 'medium' ? 'is-est' : '')}</p>${x.reason ? `<p class="gi-rec-why">${h(x.reason)}</p>` : ''}</li>`).join('')}</ol>` : ''}
+      ${r.caveats.length ? `<h4>What limits these conclusions</h4><ul class="gi-fine">${r.caveats.map((c) => `<li>${h(c)}</li>`).join('')}</ul>` : ''}
+      <p class="gi-fine">Written by ${h(res.model || 'the AI analyst')} on ${h(new Date(res.at).toLocaleString())} from the dashboard's figures. Membership is compared with advertising for the whole community; no member is attributed to a specific ad. Dates of payments and conversions may be estimates — see the Overview's data-quality notes.</p>
+    </article>`;
+  }
+
+  const report = {
+    html() {
+      const c = S.ctx; const r = reportState();
+      const quick = (label, from, to) => `<button type="button" class="gi-chip" data-act="report-range" data-from="${from}" data-to="${to}" aria-pressed="${r.from === from && r.to === to}">${label}</button>`;
+      const y = E.addDays(c.today, -1);
+      const wk = E.lastCompleteWeek(c.today);
+      return `
+      <div class="gi-pagehead"><h3>Report</h3><p class="sub">One written report for any time frame: how the ads performed, what the community did over the same days — sign-ups, cancellations and churn — whether that was profitable, and what to change.</p></div>
+      ${panel('Choose a time frame', `
+        <form data-form="report-make" class="gi-reportform">
+          <label>From <input type="date" name="from" value="${h(r.from)}" max="${h(c.today)}" required data-change="report-date"></label>
+          <label>To <input type="date" name="to" value="${h(r.to)}" max="${h(c.today)}" required data-change="report-date"></label>
+          <button type="submit" class="btn btn-primary" ${r.busy ? 'aria-disabled="true"' : ''}>${r.busy ? 'Generating…' : 'Generate'}</button>
+        </form>
+        <div class="gi-chips" aria-label="Quick time frames">
+          ${quick('Past 7 days', E.addDays(c.today, -7), y)}${quick('Last week (Mon–Sun)', wk.from, wk.to)}${quick('Past 14 days', E.addDays(c.today, -14), y)}${quick('Past 30 days', E.addDays(c.today, -30), y)}${quick('Past 90 days', E.addDays(c.today, -90), y)}
+        </div>
+        <p class="gi-fine">${E.isDay(r.from) && E.isDay(r.to) && r.from <= r.to ? `${E.diffDays(r.from, r.to) + 1} days, compared with the ${E.diffDays(r.from, r.to) + 1} days before.` : 'Choose a start date on or before the end date.'} The report is written by the AI analyst from the dashboard's own figures for that period — it sees totals and per-ad numbers, never member names. It needs the Anthropic API key on the deployment and takes up to a minute.</p>
+        ${r.busy ? '<p class="notice notice-info" role="status">Writing the report. This usually takes 20 to 60 seconds — keep this tab open.</p>' : ''}
+        ${r.error ? `<p class="notice notice-error" role="alert">${h(r.error)}</p>` : ''}`)}
+      ${r.result ? panel('Report', `
+        <p class="gi-actions"><button type="button" class="btn btn-ghost gi-btn-sm" data-act="report-print">Print or save as PDF</button></p>
+        ${reportArticle(r.result)}`, { sub: `Generated ${h(new Date(r.result.at).toLocaleString())}. Generating again replaces it; nothing is stored.` }) : ''}`;
+    },
+  };
+
+  async function makeReport() {
+    const r = reportState();
+    if (r.busy) return;
+    const today = S.ctx.today;
+    if (!E.isDay(r.from) || !E.isDay(r.to) || r.from > r.to) { r.error = 'Choose a start date on or before the end date.'; render(); return; }
+    if (r.to > today) { r.error = 'The time frame cannot end in the future.'; render(); return; }
+    if (E.diffDays(r.from, r.to) > 366) { r.error = 'Choose a time frame of a year or less.'; render(); return; }
+    const from = r.from; const to = r.to;
+    r.busy = true; r.error = ''; render();
+    try {
+      const figures = reportFigures(from, to);
+      const j = await api('/api/growth-ai', { method: 'POST', body: { report: true, digest: E.buildReportDigest(S.ctx, from, to) } });
+      if (!j.report) r.error = j.message || 'There is nothing to report on yet.';
+      else r.result = { report: j.report, model: j.model, at: j.generatedAt || new Date().toISOString(), from, to, figures, demo: S.demo };
+    } catch (e) {
+      // A failed attempt never replaces a report already on screen.
+      r.error = e.status === 0 || e.status === 504 ? 'The report took too long or the connection dropped. Try again, or choose a shorter time frame.' : e.message;
+    }
+    r.busy = false; render();
+  }
+
   /* ============================================================== recon == */
 
   function buildCandidate(d) {
@@ -365,8 +496,11 @@ export function adminPages(kit) {
         <button type="button" class="gi-link" data-act="import-raw" data-id="${h(i.id)}">View original</button>
         ${i.reverted ? `<button type="button" class="gi-link" data-act="import-restore" data-id="${h(i.id)}">Restore</button>`
           : S.recon.confirm === i.id ? `<button type="button" class="gi-link is-danger" data-act="import-revert-yes" data-id="${h(i.id)}">Confirm reverse</button> <button type="button" class="gi-link" data-act="import-revert-no">Keep</button>`
-            : `<button type="button" class="gi-link" data-act="import-revert" data-id="${h(i.id)}">Reverse</button>`}` },
-    ], rows, { empty: 'Nothing has been imported yet.', caption: 'Reversing an import removes its effect from every figure and keeps the original on file. It can be restored at any time.' });
+            : `<button type="button" class="gi-link" data-act="import-revert" data-id="${h(i.id)}">Reverse</button>`}
+        ${S.recon.removing === i.id
+          ? `<span class="gi-confirm">Delete this import for good? <button type="button" class="gi-link is-danger" data-act="import-remove-yes" data-id="${h(i.id)}">Yes, remove it</button> <button type="button" class="gi-link" data-act="import-remove-no">Keep</button></span>`
+          : `<button type="button" class="gi-link is-danger" data-act="import-remove" data-id="${h(i.id)}">Remove</button>`}` },
+    ], rows, { empty: 'Nothing has been imported yet.', caption: 'Reverse takes an import out of every figure but keeps it on file, and it can be restored. Remove deletes that one import permanently — its rows, its original text and its effect on every figure — and cannot be undone.' });
   }
 
   const recon = {
@@ -520,6 +654,7 @@ export function adminPages(kit) {
     'ai-suggest': (el) => ask(el.dataset.q),
     'ai-briefing': () => ask('', true),
     'report-make': () => { S.ai.report = E.weeklyReport(S.ctx); S.ai.mailResult = null; render(); },
+    'report-range': (el) => { const r = reportState(); r.from = el.dataset.from; r.to = el.dataset.to; r.error = ''; render(); },
     'report-print': () => {
       // Print only the report: everything else is hidden by a class on <html>.
       document.documentElement.classList.add('gi-print');
@@ -545,6 +680,28 @@ export function adminPages(kit) {
     'import-revert-yes': (el) => {
       const id = el.dataset.id; S.recon.confirm = null;
       saveDb((db) => { const i = db.imports.find((x) => x.id === id); if (i) i.reverted = { at: new Date().toISOString(), reason: '' }; }, { action: 'import reversed', detail: importName(id) });
+    },
+    'import-remove': (el) => { S.recon.removing = el.dataset.id; S.recon.confirm = null; render(); },
+    'import-remove-no': () => { S.recon.removing = null; render(); },
+    'import-remove-yes': async (el) => {
+      const id = el.dataset.id;
+      const title = importName(id);
+      S.recon.removing = null;
+      if (S.recon.showRaw && S.recon.showRaw.id === id) S.recon.showRaw = null;
+      if (S.demo) {
+        S.db.imports = S.db.imports.filter((x) => x.id !== id); S.imports.delete(id);
+        S.notice = `Removed: ${title}.`; rebuild(); render(); return;
+      }
+      S.busy = 'Removing import…'; render();
+      try {
+        const j = await api(`/api/growth?import=${encodeURIComponent(id)}&baseVersion=${S.db.version || 0}`, { method: 'DELETE' });
+        S.db = j.db; S.imports.delete(id);
+        S.error = ''; S.notice = `Removed: ${title}. Every figure has been recalculated without it.`;
+      } catch (e) {
+        if (e.status === 409 && e.payload && e.payload.db) S.db = e.payload.db;
+        S.error = e.message;
+      }
+      S.busy = ''; rebuild(); render();
     },
     'import-restore': (el) => {
       const id = el.dataset.id;
@@ -639,6 +796,7 @@ export function adminPages(kit) {
       if (r.approx) delete r.approx[f];     // a person has now stated it
       refreshPreview(); render();
     },
+    'report-date': (el) => { const r = reportState(); r[el.name] = el.value; r.error = ''; render(); },
     set: (el) => {
       const s = draft();
       let v = el.value;
@@ -666,6 +824,7 @@ export function adminPages(kit) {
       manualAdd({ type: f.type.value, memberId: form.dataset.id, day: f.day.value, amount, note: f.note.value },
         { action: `${f.type.value.replace('_', ' ')} recorded`, detail: `${m ? m.name : ''}: ${money(amount, 2)} on ${f.day.value}` });
     },
+    'report-make': () => makeReport(),
     'ai-ask': (form) => { const q = form.elements.q.value.trim(); if (q) ask(q); },
     'report-email': async (form) => {
       if (S.demo) return;
@@ -694,5 +853,5 @@ export function adminPages(kit) {
     },
   };
 
-  return { members, ai, recon, settings, actions, changes, submits };
+  return { members, ai, report, recon, settings, actions, changes, submits };
 }
