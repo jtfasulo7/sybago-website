@@ -108,6 +108,29 @@ These are targets for **Sybago's own Meta ads** when prospecting for clients. Ru
 - To clone: copy the file to `lp/<niche>.html`, swap copy, update the booking iframe `id`
   suffix and every `data-utm` value.
 
+### `/book` — qualification form → calendar (`book.html`, `api/book-lead.js`)
+
+Meta-ads landing page for residential concrete contractors. A deliberately different shape from
+the `lp/` pages: **the form is the page.** Headline, one line, then question 1 above the fold at
+375px. Logo-only header, no CTA in the nav, legal links only, `noindex, follow`.
+
+- 5 single-select questions (tap auto-advances after 170ms) + a contact step. Structure copied
+  from the Montara Forge form: "Step X of Y" + segmented bar, 260ms slide, focus to the question.
+- **`ROUTING` and `CALENDAR_EMBED_URL` at the top of the page script are the only knobs.**
+  Qualification is decided there, not on the server.
+- The browser POSTs to `api/book-lead.js`, which validates, drops spam (honeypot
+  `company_website` + `form_ms` under 4s → fake 200), and forwards **every** lead to
+  `GHL_WEBHOOK_URL`. The URL never reaches the browser.
+- **The calendar only renders after the server confirms the webhook landed.** On failure the
+  page shows a retry message and keeps the answers.
+- Answer text is sent verbatim to GHL. `ANSWERS` in `api/book-lead.js` must match `QUESTIONS`
+  in `book.html` exactly — en dashes included.
+- **No Meta Pixel is installed on the site.** The page calls `fbq('track','Lead')` for qualified
+  submissions only, guarded so it is a no-op until the base code is pasted into `<head>`. The
+  `Schedule` hook (`onBookingConfirmed`) is a stub until GHL booking confirmation is wired.
+- Calendar prefill (`first_name`, `last_name`, `phone` query params) is unverified — GHL does
+  not document calendar-widget URL params.
+
 ---
 
 ## PROOF

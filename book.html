@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  SYBAGO /book — QUALIFICATION FORM → CALENDAR (Meta ads, residential concrete)
+  Live at: /book   (vercel.json has cleanUrls:true, so no .html)
+═══════════════════════════════════════════════════════════════════════════════
+  Paid mobile traffic lands here. The form IS the page: headline, one line,
+  then question 1 above the fold at 375px. Standalone: logo-only header, no
+  nav, no links out except legal in the footer. noindex on purpose.
+
+  FLOW: 5 single-select questions (tap = advance) → contact step → POST
+  /api/book-lead (server forwards to the GHL inbound webhook in GHL_WEBHOOK_URL)
+  → qualified: GHL calendar in place · disqualified: thank-you message.
+  The calendar only ever appears after the server confirms the webhook landed.
+
+  EDIT HERE, NOT IN THE LOGIC:
+    - ROUTING  (who sees the calendar)          — top of the page script
+    - CALENDAR_EMBED_URL                         — top of the page script
+    - Answer text must match ANSWERS in api/book-lead.js exactly.
+
+  Structure mirrors the Montara Forge form (one question per screen, 170ms
+  auto-advance, "Step X of Y" + segmented bar, 260ms slide, focus to the
+  question on each step). Deviations from it are listed in the commit message.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+
+<!-- META PIXEL — not installed anywhere on sybago.ai yet.
+     TODO: JT — paste the Meta Pixel base code here (it defines window.fbq and
+     fires PageView). The page already calls fbq('track','Lead') for QUALIFIED
+     submissions only, guarded so it is a no-op until the base code exists. -->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, follow">
+<title>Concrete Contractors — See If You Qualify | Sybago</title>
+<meta name="description" content="Five quick questions for residential concrete contractors who want more booked estimates.">
+
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#ffffff;
+  --bg-2:#f4f5f7;
+  --bg-3:#eaecef;
+  --t1:#0f1419;
+  --t2:rgba(15,20,25,0.66);
+  --t3:rgba(15,20,25,0.42);
+  --t4:rgba(15,20,25,0.10);
+  --line:rgba(15,20,25,0.08);
+  --teal:#2F6779;
+  --teal-b:#3a7d93;
+  --teal-d:#244e5b;
+  --teal-tint:rgba(47,103,121,0.10);
+  --warn:#e8b04a;
+  --good:#4dbf7a;
+  --danger:#b3261e;          /* error text — WCAG AA on white */
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo:cubic-bezier(.16,1,.3,1);
+}
+
+html{scrollbar-width:thin;scrollbar-color:var(--teal) #eaecef;scroll-behavior:smooth}
+body{
+  font-family:var(--ff);
+  background:var(--bg);color:var(--t1);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;overflow-x:clip;line-height:1.55;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--teal);color:#fff}
+/* The rest of the site relies on browser focus defaults; a form needs a visible
+   ring on every control, so this page states one. */
+:focus-visible{outline:3px solid var(--teal-b);outline-offset:2px}
+
+/* ─────── Nav — logo only. No links out. ─────── */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  padding:.8rem 1.6rem;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+.nav-logo{display:flex;align-items:center;gap:.55rem}
+.nav-logo img{height:28px;width:28px;border-radius:6px}
+.nav-logo span{font-size:.95rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+
+/* ─────── Scaffolding ─────── */
+.section{position:relative;z-index:1;padding:5.4rem 1.6rem;max-width:1100px;margin:0 auto}
+@media (max-width:720px){.section{padding:4rem 1.2rem}}
+.eyebrow{
+  display:inline-block;
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);margin-bottom:1rem;
+}
+h1,h2,h3{font-family:var(--ff);font-weight:800;letter-spacing:-.015em;line-height:1.08}
+h2{font-size:clamp(1.8rem,4vw,2.75rem)}
+h3{font-size:clamp(1.2rem,2vw,1.5rem)}
+
+.btn-primary{
+  display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
+  font-family:var(--ff);font-size:.78rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  padding:1.05rem 1.85rem;border-radius:6px;
+  cursor:pointer;border:none;
+  background:var(--teal);color:#fff;
+  transition:background .25s var(--eo),transform .25s var(--eo);
+  white-space:nowrap;
+}
+.btn-primary:hover{background:var(--teal-b);transform:translateY(-1px)}
+.btn-primary svg{width:14px;height:14px}
+.btn-primary[disabled]{opacity:.8;cursor:wait;transform:none}
+
+/* ─────── Hero + form (the above-the-fold unit) ─────── */
+.hero{
+  position:relative;z-index:1;
+  padding:6.2rem 1.6rem 3.4rem;
+  max-width:640px;margin:0 auto;text-align:center;
+}
+.hero h1{font-size:clamp(1.7rem,4.6vw,2.9rem);margin-bottom:.7rem}
+.hero h1 em{font-style:normal;color:var(--teal)}
+.hero-sub{color:var(--t2);font-size:1.02rem;max-width:46ch;margin:0 auto 1.6rem}
+@media (max-width:600px){
+  .hero{padding:4.25rem 1rem 2.6rem}
+  .hero h1{font-size:1.62rem;margin-bottom:.45rem}
+  .hero-sub{font-size:.93rem;margin-bottom:.85rem;line-height:1.45}
+}
+
+.qf{
+  text-align:left;background:var(--bg);
+  border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 0 0 1px var(--line),0 24px 48px -16px rgba(15,20,25,.18),0 8px 20px -8px rgba(47,103,121,.18);
+  padding:1.4rem 1.4rem 1.5rem;scroll-margin-top:80px;
+}
+@media (max-width:600px){
+  .qf{padding:.8rem 1rem 1rem}
+  .qf-top{margin-bottom:.4rem}
+  .qf-bar{margin-bottom:.85rem}
+  .qf-q{font-size:1.15rem;margin-bottom:.75rem}
+  .qf-opt{min-height:3.25rem;padding:.65rem .9rem}
+}
+
+.qf-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.55rem;min-height:32px}
+.qf-count{font-size:.66rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t3)}
+.qf-back{
+  display:inline-flex;align-items:center;gap:.35rem;
+  font-family:var(--ff);font-size:.8rem;font-weight:600;color:var(--t2);
+  background:none;border:none;border-radius:6px;padding:.35rem .5rem;margin-left:-.5rem;cursor:pointer;
+}
+.qf-back:hover{color:var(--teal-b)}
+.qf-back svg{width:14px;height:14px}
+.qf-back[hidden],.qf-top[hidden],.qf-bar[hidden]{display:none}
+.qf-bar{display:flex;gap:4px;margin-bottom:1.1rem}
+.qf-bar span{flex:1;height:4px;border-radius:999px;background:var(--bg-3);transition:background-color .3s var(--eo)}
+.qf-bar span.on{background:var(--teal)}
+
+.qf-step{animation:step-fwd .26s cubic-bezier(.2,.7,.2,1) both}
+.qf-step.back{animation-name:step-back}
+@keyframes step-fwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes step-back{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+
+.qf-q{font-size:1.22rem;line-height:1.25;letter-spacing:-.01em;margin-bottom:.9rem}
+.qf-q:focus{outline:none}
+.qf-opts{display:grid;gap:.55rem}
+.qf-opt{
+  position:relative;display:flex;align-items:center;justify-content:space-between;gap:.8rem;
+  width:100%;min-height:3.4rem;padding:.75rem 1rem;
+  font-family:var(--ff);font-size:.98rem;font-weight:600;color:var(--t1);text-align:left;line-height:1.3;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:10px;cursor:pointer;
+  transition:border-color .14s,background-color .14s,transform .14s;
+  -webkit-tap-highlight-color:transparent;
+}
+.qf-opt:active{transform:scale(.985)}
+.qf-opt .dot{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  border:1.5px solid var(--t4);background:var(--bg);
+  display:flex;align-items:center;justify-content:center;transition:border-color .14s,background-color .14s;
+}
+.qf-opt .dot svg{width:12px;height:12px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.qf-opt[aria-checked="true"]{border-color:var(--teal);background:var(--teal-tint)}
+.qf-opt[aria-checked="true"] .dot{border-color:var(--teal);background:var(--teal)}
+.qf-opt[aria-checked="true"] .dot svg{opacity:1}
+@media (hover:hover){.qf-opt:hover{border-color:var(--teal-b)}}
+
+/* contact step */
+.qf-fields{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+@media (max-width:380px){.qf-fields{grid-template-columns:1fr}}
+.qf-field{display:flex;flex-direction:column;gap:.3rem}
+.qf-field.full{grid-column:1/-1}
+.qf-field label{font-size:.82rem;font-weight:600;color:var(--t1)}
+.qf-field input{
+  font-family:var(--ff);font-size:1rem;color:var(--t1);
+  border:1px solid rgba(15,20,25,0.22);border-radius:8px;padding:.78rem .95rem;width:100%;background:var(--bg);
+  transition:border-color .2s,box-shadow .2s;
+}
+.qf-field input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(47,103,121,0.2)}
+.qf-field input[aria-invalid="true"]{border-color:var(--danger)}
+.qf-err{font-size:.8rem;color:var(--danger);font-weight:500}
+.qf-consent{
+  display:flex;gap:.7rem;align-items:flex-start;margin-top:.9rem;padding:.8rem .85rem;
+  border:1px solid var(--line);border-radius:8px;background:var(--bg-2);cursor:pointer;
+  font-size:.76rem;line-height:1.5;color:var(--t2);
+}
+.qf-consent.invalid{border-color:var(--danger);background:rgba(179,38,30,0.05)}
+.qf-consent input{flex-shrink:0;width:20px;height:20px;margin-top:.1rem;accent-color:var(--teal);cursor:pointer}
+.qf-consent a{color:var(--teal);text-decoration:underline}
+.qf-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.qf-submit{width:100%;margin-top:1rem}
+.qf-alert{
+  margin-top:.9rem;padding:.75rem .9rem;border-radius:8px;font-size:.88rem;line-height:1.5;
+  color:var(--danger);background:rgba(179,38,30,0.06);border:1px solid rgba(179,38,30,0.25);
+}
+.qf-alert[hidden]{display:none}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* result states */
+.qf-result{text-align:center;padding:.6rem 0 .2rem}
+.qf-result h2{font-size:1.3rem;margin-bottom:.5rem}
+.qf-result p{color:var(--t2);font-size:.95rem;max-width:44ch;margin:0 auto}
+.qf-result h2:focus{outline:none}
+.book-frame{position:relative;margin-top:1rem;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#f9f9f9;min-height:640px}
+.book-frame iframe{width:100%;min-height:640px;border:none;display:block;background:#f9f9f9}
+.book-missing{padding:2rem 1rem;color:var(--t3);font-size:.9rem}
+
+/* ─────── How it works ─────── */
+.pipe-head{text-align:center;max-width:760px;margin:0 auto 2.6rem}
+.pipe-head h2{margin-bottom:.9rem}
+.pipe-head p{color:var(--t2);font-size:1.05rem}
+.pipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+@media (max-width:880px){.pipe-grid{grid-template-columns:1fr}}
+.pipe-card{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:10px;
+  padding:1.8rem 1.4rem;
+  transition:border-color .25s var(--eo),transform .25s var(--eo);
+}
+.pipe-card:hover{border-color:var(--teal-b);transform:translateY(-2px)}
+.pipe-stage{
+  font-size:.62rem;font-weight:700;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--teal-b);margin-bottom:.85rem;
+}
+.pipe-card h3{font-size:1.1rem;margin-bottom:.55rem;letter-spacing:-.005em}
+.pipe-card p{color:var(--t2);font-size:.93rem;line-height:1.65}
+
+/* ─────── Founder ─────── */
+.founder{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;z-index:1}
+.founder-inner{
+  max-width:900px;margin:0 auto;padding:4.6rem 1.6rem;
+  display:grid;grid-template-columns:200px 1fr;gap:2.6rem;align-items:center;
+}
+@media (max-width:720px){
+  .founder-inner{grid-template-columns:1fr;gap:1.8rem;padding:4rem 1.2rem;text-align:center}
+}
+.founder-photo{
+  width:100%;max-width:200px;aspect-ratio:1/1;margin:0 auto;
+  border-radius:50%;overflow:hidden;background:var(--bg-3);
+  box-shadow:0 0 0 1px var(--line),0 16px 32px -12px rgba(15,20,25,0.18);
+}
+.founder-photo img{width:100%;height:100%;object-fit:cover;object-position:center 32%;display:block}
+.founder-copy h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-bottom:1rem}
+.founder-copy p{color:var(--t2);font-size:1rem;line-height:1.7;margin-bottom:.9rem}
+.founder-copy p:last-child{margin-bottom:0}
+.founder-copy strong{color:var(--t1);font-weight:600}
+
+/* ─────── Proof ─────── */
+.proof-inner{max-width:820px;margin:0 auto;text-align:center}
+.proof-stars{display:flex;justify-content:center;gap:.3rem;color:var(--warn);margin-bottom:1.5rem}
+.proof-stars svg{width:20px;height:20px;fill:currentColor}
+.proof blockquote{
+  font-size:clamp(1.1rem,2vw,1.45rem);line-height:1.5;font-weight:500;
+  letter-spacing:-.005em;color:var(--t1);max-width:60ch;margin:0 auto 1.5rem;
+}
+.proof-attr{font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t3)}
+.proof-note{margin:1.5rem auto 0;font-size:.87rem;color:var(--t3);max-width:56ch;line-height:1.6}
+
+/* ─────── Results (placeholder-ready) ─────── */
+.results-head{text-align:center;max-width:760px;margin:0 auto 3rem}
+.results-head h2{margin-bottom:.9rem}
+.results-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+@media (max-width:880px){.results-grid{grid-template-columns:1fr}}
+.result-card{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:1.8rem 1.4rem;text-align:center}
+.result-metric{font-size:2.2rem;font-weight:800;color:var(--teal);letter-spacing:-.02em;margin-bottom:.4rem}
+.result-card p{color:var(--t2);font-size:.92rem;line-height:1.6}
+
+/* ─────── FAQ ─────── */
+.faq-head{text-align:center;max-width:680px;margin:0 auto 2.6rem}
+.faq-list{max-width:780px;margin:0 auto}
+.faq-item{border-top:1px solid var(--line);padding:1.35rem 0}
+.faq-item:last-child{border-bottom:1px solid var(--line)}
+.faq-q{
+  display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  cursor:pointer;font-size:1.02rem;font-weight:600;color:var(--t1);list-style:none;
+}
+.faq-q::-webkit-details-marker{display:none}
+.faq-q .icon{
+  flex-shrink:0;width:22px;height:22px;
+  border:1px solid var(--t4);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--t3);transition:border-color .25s,color .25s,transform .25s;
+}
+details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transform:rotate(45deg)}
+.faq-q .icon svg{width:10px;height:10px;stroke:currentColor;stroke-width:2;stroke-linecap:round;fill:none}
+.faq-a{margin-top:.9rem;color:var(--t2);font-size:.97rem;line-height:1.7;max-width:65ch}
+
+/* ─────── Back-to-form band ─────── */
+.close-cta{
+  background:linear-gradient(135deg,rgba(47,103,121,0.14),rgba(47,103,121,0.04));
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.close-cta .inner{max-width:900px;margin:0 auto;padding:4rem 1.6rem;text-align:center}
+.close-cta h2{font-size:clamp(1.7rem,4vw,2.6rem);margin-bottom:1.4rem;line-height:1.08}
+
+/* ─────── Footer — legal only, no navigation out ─────── */
+.lp-footer{
+  background:var(--bg-2);border-top:1px solid var(--line);
+  padding:2.6rem 1.6rem;text-align:center;position:relative;z-index:1;
+}
+.lp-footer .nav-logo{justify-content:center;margin-bottom:1rem}
+.lp-footer p{font-size:.78rem;color:var(--t3);letter-spacing:.04em}
+.lp-footer .legal{display:flex;justify-content:center;gap:1.2rem;margin-top:.8rem;font-size:.74rem;color:var(--t3)}
+.lp-footer .legal a:hover{color:var(--teal-b)}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/apple-touch-icon.png" alt="" width="28" height="28">
+    <span>SYBAGO</span>
+  </span>
+</header>
+
+<main>
+<!-- ─────── Hero + form ─────── -->
+<section class="hero">
+  <!-- TODO: JT copy — headline + supporting line -->
+  <h1>More driveway &amp; patio estimates. <em>Booked for you.</em></h1>
+  <p class="hero-sub">Answer 5 quick questions to see if your crew is a fit. Takes about 30 seconds.</p>
+
+  <div class="qf" id="qf" aria-live="off">
+    <div class="qf-top" id="qf-top">
+      <button type="button" class="qf-back" id="qf-back" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        Back
+      </button>
+      <span class="qf-count" id="qf-count"></span>
+    </div>
+    <div class="qf-bar" id="qf-bar" role="progressbar" aria-label="Form progress" aria-valuemin="1"></div>
+    <div id="qf-body">
+      <!-- Step 1 is rendered in plain HTML so it paints with the page, before
+           the script runs. The script re-renders it identically. -->
+      <div class="qf-step">
+        <h2 class="qf-q" id="qf-q" tabindex="-1">What type of concrete work do you mostly do?</h2>
+        <div class="qf-opts" role="radiogroup" aria-labelledby="qf-q">
+          <button type="button" class="qf-opt" role="radio" aria-checked="false">Mostly residential (driveways, patios, walkways)<span class="dot"></span></button>
+          <button type="button" class="qf-opt" role="radio" aria-checked="false">Mix of residential and commercial<span class="dot"></span></button>
+          <button type="button" class="qf-opt" role="radio" aria-checked="false">Mostly commercial or new construction<span class="dot"></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── How it works ─────── -->
+<section class="section">
+  <!-- TODO: JT copy — how it works (3 steps) -->
+  <div class="pipe-head">
+    <span class="eyebrow">How it works</span>
+    <h2>Three steps. Then the phone starts.</h2>
+  </div>
+  <div class="pipe-grid">
+    <div class="pipe-card">
+      <div class="pipe-stage">Step 1</div>
+      <h3>We talk for 20 minutes</h3>
+      <p>You tell me your area, your jobs and how much work you want. I tell you straight whether this will work for your crew.</p>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-stage">Step 2</div>
+      <h3>I build the whole machine</h3>
+      <p>Facebook and Instagram ads, the page homeowners land on, and an instant text the second someone books an estimate.</p>
+    </div>
+    <div class="pipe-card">
+      <div class="pipe-stage">Step 3</div>
+      <h3>Estimates land on your calendar</h3>
+      <p>Homeowners book themselves in. You show up, quote the job and pour. Every lead is tracked so you can see what it turned into.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────── Proof: founder + the one real testimonial (honesty note kept, per CLAUDE.md) ─────── -->
+<section class="founder">
+  <!-- TODO: JT copy — founder block -->
+  <div class="founder-inner">
+    <div class="founder-photo">
+      <img src="/media/jt.jpg" alt="JT Fasulo, founder of Sybago" width="400" height="400" loading="lazy">
+    </div>
+    <div class="founder-copy">
+      <h2>Who you're actually talking to</h2>
+      <p>I'm JT. Mechanical engineer by training, now I build customer-acquisition systems for service businesses. <strong>No account managers. You deal with me, every time.</strong></p>
+      <p>No contracts. Month to month. If it's not working, you can fire me.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section proof">
+  <!-- TODO: JT copy — proof block. Swap in concrete-specific proof when it exists. -->
+  <div class="proof-inner">
+    <div class="proof-stars" aria-label="5 out of 5 stars">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </div>
+    <blockquote>"I could not be happier. I run a wholesale business and was having trouble finding business. I reached out at 12pm on a Tuesday and had a perfectly running and streamlined website by Wednesday morning. Fast forward 3 days later, I have brands reaching out to me asking to open wholesale accounts with my business. Thank you!"</blockquote>
+    <div class="proof-attr">— William Woolley</div>
+    <p class="proof-note">Straight up: that was a website build with fast inbound results, not a concrete ad campaign. What it tells you is how fast I move.</p>
+  </div>
+
+  <!-- RESULTS — drop-in ready. Uncomment and fill with REAL, verifiable numbers only.
+  <div class="results-head" style="margin-top:4rem">
+    <span class="eyebrow">Results</span>
+    <h2>TODO: JT copy</h2>
+  </div>
+  <div class="results-grid">
+    <div class="result-card"><div class="result-metric">—</div><p>TODO: JT copy</p></div>
+    <div class="result-card"><div class="result-metric">—</div><p>TODO: JT copy</p></div>
+    <div class="result-card"><div class="result-metric">—</div><p>TODO: JT copy</p></div>
+  </div>
+  -->
+</section>
+
+<!-- ─────── FAQ ─────── -->
+<section class="section">
+  <!-- TODO: JT copy — FAQ -->
+  <div class="faq-head">
+    <span class="eyebrow">FAQ</span>
+    <h2>Quick answers</h2>
+  </div>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary class="faq-q">Why all the questions? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <p class="faq-a">So neither of us wastes a call. If your crew is booked out or you mostly pour commercial, I'm probably not the right fit, and I'd rather tell you now.</p>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">Do I have to sign a contract? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <p class="faq-a">No. It's month to month. If it's not working, you stop.</p>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">How is this different from Angi or HomeAdvisor? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <p class="faq-a">Those leads go to you and four other contractors at once. These are homeowners who saw your ad, chose you and booked an estimate with you.</p>
+    </details>
+    <details class="faq-item">
+      <summary class="faq-q">What happens on the call? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+      <p class="faq-a">About 20 minutes. I ask about your area and the jobs you want more of, then show you exactly how the system would run for you. No pressure either way.</p>
+    </details>
+  </div>
+</section>
+
+<section class="close-cta">
+  <div class="inner">
+    <!-- TODO: JT copy -->
+    <h2>Ready to see if you're a fit?</h2>
+    <a href="#qf" class="btn-primary" id="back-to-form">
+      Start the questions
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+  </div>
+</section>
+</main>
+
+<footer class="lp-footer">
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/apple-touch-icon.png" alt="" width="28" height="28" loading="lazy">
+    <span>SYBAGO</span>
+  </span>
+  <p>© <span id="year"></span> Sybago LLC. Built by people who answer their phones.</p>
+  <div class="legal">
+    <a href="/privacy-policy">Privacy</a>
+    <a href="/terms">Terms</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     ROUTING — who sees the calendar. Edit these and nothing else.
+     A lead is DISQUALIFIED if ANY rule below matches. Every lead, qualified
+     or not, is still sent to GHL.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var ROUTING = {
+    // false → everyone sees the calendar (qualified: true for all).
+    ROUTING_ENABLED: true,
+
+    // Revenue floor: answers BELOW this one disqualify.
+    //   '$20k–$50k'  → "Under $20k" is disqualified (default)
+    //   'Under $20k' → no revenue band is disqualified
+    //   '$50k–$100k' → "Under $20k" and "$20k–$50k" are disqualified
+    REVENUE_FLOOR: '$20k–$50k',
+
+    // Exact answer text that disqualifies, per question.
+    DISQUALIFY_IF: {
+      work_type: ['Mostly commercial or new construction'],
+      capacity:  ["None, we're booked out"],
+      timeline:  ['Just looking into options']
+    }
+  };
+
+  // TODO: JT — paste GHL calendar embed. Use the src URL from the calendar's
+  // Share → Embed Code, e.g. https://api.leadconnectorhq.com/widget/booking/<CALENDAR_ID>
+  // While empty, qualified leads see a message instead of a calendar.
+  var CALENDAR_EMBED_URL = '';
+
+  var ENDPOINT = '/api/book-lead';
+  var ADVANCE_DELAY_MS = 170;
+
+  // Shown verbatim next to the checkbox and sent verbatim as consent_text.
+  var CONSENT_TEXT = 'By submitting, I agree to receive calls and text messages from Sybago about my inquiry, including by automated means. Consent is not a condition of purchase. Msg & data rates may apply. Reply STOP to opt out.';
+
+  /* ─── Questions. Answer text must match ANSWERS in api/book-lead.js. ─── */
+  var QUESTIONS = [
+    { key: 'work_type', q: 'What type of concrete work do you mostly do?', options: [
+      'Mostly residential (driveways, patios, walkways)',
+      'Mix of residential and commercial',
+      'Mostly commercial or new construction'] },
+    { key: 'monthly_revenue', q: "What's your average monthly revenue?", options: [
+      'Under $20k', '$20k–$50k', '$50k–$100k', '$100k+'] },
+    { key: 'capacity', q: 'How many more jobs could your crew take on per month right now?', options: [
+      "None, we're booked out", '1–3', '4–8', '9+'] },
+    { key: 'lead_source', q: 'Where do most of your jobs come from today?', options: [
+      'Referrals and word of mouth',
+      'Angi, HomeAdvisor, or Thumbtack',
+      'My own ads (Facebook or Google)',
+      'Nothing consistent'] },
+    { key: 'timeline', q: 'When do you want to start getting more estimates?', options: [
+      'As soon as possible', 'In the next 30 days', 'Just looking into options'] }
+  ];
+  var TOTAL_STEPS = QUESTIONS.length + 1;          // + contact step
+
+  /* ─── Qualification ─── */
+  function qualify(a) {
+    if (!ROUTING.ROUTING_ENABLED) return { qualified: true, reasons: [] };
+    var reasons = [];
+    Object.keys(ROUTING.DISQUALIFY_IF).forEach(function (key) {
+      if (ROUTING.DISQUALIFY_IF[key].indexOf(a[key]) !== -1) reasons.push(key + ': ' + a[key]);
+    });
+    var bands = QUESTIONS[1].options;
+    var floor = bands.indexOf(ROUTING.REVENUE_FLOOR);
+    if (floor > 0 && bands.indexOf(a.monthly_revenue) < floor) {
+      reasons.push('monthly_revenue: ' + a.monthly_revenue + ' (below ' + ROUTING.REVENUE_FLOOR + ' floor)');
+    }
+    return { qualified: reasons.length === 0, reasons: reasons };
+  }
+
+  /* ─── Attribution: captured on landing, kept for the session ─── */
+  var TRACK = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid'];
+  var ATTR_KEY = 'sybago_book_attr_v1';
+  var attribution = (function () {
+    var params = new URLSearchParams(location.search), fromUrl = {}, any = false;
+    TRACK.forEach(function (k) { fromUrl[k] = params.get(k) || ''; if (fromUrl[k]) any = true; });
+    var stored = null;
+    try { stored = JSON.parse(sessionStorage.getItem(ATTR_KEY) || 'null'); } catch (e) {}
+    // A fresh ad click (params present) wins; otherwise keep what this session landed with.
+    var attr = any || !stored ? fromUrl : stored;
+    try { sessionStorage.setItem(ATTR_KEY, JSON.stringify(attr)); } catch (e) {}
+    return attr;
+  })();
+
+  /* ─── Phone ─── */
+  function nationalDigits(v) {
+    var d = String(v).replace(/\D/g, '');
+    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+    return d.slice(0, 10);
+  }
+  function formatPhone(v) {
+    var d = nationalDigits(v);
+    if (d.length < 4) return d.length ? '(' + d : '';
+    if (d.length < 7) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  function validPhone(v) { return /^[2-9]\d{2}[2-9]\d{6}$/.test(nationalDigits(v)); }
+
+  /* ─── Tracking hooks ─── */
+  function trackLead() {
+    // Meta Lead — QUALIFIED submissions only. No-op until the pixel base code is installed.
+    if (typeof window.fbq === 'function') window.fbq('track', 'Lead');
+  }
+  // SCHEDULE HOOK — call this once a booking is confirmed.
+  // TODO: JT — wire booking confirmation (via GHL) and enable the line below.
+  function onBookingConfirmed() {
+    // if (typeof window.fbq === 'function') window.fbq('track', 'Schedule');
+  }
+  window.sybagoBookingConfirmed = onBookingConfirmed;
+  function ga(name, params) { if (typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
+
+  /* ─── State + DOM ─── */
+  var state = { step: 0, answers: {}, contact: { first_name: '', last_name: '', phone: '' }, consent: false, submitting: false, done: false };
+  var startedAt = Date.now();
+  var timer = null, touched = false;
+  var el = {
+    card: document.getElementById('qf'),
+    top: document.getElementById('qf-top'),
+    back: document.getElementById('qf-back'),
+    count: document.getElementById('qf-count'),
+    bar: document.getElementById('qf-bar'),
+    body: document.getElementById('qf-body')
+  };
+
+  function h(tag, attrs, children) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') n.textContent = attrs[k];
+      else if (k === 'class') n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) { if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+  var CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
+
+  function renderChrome() {
+    el.count.textContent = 'Step ' + (state.step + 1) + ' of ' + TOTAL_STEPS;
+    el.back.hidden = state.step === 0;
+    el.back.disabled = state.submitting;
+    el.bar.innerHTML = '';
+    for (var i = 0; i < TOTAL_STEPS; i++) el.bar.appendChild(h('span', { class: i <= state.step ? 'on' : '' }));
+    el.bar.setAttribute('aria-valuemax', TOTAL_STEPS);
+    el.bar.setAttribute('aria-valuenow', state.step + 1);
+    el.bar.setAttribute('aria-valuetext', 'Step ' + (state.step + 1) + ' of ' + TOTAL_STEPS);
+  }
+
+  function render(direction) {
+    renderChrome();
+    var wrap = h('div', { class: 'qf-step' + (direction === 'back' ? ' back' : '') });
+    if (state.step < QUESTIONS.length) wrap.appendChild(renderQuestion(QUESTIONS[state.step]));
+    else wrap.appendChild(renderContact());
+    el.body.innerHTML = '';
+    el.body.appendChild(wrap);
+    if (touched) {
+      var target = state.step < QUESTIONS.length ? wrap.querySelector('.qf-q') : wrap.querySelector('#f-first');
+      if (target) target.focus({ preventScroll: true });
+      // Keep the card in view on small screens when a step changes height.
+      var r = el.card.getBoundingClientRect();
+      if (r.top < 60 || r.top > window.innerHeight * 0.5) el.card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }
+
+  function renderQuestion(Q) {
+    var frag = document.createDocumentFragment();
+    frag.appendChild(h('h2', { class: 'qf-q', id: 'qf-q', tabindex: '-1', text: Q.q }));
+    var group = h('div', { class: 'qf-opts', role: 'radiogroup', 'aria-labelledby': 'qf-q' });
+    Q.options.forEach(function (opt) {
+      var selected = state.answers[Q.key] === opt;
+      var b = h('button', { type: 'button', class: 'qf-opt', role: 'radio', 'aria-checked': String(selected) }, [opt]);
+      var dot = h('span', { class: 'dot' }); dot.innerHTML = CHECK; b.appendChild(dot);
+      b.addEventListener('click', function () { pick(Q.key, opt, group, b); });
+      group.appendChild(b);
+    });
+    frag.appendChild(group);
+    return frag;
+  }
+
+  function pick(key, value, group, btn) {
+    if (state.submitting) return;
+    state.answers[key] = value;
+    Array.prototype.forEach.call(group.children, function (b) { b.setAttribute('aria-checked', String(b === btn)); });
+    clearTimeout(timer);
+    timer = setTimeout(function () { go(1); }, ADVANCE_DELAY_MS);
+  }
+
+  function go(delta) {
+    touched = true;
+    state.step = Math.max(0, Math.min(TOTAL_STEPS - 1, state.step + delta));
+    render(delta < 0 ? 'back' : 'fwd');
+  }
+
+  function field(id, label, attrs, value) {
+    var input = h('input', Object.assign({ id: id, name: id }, attrs));
+    input.value = value || '';
+    return h('div', { class: 'qf-field' + (attrs.type === 'tel' ? ' full' : '') }, [
+      h('label', { for: id, text: label }), input, h('p', { class: 'qf-err', id: id + '-err', hidden: '' })
+    ]);
+  }
+
+  function renderContact() {
+    var form = h('form', { novalidate: '', id: 'qf-form' });
+    form.appendChild(h('h2', { class: 'qf-q', id: 'qf-q', tabindex: '-1', text: 'Last step. Where should we reach you?' }));
+    var fields = h('div', { class: 'qf-fields' }, [
+      field('f-first', 'First name', { type: 'text', autocomplete: 'given-name', autocapitalize: 'words', required: '' }, state.contact.first_name),
+      field('f-last', 'Last name', { type: 'text', autocomplete: 'family-name', autocapitalize: 'words', required: '' }, state.contact.last_name),
+      field('f-phone', 'Mobile phone', { type: 'tel', inputmode: 'tel', autocomplete: 'tel', placeholder: '(555) 555-0100', required: '' }, state.contact.phone)
+    ]);
+    form.appendChild(fields);
+
+    // Honeypot: invisible to people, irresistible to bots.
+    var hp = h('div', { class: 'qf-hp', 'aria-hidden': 'true' }, [
+      h('label', { for: 'f-company-website', text: 'Company website' }),
+      h('input', { id: 'f-company-website', name: 'company_website', type: 'text', tabindex: '-1', autocomplete: 'off' })
+    ]);
+    form.appendChild(hp);
+
+    var box = h('input', { type: 'checkbox', id: 'f-consent', required: '' });
+    box.checked = state.consent;
+    var consentText = h('span', null, [CONSENT_TEXT + ' See our ', h('a', { href: '/privacy-policy', target: '_blank', rel: 'noopener', text: 'Privacy Policy' }), '.']);
+    var consent = h('label', { class: 'qf-consent', for: 'f-consent', id: 'f-consent-label' }, [box, consentText]);
+    form.appendChild(consent);
+    form.appendChild(h('p', { class: 'qf-err', id: 'f-consent-err', hidden: '' }));
+
+    var submit = h('button', { type: 'submit', class: 'btn-primary qf-submit', id: 'qf-submit' });
+    setSubmitLabel(submit, false);
+    form.appendChild(submit);
+    form.appendChild(h('div', { class: 'qf-alert', id: 'qf-alert', role: 'alert', hidden: '' }));
+
+    var phone = form.querySelector('#f-phone');
+    phone.addEventListener('input', function () {
+      phone.value = formatPhone(phone.value);
+      state.contact.phone = phone.value; clearErr('f-phone');
+    });
+    form.querySelector('#f-first').addEventListener('input', function (e) { state.contact.first_name = e.target.value; clearErr('f-first'); });
+    form.querySelector('#f-last').addEventListener('input', function (e) { state.contact.last_name = e.target.value; clearErr('f-last'); });
+    box.addEventListener('change', function () { state.consent = box.checked; clearErr('f-consent'); consent.classList.remove('invalid'); });
+    form.addEventListener('submit', onSubmit);
+    return form;
+  }
+
+  function setSubmitLabel(btn, busy) {
+    btn.innerHTML = '';
+    if (busy) {
+      btn.appendChild(h('span', { class: 'spin', 'aria-hidden': 'true' }));
+      btn.appendChild(document.createTextNode('Sending…'));
+    } else {
+      btn.appendChild(document.createTextNode('See if I qualify'));
+      var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
+      s.setAttribute('stroke-width', '2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+      s.setAttribute('aria-hidden', 'true');
+      s.innerHTML = '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>';
+      btn.appendChild(s);
+    }
+    btn.disabled = busy;
+    btn.setAttribute('aria-busy', String(busy));
+  }
+
+  function showErr(id, msg) {
+    var p = document.getElementById(id + '-err');
+    p.textContent = msg; p.hidden = false;
+    var input = document.getElementById(id);
+    if (input) { input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', id + '-err'); }
+  }
+  function clearErr(id) {
+    var p = document.getElementById(id + '-err');
+    if (p) { p.hidden = true; p.textContent = ''; }
+    var input = document.getElementById(id);
+    if (input) { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); }
+  }
+
+  function validate() {
+    var bad = [];
+    if (!state.contact.first_name.trim()) { showErr('f-first', 'Please enter your first name.'); bad.push('f-first'); }
+    if (!state.contact.last_name.trim()) { showErr('f-last', 'Please enter your last name.'); bad.push('f-last'); }
+    if (!validPhone(state.contact.phone)) { showErr('f-phone', 'Please enter a valid 10-digit US phone number.'); bad.push('f-phone'); }
+    if (!state.consent) {
+      showErr('f-consent', 'Please check the box so we can contact you.');
+      document.getElementById('f-consent-label').classList.add('invalid');
+      bad.push('f-consent');
+    }
+    if (bad.length) document.getElementById(bad[0]).focus();
+    return bad.length === 0;
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    if (state.submitting || state.done) return;
+    var alertBox = document.getElementById('qf-alert');
+    alertBox.hidden = true;
+    if (!validate()) return;
+
+    var a = state.answers;
+    var result = qualify(a);
+    var payload = {
+      first_name: state.contact.first_name.trim(),
+      last_name: state.contact.last_name.trim(),
+      phone: state.contact.phone,
+      work_type: a.work_type, monthly_revenue: a.monthly_revenue, capacity: a.capacity,
+      lead_source: a.lead_source, timeline: a.timeline,
+      qualified: result.qualified,
+      disqualify_reasons: result.reasons,
+      sms_consent: true,
+      consent_text: CONSENT_TEXT,
+      submitted_at: new Date().toISOString(),
+      page_url: location.href,
+      company_website: document.getElementById('f-company-website').value,
+      form_ms: Date.now() - startedAt
+    };
+    TRACK.forEach(function (k) { payload[k] = attribution[k] || ''; });
+
+    state.submitting = true;
+    var submit = document.getElementById('qf-submit');
+    setSubmitLabel(submit, true);
+    el.back.disabled = true;
+    Array.prototype.forEach.call(document.querySelectorAll('#qf-form input'), function (i) { i.readOnly = true; });
+
+    fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok || !body.ok) throw new Error(body.error || ('HTTP ' + res.status));
+      });
+    }).then(function () {
+      state.done = true;
+      ga('book_form_submit', { qualified: result.qualified });
+      if (result.qualified) { trackLead(); showCalendar(); }
+      else showThanks();
+    }).catch(function (err) {
+      // Never show the calendar if the webhook did not land.
+      console.error('book form submit failed:', err);
+      state.submitting = false;
+      setSubmitLabel(submit, false);
+      el.back.disabled = false;
+      Array.prototype.forEach.call(document.querySelectorAll('#qf-form input'), function (i) { i.readOnly = false; });
+      // Server messages are written for people; network/HTTP noise is not.
+      var serverMsg = err && err.message && !/^HTTP|Failed to fetch|NetworkError|Load failed/i.test(err.message);
+      alertBox.textContent = serverMsg
+        ? err.message + ' Your answers are saved.'
+        : "We couldn't send that just now. Your answers are saved — check your connection and tap the button again.";
+      alertBox.hidden = false;
+    });
+  }
+
+  function finish(node) {
+    el.top.hidden = true; el.bar.hidden = true;
+    el.body.innerHTML = '';
+    var wrap = h('div', { class: 'qf-step qf-result', role: 'status', 'aria-live': 'polite' }, [node]);
+    el.body.appendChild(wrap);
+    el.card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    var heading = wrap.querySelector('h2');
+    if (heading) heading.focus({ preventScroll: true });
+  }
+
+  function showCalendar() {
+    var frag = h('div');
+    frag.appendChild(h('h2', { tabindex: '-1', text: 'Last step — pick a time that works for you.' }));
+    frag.appendChild(h('p', { text: "You're a fit. Grab a 20-minute slot below and I'll call you then." }));
+    if (!CALENDAR_EMBED_URL) {
+      console.warn('CALENDAR_EMBED_URL is not set in book.html');
+      frag.appendChild(h('div', { class: 'book-frame' }, [h('p', { class: 'book-missing', text: "Thanks! We'll text you shortly to set up a time." })]));
+      return finish(frag);
+    }
+    // Prefill. GHL does not document calendar-widget URL params; these are the
+    // standard GHL field keys. Harmless if ignored — verify on your calendar.
+    var url;
+    try { url = new URL(CALENDAR_EMBED_URL); } catch (e) { url = null; }
+    if (url) {
+      url.searchParams.set('first_name', state.contact.first_name.trim());
+      url.searchParams.set('last_name', state.contact.last_name.trim());
+      url.searchParams.set('phone', '+1' + nationalDigits(state.contact.phone));
+    }
+    var calId = (CALENDAR_EMBED_URL.split('?')[0].split('/').filter(Boolean).pop() || 'calendar') + '_book';
+    var iframe = h('iframe', { src: url ? url.toString() : CALENDAR_EMBED_URL, id: calId, scrolling: 'no', title: 'Book a call with Sybago' });
+    frag.appendChild(h('div', { class: 'book-frame' }, [iframe]));
+    finish(frag);
+    var s = document.createElement('script');
+    s.src = 'https://api.leadconnectorhq.com/js/form_embed.js';   // auto-sizes the iframe
+    document.body.appendChild(s);
+    /* SCHEDULE HOOK (sketch, unverified): GHL's widget posts messages to the parent page.
+       Once the booking-confirmed message format is confirmed, call onBookingConfirmed():
+       window.addEventListener('message', function (ev) {
+         if (!/leadconnectorhq\.com|msgsndr\.com/.test(ev.origin)) return;
+         // TODO: JT — match the real booking-confirmed message, then:
+         // onBookingConfirmed();
+       });
+    */
+  }
+
+  function showThanks() {
+    var frag = h('div');
+    frag.appendChild(h('h2', { tabindex: '-1', text: 'Thanks — got it.' }));
+    // TODO: JT copy — disqualified thank-you
+    frag.appendChild(h('p', { text: "I'll look over your answers and reach out if it looks like a fit. Appreciate you taking the time." }));
+    finish(frag);
+  }
+
+  el.back.addEventListener('click', function () { if (!state.submitting) go(-1); });
+  document.getElementById('back-to-form').addEventListener('click', function (e) {
+    e.preventDefault();
+    el.card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    setTimeout(function () {
+      var first = el.card.querySelector('.qf-opt, input, h2');
+      if (first) first.focus({ preventScroll: true });
+    }, 450);
+  });
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  render('fwd');
+})();
+</script>
+</body>
+</html>
