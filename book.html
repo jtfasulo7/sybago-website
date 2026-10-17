@@ -392,7 +392,7 @@ details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transf
   <div class="pipe-grid">
     <div class="pipe-card">
       <div class="pipe-stage">Step 1</div>
-      <h3>We talk for 20 minutes</h3>
+      <h3>We get on a quick call</h3>
       <p>You tell me your area, your jobs and how much work you want. I tell you straight whether this will work for your crew.</p>
     </div>
     <div class="pipe-card">
@@ -473,7 +473,7 @@ details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transf
     </details>
     <details class="faq-item">
       <summary class="faq-q">What happens on the call? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-      <p class="faq-a">About 20 minutes. I ask about your area and the jobs you want more of, then show you exactly how the system would run for you. No pressure either way.</p>
+      <p class="faq-a">A short call. I ask about your area and the jobs you want more of, then show you exactly how the system would run for you. No pressure either way.</p>
     </details>
   </div>
 </section>
@@ -529,10 +529,10 @@ details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transf
     }
   };
 
-  // TODO: JT — paste GHL calendar embed. Use the src URL from the calendar's
-  // Share → Embed Code, e.g. https://api.leadconnectorhq.com/widget/booking/<CALENDAR_ID>
-  // While empty, qualified leads see a message instead of a calendar.
-  var CALENDAR_EMBED_URL = '';
+  // GHL calendar — the src URL from the calendar's Share → Embed Code. Same
+  // sales-call calendar as the rest of the site; this page's iframe id suffix
+  // is _book so its bookings can be told apart. Empty = message instead of calendar.
+  var CALENDAR_EMBED_URL = 'https://api.leadconnectorhq.com/widget/booking/FsCLXfMJ7yiiM7zMb2nP';
 
   var ENDPOINT = '/api/book-lead';
   var ADVANCE_DELAY_MS = 170;
@@ -866,7 +866,7 @@ details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transf
   function showCalendar() {
     var frag = h('div');
     frag.appendChild(h('h2', { tabindex: '-1', text: 'Last step — pick a time that works for you.' }));
-    frag.appendChild(h('p', { text: "You're a fit. Grab a 20-minute slot below and I'll call you then." }));
+    frag.appendChild(h('p', { text: "You're a fit. Grab a time below and I'll call you then." }));
     if (!CALENDAR_EMBED_URL) {
       console.warn('CALENDAR_EMBED_URL is not set in book.html');
       frag.appendChild(h('div', { class: 'book-frame' }, [h('p', { class: 'book-missing', text: "Thanks! We'll text you shortly to set up a time." })]));
@@ -882,11 +882,11 @@ details[open] .faq-q .icon{border-color:var(--teal-b);color:var(--teal-b);transf
       url.searchParams.set('phone', '+1' + nationalDigits(state.contact.phone));
     }
     var calId = (CALENDAR_EMBED_URL.split('?')[0].split('/').filter(Boolean).pop() || 'calendar') + '_book';
-    var iframe = h('iframe', { src: url ? url.toString() : CALENDAR_EMBED_URL, id: calId, scrolling: 'no', title: 'Book a call with Sybago' });
+    var iframe = h('iframe', { src: url ? url.toString() : CALENDAR_EMBED_URL, id: calId, scrolling: 'no', allow: 'payment', title: 'Book a call with Sybago' });
     frag.appendChild(h('div', { class: 'book-frame' }, [iframe]));
     finish(frag);
     var s = document.createElement('script');
-    s.src = 'https://api.leadconnectorhq.com/js/form_embed.js';   // auto-sizes the iframe
+    s.src = 'https://link.msgsndr.com/js/form_embed.js';   // GHL's embed script; auto-sizes the iframe
     document.body.appendChild(s);
     /* SCHEDULE HOOK (sketch, unverified): GHL's widget posts messages to the parent page.
        Once the booking-confirmed message format is confirmed, call onBookingConfirmed():
