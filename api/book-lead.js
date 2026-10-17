@@ -120,10 +120,15 @@ export default async function handler(req, res) {
     return res.status(502).json({ ok: false, error: "We couldn't send that just now. Please try again." });
   }
 
+  // Every accepted lead leaves one line (no phone), so "the calendar didn't
+  // show" can be told apart from "the answers disqualified" after the fact.
+  console.log('book-lead: forwarded', JSON.stringify({ qualified: payload.qualified, disqualify_reasons, first_name }));
   return res.status(200).json({ ok: true });
 }
 
 function bad(res, error) {
+  // Logged so a rejected submission is visible in the Vercel logs, not silent.
+  console.warn('book-lead: rejected', error);
   return res.status(400).json({ ok: false, error });
 }
 
