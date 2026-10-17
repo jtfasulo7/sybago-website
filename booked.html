@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  SYBAGO /booked — where the GHL sales-call calendar redirects after a booking.
+  Live at: /booked   (cleanUrls)   noindex.
+═══════════════════════════════════════════════════════════════════════════════
+  Its only job is to mark a confirmed booking for Meta (Schedule) exactly once.
+
+  GHL may open the redirect INSIDE the embedded calendar iframe or as the whole
+  page, so this handles both:
+    - inside an iframe → post {type:'sybago:booked'} to the parent page and show
+      a compact confirmation in the calendar box. /book listens for it and fires
+      Schedule itself. This page loads no pixel, so nothing double-counts.
+    - top-level        → load the Sybago pixel and fire Schedule here.
+
+  The calendar is shared with the homepage and lp/ pages, so their bookings land
+  here too. Those parents have no listener (and no pixel), so in-iframe bookings
+  there are simply confirmed, not tracked.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<script>
+  // Decided before anything loads: tracking only happens at the top level.
+  window.SYB_IN_FRAME = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+</script>
+<!-- Google tag (gtag.js) — top level only -->
+<script>
+  if (!window.SYB_IN_FRAME) {
+    var g = document.createElement('script');
+    g.async = true; g.src = 'https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH';
+    document.head.appendChild(g);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function(){dataLayer.push(arguments);};
+    gtag('js', new Date());
+    gtag('config', 'G-0JK4JY6SRH');
+  }
+</script>
+<!-- Meta Pixel Code — Sybago pixel 967404465867527, top level only, automatic events off
+     (same setup as /book). Fires Schedule: this page only exists after a booking. -->
+<script>
+if (!window.SYB_IN_FRAME) {
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('set', 'autoConfig', false, '967404465867527');
+fbq('init', '967404465867527');
+fbq('track', 'PageView');
+fbq('track', 'Schedule');
+gtag('event', 'book_scheduled');
+}
+</script>
+<!-- End Meta Pixel Code -->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>You're Booked | Sybago</title>
+
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#ffffff;
+  --bg-2:#f4f5f7;
+  --t1:#0f1419;
+  --t2:rgba(15,20,25,0.66);
+  --t3:rgba(15,20,25,0.42);
+  --line:rgba(15,20,25,0.08);
+  --teal:#2F6779;
+  --teal-b:#3a7d93;
+  --teal-tint:rgba(47,103,121,0.10);
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+body{
+  font-family:var(--ff);background:var(--bg);color:var(--t1);
+  -webkit-font-smoothing:antialiased;line-height:1.55;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:3rem 1.4rem;text-align:center;
+}
+.nav-logo{display:flex;align-items:center;justify-content:center;gap:.55rem;margin-bottom:2.2rem}
+.nav-logo img{height:28px;width:28px;border-radius:6px}
+.nav-logo span{font-size:.95rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+.check{
+  width:56px;height:56px;border-radius:50%;margin:0 auto 1.2rem;
+  background:var(--teal-tint);color:var(--teal);display:flex;align-items:center;justify-content:center;
+}
+.check svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:clamp(1.7rem,4.6vw,2.4rem);font-weight:800;letter-spacing:-.015em;line-height:1.1;margin-bottom:.7rem}
+p{color:var(--t2);font-size:1rem;max-width:42ch;margin:0 auto .6rem}
+a{color:inherit;text-decoration:none}
+.foot{margin-top:2.4rem;font-size:.74rem;color:var(--t3)}
+.foot a:hover{color:var(--teal-b)}
+/* Inside the calendar iframe: compact, no logo, no footer. */
+html.in-frame body{min-height:0;padding:2.2rem 1rem;background:transparent}
+html.in-frame .nav-logo,html.in-frame .foot{display:none}
+html.in-frame h1{font-size:1.4rem}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+<script>if (window.SYB_IN_FRAME) document.documentElement.classList.add('in-frame');</script>
+</head>
+<body>
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/apple-touch-icon.png" alt="" width="28" height="28">
+    <span>SYBAGO</span>
+  </span>
+  <div class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></div>
+  <h1>You're booked.</h1>
+  <!-- TODO: JT copy -->
+  <p>You'll get a text confirming your time. I'll call you right then. Have a rough idea of the jobs you want more of.</p>
+  <p>Talk soon. — JT</p>
+  <div class="foot"><a href="/privacy-policy">Privacy</a> · <a href="/terms">Terms</a></div>
+
+<script>
+  // In the /book calendar iframe: tell the parent so it fires Schedule (once).
+  // targetOrigin = our own origin, so the message only ever reaches sybago.ai pages.
+  if (window.SYB_IN_FRAME) {
+    try { window.parent.postMessage({ type: 'sybago:booked' }, location.origin); } catch (e) {}
+  }
+</script>
+</body>
+</html>

@@ -625,15 +625,24 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
 
   /* ─── Tracking hooks ─── */
   function trackLead() {
-    // Meta Lead — QUALIFIED submissions only. No-op until the pixel base code is installed.
+    // Meta Lead — QUALIFIED submissions only.
     if (typeof window.fbq === 'function') window.fbq('track', 'Lead');
   }
-  // SCHEDULE HOOK — call this once a booking is confirmed.
-  // TODO: JT — wire booking confirmation (via GHL) and enable the line below.
+  // SCHEDULE — fired once when a booking is confirmed. The GHL calendar's
+  // after-booking redirect points at /booked; when that page loads INSIDE this
+  // page's calendar iframe it posts 'sybago:booked' here (listener below) and
+  // does not fire the pixel itself, so a booking is counted exactly once.
+  var scheduled = false;
   function onBookingConfirmed() {
-    // if (typeof window.fbq === 'function') window.fbq('track', 'Schedule');
+    if (scheduled) return;
+    scheduled = true;
+    if (typeof window.fbq === 'function') window.fbq('track', 'Schedule');
+    ga('book_scheduled');
   }
-  window.sybagoBookingConfirmed = onBookingConfirmed;
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin) return;            // only our own /booked page
+    if (ev.data && ev.data.type === 'sybago:booked') onBookingConfirmed();
+  });
   function ga(name, params) { if (typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
 
   /* ─── State + DOM ─── */
@@ -908,14 +917,7 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
     var s = document.createElement('script');
     s.src = 'https://link.msgsndr.com/js/form_embed.js';   // GHL's embed script; auto-sizes the iframe
     document.body.appendChild(s);
-    /* SCHEDULE HOOK (sketch, unverified): GHL's widget posts messages to the parent page.
-       Once the booking-confirmed message format is confirmed, call onBookingConfirmed():
-       window.addEventListener('message', function (ev) {
-         if (!/leadconnectorhq\.com|msgsndr\.com/.test(ev.origin)) return;
-         // TODO: JT — match the real booking-confirmed message, then:
-         // onBookingConfirmed();
-       });
-    */
+    // Booking confirmation arrives via /booked → postMessage (see onBookingConfirmed).
   }
 
   function showThanks() {

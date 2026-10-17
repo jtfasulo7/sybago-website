@@ -129,8 +129,13 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
   on load; `Lead` fired explicitly for QUALIFIED submissions only. **Automatic events are off**
   (`fbq('set','autoConfig',false,…)` before init): left on, Meta sends every answer tap with its
   text as SubscribedButtonClick and can infer leads from the form submit, which would count
-  disqualified submissions in the signal the ads optimise on. The `Schedule` hook
-  (`onBookingConfirmed`) is a stub until GHL booking confirmation is wired.
+  disqualified submissions in the signal the ads optimise on.
+- **`Schedule` comes from `/booked` (`booked.html`)**, the GHL calendar's after-booking redirect.
+  Inside the `/book` calendar iframe it posts `{type:'sybago:booked'}` to the parent (same-origin
+  only) and loads no tracking; `/book` fires Schedule once (`scheduled` guard). Opened top-level it
+  fires Schedule itself. The calendar is shared with the homepage and `lp/` pages, so their
+  bookings land on `/booked` too: in-iframe they are confirmed but not tracked (no listener there).
+  The domain-verification meta tag Meta re-checks lives in `index.html` — keep it.
 - Calendar prefill (`first_name`, `last_name`, `phone` query params) is unverified — GHL does
   not document calendar-widget URL params.
 
