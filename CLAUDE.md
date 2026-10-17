@@ -125,9 +125,12 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
   page shows a retry message and keeps the answers.
 - Answer text is sent verbatim to GHL. `ANSWERS` in `api/book-lead.js` must match `QUESTIONS`
   in `book.html` exactly — en dashes included.
-- **No Meta Pixel is installed on the site.** The page calls `fbq('track','Lead')` for qualified
-  submissions only, guarded so it is a no-op until the base code is pasted into `<head>`. The
-  `Schedule` hook (`onBookingConfirmed`) is a stub until GHL booking confirmation is wired.
+- **Meta Pixel `967404465867527` is installed on `/book` only** (no other page has it). PageView
+  on load; `Lead` fired explicitly for QUALIFIED submissions only. **Automatic events are off**
+  (`fbq('set','autoConfig',false,…)` before init): left on, Meta sends every answer tap with its
+  text as SubscribedButtonClick and can infer leads from the form submit, which would count
+  disqualified submissions in the signal the ads optimise on. The `Schedule` hook
+  (`onBookingConfirmed`) is a stub until GHL booking confirmation is wired.
 - Calendar prefill (`first_name`, `last_name`, `phone` query params) is unverified — GHL does
   not document calendar-widget URL params.
 
