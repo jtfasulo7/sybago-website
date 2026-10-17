@@ -140,6 +140,15 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
   fires Schedule itself. The calendar is shared with the homepage and `lp/` pages, so their
   bookings land on `/booked` too: in-iframe they are confirmed but not tracked (no listener there).
   The domain-verification meta tag Meta re-checks lives in `index.html` — keep it.
+- **The booking signal is the GHL widget's own `['msgsndr-booking-complete', {…}]` postMessage**
+  (origin `*.leadconnectorhq.com` / `*.msgsndr.com`), sent after every booking before any
+  confirmation setting runs. **The calendar is set to show a thank-you message, not redirect**,
+  so `/booked` never loads from it and the `sybago:booked` path was never firing — verified
+  2026-10-17 from the widget source. If GHL is ever set to redirect, it navigates `window.top`
+  (not the iframe), so `/booked` loads top-level; `/book` sets `syb_schedule_fired` in
+  sessionStorage so `/booked` skips a second Schedule.
+- **Revenue does not disqualify**: `REVENUE_FLOOR` is `'Under $20k'` (JT's call). The answer is
+  still sent to GHL for context before the call.
 - **After a confirmed booking (never after the form submit) the page redirects to `/confirmed`**
   (`confirmed.html`), the pre-call VSL page whose job is show rate. `/book` redirects 700ms
   after firing Schedule (the delay lets the hits leave) and stashes the first name in

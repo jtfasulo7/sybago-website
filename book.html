@@ -535,7 +535,9 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
     //   '$20k–$50k'  → "Under $20k" is disqualified (default)
     //   'Under $20k' → no revenue band is disqualified
     //   '$50k–$100k' → "Under $20k" and "$20k–$50k" are disqualified
-    REVENUE_FLOOR: '$20k–$50k',
+    // Set to 'Under $20k' by JT: every revenue band can book. The answer is
+    // still sent to GHL so it is known before the call.
+    REVENUE_FLOOR: 'Under $20k',
 
     // Exact answer text that disqualifies, per question.
     DISQUALIFY_IF: {
@@ -638,11 +640,27 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
     scheduled = true;
     if (typeof window.fbq === 'function') window.fbq('track', 'Schedule');
     ga('book_scheduled');
-    try { sessionStorage.setItem('syb_booked_first', state.contact.first_name.trim()); } catch (e) {}
+    try {
+      sessionStorage.setItem('syb_booked_first', state.contact.first_name.trim());
+      // If the calendar is ever set to redirect to /booked, the widget sends the
+      // whole tab there; this tells /booked Schedule was already counted.
+      sessionStorage.setItem('syb_schedule_fired', '1');
+    } catch (e) {}
     setTimeout(function () { window.location.assign(CONFIRMED_URL); }, REDIRECT_DELAY_MS);
   }
   window.addEventListener('message', function (ev) {
-    if (ev.origin !== location.origin) return;            // only our own /booked page
+    // Primary signal: the GHL booking widget itself. After every booking it posts
+    // ['msgsndr-booking-complete', {fingerprint, calendarId}] to its parent, before
+    // (and regardless of) whatever the calendar's confirmation setting does.
+    // The calendar is set to show a thank-you message, not redirect, so /booked
+    // never loaded and this is the only signal that actually arrives.
+    if (/^https:\/\/([a-z0-9-]+\.)*(leadconnectorhq\.com|msgsndr\.com)$/.test(ev.origin) &&
+        Array.isArray(ev.data) && ev.data[0] === 'msgsndr-booking-complete') {
+      onBookingConfirmed();
+      return;
+    }
+    // Fallback: /booked, if the calendar is ever switched to redirect there.
+    if (ev.origin !== location.origin) return;
     if (ev.data && ev.data.type === 'sybago:booked') onBookingConfirmed();
   });
   function ga(name, params) { if (typeof window.gtag === 'function') window.gtag('event', name, params || {}); }

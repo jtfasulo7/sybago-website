@@ -51,8 +51,13 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('set', 'autoConfig', false, '967404465867527');
 fbq('init', '967404465867527');
 fbq('track', 'PageView');
-fbq('track', 'Schedule');
-gtag('event', 'book_scheduled');
+// /book already fired Schedule if this tab came from there.
+var sybFired = false;
+try { sybFired = sessionStorage.getItem('syb_schedule_fired') === '1'; } catch (e) {}
+if (!sybFired) {
+  fbq('track', 'Schedule');
+  gtag('event', 'book_scheduled');
+}
 // Then on to the pre-call VSL. replace() keeps /booked out of history, so Back
 // cannot re-fire Schedule. The delay lets the hits above leave first.
 setTimeout(function () { location.replace('/confirmed'); }, 700);
