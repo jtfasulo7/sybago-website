@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  SYBAGO /confirmed — the pre-call VSL page a booker lands on.
+  Live at: /confirmed   (cleanUrls)   noindex.
+═══════════════════════════════════════════════════════════════════════════════
+  Only ever reached AFTER a calendar booking is confirmed, never after the
+  lead form:
+    - /book: /booked (inside the calendar iframe) posts 'sybago:booked' →
+      /book fires Schedule → redirects the whole page here.
+    - /booked opened top-level: fires Schedule → replaces itself with this page.
+  Schedule is already counted by the time anyone lands here, so this page loads
+  NO Meta pixel. GA only, with vsl_* events to see who actually watches.
+
+  Its job is show rate: the booker watches the VSL before the call.
+
+  Autoplay: browsers only autoplay WITH sound when they allow it, so the video
+  first tries to play with sound; if that is blocked it plays muted with a
+  "tap for sound" overlay, and the tap restarts it from the beginning.
+
+  Video: media/booked-vsl.mp4 (1080p H.264, faststart) + booked-vsl-poster.jpg.
+  To swap the video, replace those two files and keep the names.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0JK4JY6SRH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0JK4JY6SRH');
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>You're Booked — Watch Before Our Call | Sybago</title>
+
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="/media/booked-vsl-poster.jpg">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#ffffff;
+  --bg-2:#f4f5f7;
+  --bg-3:#eaecef;
+  --t1:#0f1419;
+  --t2:rgba(15,20,25,0.66);
+  --t3:rgba(15,20,25,0.42);
+  --line:rgba(15,20,25,0.08);
+  --teal:#2F6779;
+  --teal-b:#3a7d93;
+  --teal-d:#244e5b;
+  --teal-tint:rgba(47,103,121,0.10);
+  --good:#4dbf7a;
+  --ff:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --eo:cubic-bezier(.16,1,.3,1);
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--ff);background:var(--bg);color:var(--t1);
+  -webkit-font-smoothing:antialiased;line-height:1.55;
+  padding:1.6rem 1.25rem 2.4rem;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:880px;margin:0 auto}
+
+.nav-logo{display:flex;align-items:center;justify-content:center;gap:.55rem;margin-bottom:1.8rem}
+.nav-logo img{height:28px;width:28px;border-radius:6px}
+.nav-logo span{font-size:.95rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+
+.head{text-align:center;margin-bottom:1.4rem}
+.badge{
+  display:inline-flex;align-items:center;gap:.45rem;
+  background:var(--teal-tint);color:var(--teal);
+  font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:.42rem .8rem;border-radius:999px;margin-bottom:1rem;
+}
+.badge svg{width:14px;height:14px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:clamp(1.65rem,4.8vw,2.6rem);font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-bottom:.65rem}
+h1 em{font-style:normal;color:var(--teal)}
+.sub{color:var(--t2);font-size:1.02rem;max-width:46ch;margin:0 auto}
+
+/* ── Player ── */
+.player{
+  position:relative;width:100%;aspect-ratio:16/9;background:#0b0f13;
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 1px 0 var(--line),0 18px 50px -18px rgba(15,20,25,.35);
+}
+.player video{position:absolute;inset:0;width:100%;height:100%;display:block;background:#0b0f13}
+.unmute{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(11,15,19,.28);border:0;cursor:pointer;color:#fff;font:inherit;
+}
+.player.muted .unmute{display:flex}
+.unmute-pill{
+  display:flex;align-items:center;gap:.7rem;
+  background:var(--teal);padding:.95rem 1.3rem;border-radius:12px;
+  font-size:1.02rem;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.35);
+  animation:pulse 1.8s var(--eo) infinite;
+}
+.unmute-pill svg{width:24px;height:24px;flex:none;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.unmute-pill small{display:block;font-size:.78rem;font-weight:500;opacity:.85}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.player-note{text-align:center;color:var(--t3);font-size:.82rem;margin-top:.7rem}
+
+/* ── Before the call ── */
+.next{margin:2.2rem auto 0;max-width:620px}
+.next h2{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;margin-bottom:.9rem;text-align:center}
+.steps{list-style:none;display:grid;gap:.7rem}
+.steps li{
+  display:flex;gap:.85rem;align-items:flex-start;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:.95rem 1rem;
+}
+.num{
+  flex:none;width:28px;height:28px;border-radius:50%;
+  background:var(--teal);color:#fff;font-size:.85rem;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps li.done .num{background:var(--good)}
+.steps strong{display:block;font-size:.98rem;font-weight:700;margin-bottom:.1rem}
+.steps p{color:var(--t2);font-size:.92rem}
+
+.sign{text-align:center;color:var(--t2);margin-top:1.8rem;font-size:.98rem}
+.foot{text-align:center;margin-top:2.2rem;font-size:.74rem;color:var(--t3)}
+.foot a:hover{color:var(--teal-b)}
+
+@media (max-width:600px){
+  body{padding:1.2rem 0 2rem}
+  .nav-logo,.head,.next,.sign,.foot,.player-note{padding-left:1rem;padding-right:1rem}
+  .player{border-radius:0}
+  .unmute-pill{font-size:.95rem;padding:.8rem 1.05rem}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="nav-logo" aria-label="Sybago">
+    <img src="/apple-touch-icon.png" alt="" width="28" height="28">
+    <span>SYBAGO</span>
+  </span>
+
+  <header class="head">
+    <div class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Your call is booked</div>
+    <!-- TODO: JT copy -->
+    <h1 id="title">One more step: <em>watch this before our call.</em></h1>
+    <p class="sub">It's about 4 minutes. Watch it before we talk so we can spend the call on your business.</p>
+  </header>
+
+  <div class="player" id="player">
+    <video id="vsl" playsinline preload="auto" controls
+           poster="/media/booked-vsl-poster.jpg">
+      <source src="/media/booked-vsl.mp4" type="video/mp4">
+    </video>
+    <button class="unmute" id="unmute" type="button" aria-label="Turn on sound and play from the start">
+      <span class="unmute-pill">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a10 10 0 010 14"/></svg>
+        <span>Tap to turn on sound<small>Your video is playing</small></span>
+      </span>
+    </button>
+  </div>
+  <p class="player-note">Watch it all the way through. It'll make our call a lot more useful for you.</p>
+
+  <section class="next" aria-labelledby="next-h">
+    <h2 id="next-h">Before our call</h2>
+    <ol class="steps">
+      <li id="step-watch"><span class="num">1</span><div><strong>Watch the video above</strong><p>Start to finish, before our call.</p></div></li>
+      <li><span class="num">2</span><div><strong>Watch for the confirmation text</strong><p>You'll get a text confirming your time. Save it so the call is easy to find.</p></div></li>
+      <li><span class="num">3</span><div><strong>Pick up when I call</strong><p>I'll call you right at your booked time. Have a rough idea of the jobs you want more of.</p></div></li>
+    </ol>
+  </section>
+
+  <p class="sign">Talk soon. — JT</p>
+  <div class="foot"><a href="/privacy-policy">Privacy</a> · <a href="/terms">Terms</a></div>
+</div>
+
+<script>
+(function () {
+  var video = document.getElementById('vsl');
+  var player = document.getElementById('player');
+  var unmute = document.getElementById('unmute');
+  function ga(name, params) { if (typeof window.gtag === 'function') window.gtag('event', name, params || {}); }
+
+  // Personalise with the first name /book stashed on the way here, if any.
+  try {
+    var first = sessionStorage.getItem('syb_booked_first');
+    if (first) {
+      var t = document.getElementById('title');
+      t.insertBefore(document.createTextNode(first + ', one more step: '), t.firstChild.nextSibling);
+      t.removeChild(t.firstChild);
+    }
+  } catch (e) {}
+
+  function setMuted(m) {
+    video.muted = m;
+    player.classList.toggle('muted', m);
+  }
+
+  // Try with sound first; fall back to muted autoplay + the unmute overlay.
+  function start() {
+    setMuted(false);
+    var p = video.play();
+    if (p && typeof p.then === 'function') {
+      p.then(function () { ga('vsl_autoplay', { sound: true }); })
+       .catch(function () {
+         setMuted(true);
+         var q = video.play();
+         if (q && q.then) q.then(function () { ga('vsl_autoplay', { sound: false }); }).catch(function () {
+           // Autoplay fully blocked (e.g. low-power mode): leave the poster and
+           // native play button; the overlay would just get in the way.
+           player.classList.remove('muted');
+           video.muted = false;
+         });
+       });
+    }
+  }
+
+  unmute.addEventListener('click', function () {
+    video.currentTime = 0;          // they missed the start with no sound — restart
+    setMuted(false);
+    video.play();
+    ga('vsl_unmute');
+  });
+  // Unmuting through the native controls also clears the overlay.
+  video.addEventListener('volumechange', function () {
+    if (!video.muted) player.classList.remove('muted');
+  });
+
+  // Watch-depth events, each once.
+  var marks = [25, 50, 75, 95], sent = {};
+  video.addEventListener('timeupdate', function () {
+    if (!video.duration || video.muted) return;   // only count watching with sound
+    var pct = video.currentTime / video.duration * 100;
+    for (var i = 0; i < marks.length; i++) {
+      if (pct >= marks[i] && !sent[marks[i]]) { sent[marks[i]] = 1; ga('vsl_progress', { percent: marks[i] }); }
+    }
+    if (pct >= 95) document.getElementById('step-watch').classList.add('done');
+  });
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</body>
+</html>

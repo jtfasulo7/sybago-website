@@ -628,12 +628,18 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
   // after-booking redirect points at /booked; when that page loads INSIDE this
   // page's calendar iframe it posts 'sybago:booked' here (listener below) and
   // does not fire the pixel itself, so a booking is counted exactly once.
+  // Then the whole page moves on to the pre-call VSL (/confirmed). Only a
+  // confirmed BOOKING gets here — submitting the form never redirects.
   var scheduled = false;
+  var CONFIRMED_URL = '/confirmed';
+  var REDIRECT_DELAY_MS = 700;   // lets the Schedule/GA hits leave before we navigate
   function onBookingConfirmed() {
     if (scheduled) return;
     scheduled = true;
     if (typeof window.fbq === 'function') window.fbq('track', 'Schedule');
     ga('book_scheduled');
+    try { sessionStorage.setItem('syb_booked_first', state.contact.first_name.trim()); } catch (e) {}
+    setTimeout(function () { window.location.assign(CONFIRMED_URL); }, REDIRECT_DELAY_MS);
   }
   window.addEventListener('message', function (ev) {
     if (ev.origin !== location.origin) return;            // only our own /booked page

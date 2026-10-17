@@ -53,6 +53,9 @@ fbq('init', '967404465867527');
 fbq('track', 'PageView');
 fbq('track', 'Schedule');
 gtag('event', 'book_scheduled');
+// Then on to the pre-call VSL. replace() keeps /booked out of history, so Back
+// cannot re-fire Schedule. The delay lets the hits above leave first.
+setTimeout(function () { location.replace('/confirmed'); }, 700);
 }
 </script>
 <!-- End Meta Pixel Code -->

@@ -136,6 +136,16 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
   fires Schedule itself. The calendar is shared with the homepage and `lp/` pages, so their
   bookings land on `/booked` too: in-iframe they are confirmed but not tracked (no listener there).
   The domain-verification meta tag Meta re-checks lives in `index.html` — keep it.
+- **After a confirmed booking (never after the form submit) the page redirects to `/confirmed`**
+  (`confirmed.html`), the pre-call VSL page whose job is show rate. `/book` redirects 700ms
+  after firing Schedule (the delay lets the hits leave) and stashes the first name in
+  sessionStorage (`syb_booked_first`) for the headline. `/booked` opened top-level also
+  `location.replace`s to `/confirmed` after firing Schedule. `/confirmed` loads **no pixel**
+  (Schedule is already counted) — GA only, with `vsl_autoplay` / `vsl_unmute` / `vsl_progress`.
+  It tries autoplay with sound, falls back to muted + a "tap to turn on sound" overlay that
+  restarts from 0. Video: `media/booked-vsl.mp4` (1080p H.264, faststart) +
+  `media/booked-vsl-poster.jpg` — swap by replacing the files, keep the names. This is a
+  deliberate exception to "no multi-page redirect", asked for by JT.
 - Calendar prefill (`first_name`, `last_name`, `phone` query params) is unverified — GHL does
   not document calendar-widget URL params.
 
