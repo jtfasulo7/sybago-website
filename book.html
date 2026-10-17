@@ -808,7 +808,23 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
     if (input) { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby'); }
   }
 
+  // iOS Safari AutoFill (and password managers) can fill these fields without
+  // firing 'input', so the state kept by the listeners above stays empty while
+  // the fields look filled — validation then fails and the calendar never
+  // shows. The DOM is the truth at submit time.
+  function syncContactFromFields() {
+    var first = document.getElementById('f-first');
+    var last = document.getElementById('f-last');
+    var phone = document.getElementById('f-phone');
+    var box = document.getElementById('f-consent');
+    if (first) state.contact.first_name = first.value;
+    if (last) state.contact.last_name = last.value;
+    if (phone) { phone.value = formatPhone(phone.value); state.contact.phone = phone.value; }
+    if (box) state.consent = box.checked;
+  }
+
   function validate() {
+    syncContactFromFields();
     var bad = [];
     if (!state.contact.first_name.trim()) { showErr('f-first', 'Please enter your first name.'); bad.push('f-first'); }
     if (!state.contact.last_name.trim()) { showErr('f-last', 'Please enter your last name.'); bad.push('f-last'); }
@@ -857,8 +873,7 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
     fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true
+      body: JSON.stringify(payload)
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) {
         if (!res.ok || !body.ok) throw new Error(body.error || ('HTTP ' + res.status));

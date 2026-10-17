@@ -121,6 +121,10 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
 - The browser POSTs to `api/book-lead.js`, which validates, drops spam (honeypot
   `company_website` + `form_ms` under 4s → fake 200), and forwards **every** lead to
   `GHL_WEBHOOK_URL`. The URL never reaches the browser.
+- **Contact fields are read from the DOM at submit** (`syncContactFromFields()`). iOS Safari
+  AutoFill fills them without firing `input`, so state kept only by the input listeners stayed
+  empty, validation failed on fields that looked filled, and the calendar never appeared on
+  mobile. Do not go back to trusting listener state alone.
 - **The calendar only renders after the server confirms the webhook landed.** On failure the
   page shows a retry message and keeps the answers.
 - Answer text is sent verbatim to GHL. `ANSWERS` in `api/book-lead.js` must match `QUESTIONS`
