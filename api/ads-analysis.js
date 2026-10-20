@@ -93,7 +93,7 @@ const ANALYSIS_TOOL = {
 /* Montara Forge is master-only, exactly as in api/meta-insights.js. Repeated
    rather than imported because an access rule that lives in one place and is
    assumed in another is how a view leaks. */
-const VIEW_ROLES = { dave: null, sybago: ROLE_MASTER };
+const VIEW_ROLES = { dave: null, sybago: ROLE_MASTER, jt: ROLE_MASTER };
 
 /** Where one analysis lives. Per view and panel — both roles that can see an
  *  account see the same numbers, so a per-person cache would just pay for the

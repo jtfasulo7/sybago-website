@@ -57,6 +57,19 @@ const VIEWS = {
     pixelEvent: 'Lead',
     pixelEnv: ['META_PIXEL_ID_SYBAGO', 'META_PIXEL_ID'],
   },
+  jt: {
+    label: "JT's Ads",
+    // Fasulo Studio Ads (act_1562895425039342): Sybago's own concrete-contractor
+    // campaigns driving /book. Same business portfolio as Montara Forge, so the
+    // Montara Forge token reads it unless a dedicated one is set.
+    env: ['META_ADS_ACCOUNT_ID_JT'],
+    tokenEnv: ['META_ADS_TOKEN_JT', 'META_ADS_TOKEN_SYBAGO', 'META_ADS_TOKEN'],
+    masterOnly: true,
+    // /book fires Lead for QUALIFIED submissions only (Sybago Ads Pixel).
+    conversion: 'lead',
+    pixelEvent: 'Lead',
+    pixelEnv: ['META_PIXEL_ID_JT'],
+  },
 };
 const DEFAULT_VIEW = 'dave';
 

@@ -320,6 +320,14 @@ t('the narrow role is refused the master-only view', () =>
   assert.ok(res.code === 403 && res.body.error === 'forbidden_view'));
 t('Meta is never contacted for a refused view', () => assert.equal(reached, false));
 
+// JT's own ad account is master-only too.
+reached = false;
+res = mockRes();
+await insights({ method: 'GET', query: { view: 'jt' }, headers: { cookie: daveCookie } }, res);
+t("the narrow role is refused JT's Ads", () =>
+  assert.ok(res.code === 403 && res.body.error === 'forbidden_view'));
+t("Meta is never contacted for a refused JT's Ads request", () => assert.equal(reached, false));
+
 // Master reaches the other account — and it must be the OTHER account.
 lastUrls = [];
 globalThis.fetch = async (u) => {

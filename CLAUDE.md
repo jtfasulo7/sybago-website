@@ -254,7 +254,16 @@ campaigns. Not linked from anywhere on the site.
 | Password | Role in cookie | Sees |
 |---|---|---|
 | `DASHBOARD_PASSWORD` | `dave` | Dave's account only. No tab bar. |
-| `DASHBOARD_MASTER_PASSWORD` | `master` | Both, via a tablist at the top of the page. |
+| `DASHBOARD_MASTER_PASSWORD` | `master` | All three, via a tablist at the top of the page. |
+
+**Third view, `jt` — "JT's Ads"** (added 2026-10-19): the **Fasulo Studio Ads** account
+(`act_1562895425039342`, env `META_ADS_ACCOUNT_ID_JT`), Sybago's own concrete-contractor campaigns
+that drive `/book`. Master-only. Same business portfolio as Montara Forge, so it reads with
+`META_ADS_TOKEN_SYBAGO` unless `META_ADS_TOKEN_JT` is set. Conversion family `lead`, pixel event
+`Lead` (Sybago Ads Pixel `967404465867527`, the `/book` pixel — Lead fires for qualified
+submissions only). No `KPI_TARGETS` entry yet, so its tiles are unscored, and its
+`lib/analysis-prompts.js` profile is `provisional` — no owner-set cost-per-lead target exists.
+Note: Montara Forge's account is `act_4518527871759174`, named "LCP Ads" in Meta.
 
 - The browser sends a **view name** (`dave` / `sybago`), never an account id. The
   name-to-account map and the `masterOnly` flag live in the `VIEWS` registry in

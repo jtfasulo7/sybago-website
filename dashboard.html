@@ -1342,6 +1342,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
               aria-selected="true" aria-controls="dash-body" tabindex="0">Peps by Dave</button>
       <button type="button" role="tab" id="tab-sybago" data-view="sybago"
               aria-selected="false" aria-controls="dash-body" tabindex="-1">Montara Forge</button>
+      <button type="button" role="tab" id="tab-jt" data-view="jt"
+              aria-selected="false" aria-controls="dash-body" tabindex="-1">JT's Ads</button>
     </div>
 
     <div id="dash-body" role="tabpanel" aria-labelledby="tab-dave">
@@ -2240,6 +2242,12 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       costLabel: 'Cost / lead', costShort: '$/Lead',
       one: 'lead', many: 'leads',
     },
+    // /book's Lead fires for qualified submissions only.
+    jt: {
+      label: 'Leads', short: 'Leads',
+      costLabel: 'Cost / lead', costShort: '$/Lead',
+      one: 'lead', many: 'leads',
+    },
   };
 
   /* Rewrites the two labels in place for the current view.
@@ -2923,7 +2931,8 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
 
   var VIEW_META = {
     dave:   { label:'Peps by Dave', sub:'Peps by Dave — Skool sign-up campaigns', eyebrow:'Meta ads' },
-    sybago: { label:'Montara Forge', sub:'Montara Forge — Sybago client', eyebrow:'Agency client' }
+    sybago: { label:'Montara Forge', sub:'Montara Forge — Sybago client', eyebrow:'Agency client' },
+    jt:     { label:"JT's Ads", sub:'Fasulo Studio Ads — Sybago concrete-contractor campaigns', eyebrow:'Own ads' }
   };
 
   /* How often to poll, decided by the range on screen rather than fixed.
@@ -3448,6 +3457,9 @@ th[aria-sort="descending"] button::after { content:'↓'; opacity:1; }
       ]
     }
   };
+  // JT's Ads uses the light site palette, same as Montara Forge — without this
+  // entry it would fall back to Dave's dark chart colours on a light page.
+  PALETTES.jt = PALETTES.sybago;
   function palette(){ return PALETTES[state.view] || PALETTES.dave; }
 
   /* Ad mode gets the comparison palette where one is defined. The light theme
