@@ -153,11 +153,27 @@ h3{font-size:clamp(1.2rem,2vw,1.5rem)}
 }
 .hero h1{font-size:clamp(1.7rem,4.6vw,2.9rem);margin-bottom:.7rem}
 .hero h1 em{font-style:normal;color:var(--teal)}
-.hero-sub{color:var(--t2);font-size:1.02rem;max-width:46ch;margin:0 auto 1.6rem}
+.hero-sub{color:var(--t2);font-size:1.02rem;max-width:46ch;margin:0 auto .7rem}
+/* Offer, proof and founder: the three pre-sell lines between the copy and the form. */
+.hero-offer{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:.15rem .5rem;
+  font-size:.82rem;color:var(--t3);max-width:52ch;margin:0 auto 1.3rem;line-height:1.45}
+/* The long first item gets its own line, so a wrap never strands a dot at the start of a line. */
+.hero-offer li:first-child{flex-basis:100%}
+.hero-offer li:nth-child(3)::before{content:"·";margin-right:.5rem;color:var(--t3)}
+.hero-proof{display:flex;align-items:flex-start;justify-content:center;gap:.4rem;
+  font-size:.82rem;color:var(--t2);max-width:56ch;margin:0 auto .65rem;line-height:1.4;text-align:left}
+.hero-proof svg{width:15px;height:15px;flex:none;margin-top:.12rem;stroke:var(--teal);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.hero-founder{display:flex;align-items:center;gap:.7rem;justify-content:center;margin:0 auto .8rem;text-align:left}
+.hero-founder img{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:center 32%;flex:none;border:1px solid var(--line)}
+.hero-founder strong{display:block;font-size:.92rem;font-weight:600;color:var(--t1);line-height:1.25}
+.hero-founder span{display:block;font-size:.82rem;color:var(--t3);line-height:1.3}
 @media (max-width:600px){
   .hero{padding:4.25rem 1rem 2.6rem}
   .hero h1{font-size:1.62rem;margin-bottom:.45rem}
-  .hero-sub{font-size:.93rem;margin-bottom:.85rem;line-height:1.45}
+  .hero-sub{font-size:.93rem;margin-bottom:.45rem;line-height:1.45}
+  .hero-offer{font-size:.76rem;margin-bottom:.9rem}
+  .hero-proof{font-size:.76rem;margin-bottom:.55rem}
+  .hero-founder{margin-bottom:.65rem}
 }
 
 .qf{
@@ -217,6 +233,7 @@ h3{font-size:clamp(1.2rem,2vw,1.5rem)}
 @media (hover:hover){.qf-opt:hover{border-color:var(--teal-b)}}
 
 /* contact step */
+.qf-next{font-size:.88rem;line-height:1.45;color:var(--t2);margin:-.35rem 0 .9rem}
 .qf-fields{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
 @media (max-width:380px){.qf-fields{grid-template-columns:1fr}}
 .qf-field{display:flex;flex-direction:column;gap:.3rem}
@@ -306,6 +323,11 @@ h3{font-size:clamp(1.2rem,2vw,1.5rem)}
 }
 .proof-attr{font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--t3)}
 .proof-note{margin:1.5rem auto 0;font-size:.87rem;color:var(--t3);max-width:56ch;line-height:1.6}
+/* The website-build testimonial sits below the FAQ as a plain quote, so it
+   doesn't read as concrete ad-campaign proof. */
+.proof-quiet{padding-top:0}
+.proof-quiet blockquote{font-size:.98rem;font-weight:400;color:var(--t2);font-style:italic;margin-bottom:.8rem}
+.proof-quiet .proof-note{margin-top:.8rem;font-size:.8rem}
 
 /* ─────── Results (placeholder-ready) ─────── */
 .results-head{text-align:center;max-width:760px;margin:0 auto 3rem}
@@ -376,7 +398,19 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
 <section class="hero">
   <!-- TODO: JT copy — headline + supporting line -->
   <h1>More driveway &amp; patio estimates. <em>Booked for you.</em></h1>
-  <p class="hero-sub">Answer 5 quick questions to see if your crew is a fit. Takes about 30 seconds.</p>
+  <p class="hero-sub">Answer 5 quick questions to see if your crew is a fit. Takes about a minute.</p>
+  <ul class="hero-offer">
+    <li>You only pay us when a homeowner books an estimate (ad spend goes straight to Meta)</li>
+    <li>No long-term contract</li>
+    <li>One contractor per area</li>
+  </ul>
+
+  <p class="hero-proof"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg><span>22 homeowner leads in month one for a Southern Utah concrete contractor — results from our own campaign.</span></p>
+
+  <div class="hero-founder">
+    <img src="/media/jt.jpg" alt="" width="44" height="44">
+    <div><strong>JT Fasulo, founder</strong><span>I'm the one who'll call you.</span></div>
+  </div>
 
   <div class="qf" id="qf" aria-live="off">
     <div class="qf-top" id="qf-top">
@@ -443,21 +477,9 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
   </div>
 </section>
 
-<section class="section proof">
-  <!-- TODO: JT copy — proof block. Swap in concrete-specific proof when it exists. -->
-  <div class="proof-inner">
-    <div class="proof-stars" aria-label="5 out of 5 stars">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-    </div>
-    <blockquote>"I could not be happier. I run a wholesale business and was having trouble finding business. I reached out at 12pm on a Tuesday and had a perfectly running and streamlined website by Wednesday morning. Fast forward 3 days later, I have brands reaching out to me asking to open wholesale accounts with my business. Thank you!"</blockquote>
-    <div class="proof-attr">— William Woolley</div>
-    <p class="proof-note">Straight up: that was a website build with fast inbound results, not a concrete ad campaign. What it tells you is how fast I move.</p>
-  </div>
-
+<!-- Concrete-specific proof goes here when it exists. The website-build
+     testimonial now sits below the FAQ (see "Testimonial" further down). -->
+<section class="section proof" hidden>
   <!-- RESULTS — drop-in ready. Uncomment and fill with REAL, verifiable numbers only.
   <div class="results-head" style="margin-top:4rem">
     <span class="eyebrow">Results</span>
@@ -491,6 +513,15 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
       <summary class="faq-q">What happens on the call? <span class="icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></summary>
       <p class="faq-a">A short call. I ask about your area and the jobs you want more of, then show you exactly how the system would run for you. No pressure either way.</p>
     </details>
+  </div>
+</section>
+
+<!-- ─────── Testimonial (website build, kept with its honesty note per CLAUDE.md) ─────── -->
+<section class="section proof proof-quiet">
+  <div class="proof-inner">
+    <blockquote>"I could not be happier. I run a wholesale business and was having trouble finding business. I reached out at 12pm on a Tuesday and had a perfectly running and streamlined website by Wednesday morning. Fast forward 3 days later, I have brands reaching out to me asking to open wholesale accounts with my business. Thank you!"</blockquote>
+    <div class="proof-attr">— William Woolley</div>
+    <p class="proof-note">Straight up: that was a website build with fast inbound results, not a concrete ad campaign. What it tells you is how fast I move.</p>
   </div>
 </section>
 
@@ -757,6 +788,8 @@ src="https://www.facebook.com/tr?id=967404465867527&amp;ev=PageView&amp;noscript
   function renderContact() {
     var form = h('form', { novalidate: '', id: 'qf-form' });
     form.appendChild(h('h2', { class: 'qf-q', id: 'qf-q', tabindex: '-1', text: 'Last step. Where should we reach you?' }));
+    // Static expectation line, so they know what happens after submitting.
+    form.appendChild(h('p', { class: 'qf-next', text: "Next, you'll pick a time for a 15-minute call with JT. He'll text you from (855) 819-5171 to confirm." }));
     var fields = h('div', { class: 'qf-fields' }, [
       field('f-first', 'First name', { type: 'text', autocomplete: 'given-name', autocapitalize: 'words', required: '' }, state.contact.first_name),
       field('f-last', 'Last name', { type: 'text', autocomplete: 'family-name', autocapitalize: 'words', required: '' }, state.contact.last_name),

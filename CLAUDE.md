@@ -159,6 +159,16 @@ the `lp/` pages: **the form is the page.** Headline, one line, then question 1 a
   restarts from 0. Video: `media/booked-vsl.mp4` (1080p H.264, faststart) +
   `media/booked-vsl-poster.jpg` — swap by replacing the files, keep the names. This is a
   deliberate exception to "no multi-page redirect", asked for by JT.
+- **Pre-sell lines above the form** (2026-10-22): an offer row ("You only pay us when a homeowner
+  books an estimate (ad spend goes straight to Meta) · No long-term contract · One contractor per
+  area"), a proof line, and a founder strip (`media/jt.jpg`, 44px) — all placed between the
+  subheadline and the form card, not inside it. The first question still sits above the fold at
+  390×844 (starts ~425px). **The proof line ("22 homeowner leads in month one … results from our own
+  campaign") is JT's GoHighLevel figure for Montara Forge.** Meta attributed 15 in September and
+  22 through Oct 22 — if that line is ever questioned, GHL is the source, not Ads Manager.
+  The contact step has a static `.qf-next` line naming the 15-minute call and JT's texting number
+  (855) 819-5171. The William Woolley website-build testimonial now sits below the FAQ as a plain
+  quote, honesty note kept.
 - Calendar prefill (`first_name`, `last_name`, `phone` query params) is unverified — GHL does
   not document calendar-widget URL params.
 
