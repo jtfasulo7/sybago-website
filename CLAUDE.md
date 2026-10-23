@@ -82,6 +82,7 @@ stays open to any trade.
 | `/leave-a-review` | `leave-a-review.html` | **Do not modify** |
 | `/privacy-policy` | `privacy-policy.html` | Carries the social-publishing disclosure — read the section below before editing |
 | `/terms` | `terms.html` | Carries the social-publishing disclosure — read the section below before editing |
+| `/bookinglink` | `bookinglink.html` | Bare booking link JT sends directly: one line of copy + the GHL calendar (iframe id `_bookinglink`), nothing else. The page never scrolls: the iframe fills the rest of the viewport and scrolls inside itself, so `form_embed.js` is deliberately NOT loaded (it auto-grows the iframe). GA only, `noindex` |
 | `/dashboard` | `dashboard.html` | **Internal ads dashboard.** Password-gated, `noindex`. Deliberately breaks several site conventions — see below. Also hosts the Social post tab |
 
 **FAQ lives inside `index.html` at `#faq`.** There is no separate FAQ page.
