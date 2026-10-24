@@ -109,6 +109,27 @@ These are targets for **Sybago's own Meta ads** when prospecting for clients. Ru
 - To clone: copy the file to `lp/<niche>.html`, swap copy, update the booking iframe `id`
   suffix and every `data-utm` value.
 
+### `/pnr` — P&R General Contractors (client landing page, Houston concrete)
+
+**A client page, not a Sybago page.** Ricardo Cazares, P&R General Contractor LLC. Meta ad
+traffic. It is a static port of the Montara Forge landing page (`montara-forge/`, Next.js):
+same sections in the same order, same 5–6 step form, same thank-you logic, restyled to
+Ricardo's own site (white, Inter, `#1D4ED8`).
+
+- **Fully isolated.** No Sybago nav, footer, chat widget, GA tag or styles, and no links back.
+  Everything lives in `pnr/` (`index.html`, `privacy.html`, `terms.html`, `images/`) and
+  `api/submit-pnr-inquiry.js`. Do not apply site-wide changes here.
+- `noindex` so it never outranks pnrgeneralcontractors.com.
+- **Form → `api/submit-pnr-inquiry.js` → `PNR_GHL_WEBHOOK_URL`** (flat JSON). With the
+  webhook unset or failing, the route still answers 200 with `captured:false` and logs the
+  full lead; the page then shows the "call us" thank-you instead of promising a callback.
+- **Meta Pixel id comes from `GET /api/submit-pnr-inquiry`** (`NEXT_PUBLIC_PNR_META_PIXEL_ID`) —
+  the page has no build step to bake it in. Unset = no pixel code at all. Lead fires on form
+  completion, Contact on tap-to-call.
+- Option VALUES in `pnr/index.html` must match `LABELS` in the route; the consent text is
+  duplicated in both (`CONSENT_HTML` / `CONSENT_TEXT`).
+- Owner photo is a monogram placeholder — swap in the `<img>` noted in the TODO comment.
+
 ### `/book` — qualification form → calendar (`book.html`, `api/book-lead.js`)
 
 Meta-ads landing page for residential concrete contractors. A deliberately different shape from

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  P&R GENERAL CONTRACTORS — HOUSTON CONCRETE LANDING PAGE   (/pnr)
+  Client: Ricardo Cazares, P&R General Contractor LLC. Meta ad traffic.
+═══════════════════════════════════════════════════════════════════════════════
+  A port of the Montara Forge landing page (montara-forge/, Next.js) into this
+  site's no-build static HTML. Same sections in the same order, same form flow,
+  same copy pattern — only the client, the colours (Ricardo's own site:
+  white, Inter, #1D4ED8) and the Houston specifics change.
+
+  ISOLATED ON PURPOSE: it shares a domain with Sybago and nothing else. No
+  Sybago nav, footer, chat widget, GA tag or stylesheet, and no links back.
+  Everything it needs lives in /pnr/ and /api/submit-pnr-inquiry.
+
+  FORM (mirrors montara-forge/components/form/LeadForm.tsx):
+    project → [new or replacement, only when the project doesn't imply it]
+    → size → timeline → location → contact          (5 or 6 steps)
+  Tiles auto-advance after 170ms. POSTs to /api/submit-pnr-inquiry, which
+  forwards to PNR_GHL_WEBHOOK_URL. The thank-you replaces the form in place.
+  `captured:false` from the API (webhook unset or down) shows the call-us
+  version, so nobody is promised a callback that cannot happen.
+
+  Option VALUES must match api/submit-pnr-inquiry.js. Labels may change freely.
+  Meta Pixel id comes from GET /api/submit-pnr-inquiry (NEXT_PUBLIC_PNR_META_PIXEL_ID);
+  unset = no pixel code loads at all.
+═══════════════════════════════════════════════════════════════════════════════
+-->
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Free Concrete Estimates in Houston | P&amp;R General Contractors</title>
+<meta name="description" content="New driveways, patios, sidewalks, pool decks and slabs across Greater Houston. Free on-site estimate and a written price.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="/pnr/images/icon.png">
+<link rel="apple-touch-icon" href="/pnr/images/icon.png">
+<link rel="preload" as="image" href="/pnr/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#ffffff;
+  --bg-2:#f8fafc;
+  --bg-3:#f1f5f9;
+  --ink:#0f172a;
+  --ink-mute:#475569;
+  --ink-soft:#64748b;
+  --line:#e2e8f0;
+  --line-strong:#cbd5e1;
+  --blue:#1d4ed8;
+  --blue-d:#1e40af;
+  --blue-tint:#eff6ff;
+  --danger:#b91c1c;
+  --ff:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--ff);background:var(--bg);color:var(--ink);
+  line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  overflow-x:clip;
+}
+img{display:block;max-width:100%}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.wrap{max-width:72rem;margin:0 auto;padding:0 16px}
+@media (min-width:640px){.wrap{padding:0 24px}}
+.tnum{font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.blue{color:var(--blue)}
+.ico{width:20px;height:20px;flex:none}
+.ico-sm{width:16px;height:16px;flex:none}
+
+/* ─── Header: logo + tap-to-call. No navigation. ─── */
+.hdr{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:saturate(1.4) blur(8px);-webkit-backdrop-filter:saturate(1.4) blur(8px)}
+.hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;min-width:0}
+.brand img{height:40px;width:auto}
+.brand span{font-weight:800;font-size:.95rem;line-height:1.05;letter-spacing:-.01em}
+.brand small{display:block;font-weight:600;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.call-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:1.5px solid var(--blue);border-radius:8px;color:var(--blue);font-weight:700;font-size:.88rem;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s}
+.call-btn:hover{background:var(--blue);color:#fff}
+/* The logo already spells out the name; on phones the text would crowd the call button. */
+@media (max-width:419px){.brand span{display:none}}
+@media (min-width:640px){.hdr .wrap{height:68px}.brand img{height:46px}.call-btn{height:44px;padding:0 16px;font-size:.95rem}}
+
+/* ─── Shared section bits ─── */
+.eyebrow{display:flex;align-items:center;gap:12px;font-size:.75rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+.eyebrow::before{content:"";width:28px;height:2px;background:var(--blue);flex:none}
+.eyebrow.bare::before{display:none}
+.h2{margin-top:12px;font-size:2rem;line-height:1.05;font-weight:800;letter-spacing:-.025em;max-width:42rem}
+@media (min-width:640px){.h2{font-size:2.6rem}}
+.section{padding-top:56px;padding-bottom:56px}
+@media (min-width:640px){.section{padding-top:80px;padding-bottom:80px}}
+.band{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 24px;border-radius:10px;background:var(--blue);color:#fff;font-weight:700;font-size:1.08rem;text-decoration:none;transition:background .15s;box-shadow:0 8px 20px -10px rgba(29,78,216,.6)}
+.btn:hover{background:var(--blue-d)}
+.btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 22px;border-radius:10px;border:1.5px solid var(--line-strong);background:#fff;color:var(--ink);font-weight:600;text-decoration:none;transition:border-color .15s,color .15s}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ─── Hero + form. On phones the form IS the hero. ─── */
+.hero{background:var(--bg-3);border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;gap:20px;padding-top:16px;padding-bottom:36px}
+.hero-eyebrow{font-size:.72rem}
+.hero h1{margin-top:8px;font-size:1.72rem;line-height:1.08;font-weight:800;letter-spacing:-.03em}
+.hero-sub{display:none;margin-top:16px;max-width:36rem;color:var(--ink-mute);font-size:1.1rem}
+.hero-trust{display:none;margin-top:24px;list-style:none;gap:12px}
+.hero-trust li{display:flex;align-items:flex-start;gap:10px;font-weight:600;font-size:.95rem}
+.hero-trust .ico{color:var(--blue);margin-top:1px}
+@media (min-width:640px){
+  .hero .wrap{padding-top:40px}
+  .hero h1{margin-top:12px;font-size:2.9rem}
+  .hero-sub{display:block}
+}
+@media (min-width:1024px){
+  .hero .wrap{grid-template-columns:1.05fr .95fr;align-items:start;gap:48px;padding-top:64px;padding-bottom:80px}
+  .hero-copy{padding-top:16px}
+  .hero h1{font-size:3.5rem}
+  .hero-trust{display:grid}
+  .form-col{position:sticky;top:96px}
+}
+
+/* ─── Form card ─── */
+.card{position:relative;scroll-margin-top:76px;background:#fff;border:1px solid var(--line-strong);border-top:4px solid var(--blue);border-radius:14px;padding:16px;box-shadow:0 24px 48px -24px rgba(15,23,42,.25)}
+@media (min-width:640px){.card{padding:24px}}
+.prog-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.prog-step{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.prog-step b{color:var(--ink)}
+.prog-note{font-size:.75rem;font-weight:500;color:var(--ink-soft)}
+.prog-bar{display:flex;gap:4px;margin-top:10px}
+.prog-bar span{height:4px;flex:1;border-radius:4px;background:var(--line-strong);transition:background .3s}
+.prog-bar span.on{background:var(--blue)}
+.q{margin-top:20px;font-size:1.5rem;line-height:1.12;font-weight:800;letter-spacing:-.02em;outline:none}
+@media (min-width:640px){.q{font-size:1.7rem}}
+.step-body{margin-top:16px}
+.fwd{animation:fwd 260ms var(--ease) both}
+.back{animation:bck 260ms var(--ease) both}
+@keyframes fwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes bck{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.rise{animation:rise 500ms var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.opts{display:grid;gap:10px}
+.opt{position:relative;display:flex;align-items:center;gap:14px;width:100%;min-height:56px;padding:12px 14px 12px 16px;border:1.5px solid var(--line-strong);border-radius:10px;background:#fff;text-align:left;font-weight:600;font-size:1rem;line-height:1.2;-webkit-tap-highlight-color:transparent;transition:border-color .14s,background .14s,transform .12s}
+.opt:hover{border-color:var(--blue)}
+.opt:active{transform:scale(.99)}
+.opt[aria-checked="true"]{border-color:var(--blue);background:var(--blue-tint)}
+.opt-txt{display:flex;flex-direction:column;flex:1;min-width:0}
+.opt-hint{margin-top:2px;font-size:.8rem;font-weight:400;color:var(--ink-mute);line-height:1.35}
+.opt-dot{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;border:1.5px solid var(--line-strong);color:var(--ink-soft);transition:all .14s}
+.opt[aria-checked="true"] .opt-dot{background:var(--blue);border-color:var(--blue);color:#fff}
+.opts-city{grid-template-columns:1fr 1fr;gap:8px}
+.opts-city .opt{min-height:48px;padding:10px 12px;font-size:.92rem}
+.opts-city .opt-dot{display:none}
+.opts-city .opt.other{grid-column:1/-1;justify-content:center;color:var(--blue)}
+
+.field label{display:block;margin-bottom:6px;font-size:.9rem;font-weight:600}
+.field .opt-l{font-weight:400;color:var(--ink-soft)}
+.input{width:100%;min-height:52px;border:1.5px solid var(--line-strong);border-radius:10px;background:#fff;color:var(--ink);padding:12px 14px;font:inherit;font-size:1rem;line-height:1.3;transition:border-color .15s,box-shadow .15s}
+.input::placeholder{color:#94a3b8}
+.input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.18)}
+.input[aria-invalid="true"]{border-color:var(--danger)}
+.err{margin-top:6px;font-size:.88rem;color:var(--danger)}
+.note{margin-top:6px;font-size:.88rem;color:var(--ink-mute)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stack{display:grid;gap:12px}
+.consent{display:flex;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-2);cursor:pointer;transition:border-color .15s}
+.consent.bad{border-color:rgba(185,28,28,.6);background:#fef2f2}
+.consent input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--blue);cursor:pointer}
+.consent span{font-size:.8rem;line-height:1.4;color:var(--ink-mute)}
+.consent a{font-weight:600;color:var(--ink)}
+.submit{width:100%;margin-top:4px}
+.submit[disabled]{opacity:.8;cursor:wait}
+.next-line{text-align:center;font-size:.78rem;color:var(--ink-soft)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.form-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.back-btn{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 8px;border-radius:6px;font-size:.88rem;font-weight:600;color:var(--ink-mute)}
+.back-btn:hover{color:var(--ink)}
+.form-trust{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:500;color:var(--ink-mute)}
+.form-trust .ico-sm{color:var(--blue)}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.ty-head{display:flex;align-items:flex-start;gap:12px}
+.ty-check{display:grid;place-items:center;width:36px;height:36px;flex:none;margin-top:2px;border-radius:50%;background:var(--blue);color:#fff}
+.ty h2{font-size:1.7rem;line-height:1.1;font-weight:800;letter-spacing:-.02em;outline:none}
+.ty p{margin-top:8px;color:var(--ink-mute);font-size:.97rem}
+.ty .call-line{margin-top:20px;text-align:center;font-size:.9rem}
+.ty .call-line a{font-weight:700;color:var(--blue)}
+
+/* ─── Trust strip (phones/tablets; desktop has it in the hero) ─── */
+.strip{background:#fff;border-bottom:1px solid var(--line)}
+.strip ul{list-style:none;display:grid}
+.strip li{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 8px;text-align:center;font-size:.85rem;font-weight:600}
+.strip li+li{border-top:1px solid var(--line)}
+.strip .ico{color:var(--blue)}
+@media (min-width:640px){.strip ul{grid-template-columns:repeat(3,1fr)}.strip li+li{border-top:0;border-left:1px solid var(--line)}}
+@media (min-width:1024px){.strip{display:none}}
+
+/* ─── Recent work: three photos, one row at every width ─── */
+.gallery{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:32px}
+@media (min-width:640px){.gallery{gap:16px}}
+.gallery figure{position:relative;aspect-ratio:3/4;overflow:hidden;border-radius:10px;border:1px solid var(--line);background:var(--bg-3)}
+.gallery img{width:100%;height:100%;object-fit:cover}
+.gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 8px 6px;background:linear-gradient(to top,rgba(15,23,42,.85),transparent);color:#fff;font-size:.62rem;font-weight:600;line-height:1.25}
+@media (min-width:640px){.gallery figcaption{padding:32px 12px 10px;font-size:.8rem}}
+
+/* ─── Meet the owner ─── */
+.owner{display:grid;gap:32px;align-items:center}
+@media (min-width:640px){.owner{grid-template-columns:.8fr 1.2fr;gap:48px}}
+.owner-photo{position:relative;width:100%;max-width:15rem;margin:0 auto;aspect-ratio:4/5;border-radius:14px;border:1px solid var(--line);background:var(--blue-tint);overflow:hidden;display:grid;place-items:center}
+@media (min-width:640px){.owner-photo{max-width:none}}
+.owner-photo .mono{font-size:5rem;font-weight:800;letter-spacing:-.04em;color:var(--blue);opacity:.9}
+.owner-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.owner p.lead{margin-top:20px;max-width:36rem;color:var(--ink-mute);font-size:1.05rem;line-height:1.65}
+.checks{list-style:none;display:grid;gap:10px;margin-top:24px}
+.checks li{display:flex;align-items:center;gap:10px;font-weight:600;font-size:.97rem}
+.checks .ico{color:var(--blue)}
+
+/* ─── How it works ─── */
+.steps{list-style:none;display:grid;gap:16px;margin-top:32px}
+@media (min-width:640px){.steps{grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}}
+.steps li{position:relative;padding:16px 20px 20px;border:1px solid var(--line);border-radius:12px;background:#fff}
+@media (min-width:640px){.steps li{padding:20px 24px 24px}}
+.steps .n{display:block;font-size:4rem;line-height:1;font-weight:800;letter-spacing:-.04em;color:var(--blue)}
+.steps h3{margin-top:6px;font-size:1.12rem;line-height:1.25;font-weight:700}
+.steps p{margin-top:8px;font-size:.95rem;color:var(--ink-mute)}
+
+/* ─── Service area ─── */
+.area{display:grid;gap:32px}
+@media (min-width:1024px){.area{grid-template-columns:.9fr 1.1fr;align-items:center;gap:48px}}
+.towns{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (min-width:640px){.towns{grid-template-columns:repeat(3,1fr)}}
+.towns li{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg-2);font-size:.92rem;font-weight:600}
+.towns .ico-sm{color:var(--blue)}
+.area-note{margin-top:16px;font-size:.9rem;color:var(--ink-mute)}
+
+/* ─── Concrete season + final CTA ─── */
+.season{background:var(--bg-3);border-top:1px solid var(--line);text-align:center}
+.season .inner{max-width:48rem;margin:0 auto;padding:64px 0}
+@media (min-width:640px){.season .inner{padding:96px 0}}
+.season .eyebrow{justify-content:center}
+.season h2{margin:12px auto 0;font-size:2.1rem;line-height:1.05;font-weight:800;letter-spacing:-.025em}
+@media (min-width:640px){.season h2{font-size:3rem}}
+.season p.lead{max-width:36rem;margin:16px auto 0;color:var(--ink-mute);font-size:1rem;line-height:1.65}
+@media (min-width:640px){.season p.lead{font-size:1.1rem}}
+.cta-row{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin-top:32px}
+@media (min-width:640px){.cta-row{flex-direction:row;justify-content:center}}
+.season .small{display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-size:.88rem;color:var(--ink-mute)}
+.season .small .ico-sm{color:var(--blue)}
+
+/* ─── Footer ─── */
+.ftr{background:var(--ink);color:#cbd5e1;padding:40px 0 112px;font-size:.88rem}
+@media (min-width:768px){.ftr{padding-bottom:40px}}
+.ftr .wrap{display:grid;gap:28px}
+@media (min-width:768px){.ftr .wrap{grid-template-columns:1.3fr 1fr;align-items:end}}
+.ftr .name{font-size:1.25rem;font-weight:800;color:#fff;letter-spacing:-.01em}
+.ftr .badges{margin-top:8px}
+.ftr .cities{margin-top:6px;line-height:1.6}
+.ftr .right{display:grid;gap:8px}
+@media (min-width:768px){.ftr .right{justify-items:end;text-align:right}}
+.ftr a{text-decoration:none}
+.ftr a:hover{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.ftr .phone{font-weight:700;color:#fff;font-size:1rem}
+.ftr .email{color:#94a3b8;font-size:.8rem}
+.ftr .copy{font-size:.75rem;color:#94a3b8}
+
+/* ─── Mobile sticky bar: shows only once the form is scrolled past ─── */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--line);transform:translateY(100%);transition:transform .3s}
+.sticky.show{transform:none}
+.sticky .btn{flex:1;min-height:48px;font-size:1rem;padding:0 16px}
+.sticky .sq{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:10px;border:1.5px solid var(--blue);color:var(--blue)}
+@media (min-width:768px){.sticky{display:none}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- Icon sprite: one inline copy, referenced with <use>. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-phone" viewBox="0 0 24 24"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m6 6-6-6 6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2.5v2m0 15v2M4.6 4.6 6 6m12 12 1.4 1.4M2.5 12h2m15 0h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+</svg>
+
+<header class="hdr">
+  <div class="wrap">
+    <span class="brand">
+      <img src="/pnr/images/logo.png" width="57" height="40" alt="P&amp;R General Contractors logo">
+      <span>P&amp;R General<small>Contractors</small></span>
+    </span>
+    <a class="call-btn js-call" href="tel:+19562371842" aria-label="Call P&amp;R General Contractors at 956-237-1842">
+      <svg class="ico-sm"><use href="#i-phone"/></svg>
+      <span>Call <span class="tnum">956-237-1842</span></span>
+    </a>
+  </div>
+</header>
+
+<main>
+  <!-- ═══ Hero + form ═══ -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow bare hero-eyebrow">Free On-Site Estimates · Houston, TX</p>
+        <h1>New Driveways, Patios &amp; Concrete Work <span class="blue">in Houston</span> &amp; Surrounding Areas</h1>
+        <p class="hero-sub">Tell us about your project in 30 seconds and we&rsquo;ll call you back to set up a visit &mdash; then come out, measure, and give you a firm written price.</p>
+        <ul class="hero-trust">
+          <li><svg class="ico"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded</li>
+          <li><svg class="ico"><use href="#i-clock"/></svg>32 Years in Business, 15-Person Local Crew</li>
+          <li><svg class="ico"><use href="#i-pin"/></svg>Serving Harris, Fort Bend, Montgomery, Brazoria &amp; Galveston Counties</li>
+        </ul>
+      </div>
+      <div class="form-col">
+        <div class="card" id="estimate-form" aria-live="polite">
+          <noscript><p class="q">Call us for a free estimate: <a href="tel:+19562371842">956-237-1842</a></p></noscript>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Trust strip (phones/tablets) ═══ -->
+  <section class="strip" aria-label="Trust">
+    <ul class="wrap">
+      <li><svg class="ico"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded</li>
+      <li><svg class="ico"><use href="#i-clock"/></svg>32 Years in Business, 15-Person Local Crew</li>
+      <li><svg class="ico"><use href="#i-pin"/></svg>Serving Harris, Fort Bend, Montgomery, Brazoria &amp; Galveston Counties</li>
+    </ul>
+  </section>
+
+  <!-- ═══ Recent work ═══ -->
+  <section class="section wrap">
+    <p class="eyebrow">Recent Work</p>
+    <h2 class="h2">Poured right. Finished clean. <span class="blue">Built for Houston clay.</span></h2>
+    <ul class="gallery">
+      <li><figure>
+        <img src="/pnr/images/job-1-400.webp" srcset="/pnr/images/job-1-400.webp 400w, /pnr/images/job-1-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="New broom-finish concrete driveway in front of a brick home, by P&amp;R General Contractors">
+        <figcaption>Broom-finish driveway</figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/pnr/images/job-2-400.webp" srcset="/pnr/images/job-2-400.webp 400w, /pnr/images/job-2-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="Gray stamped cobblestone-pattern concrete driveway, by P&amp;R General Contractors">
+        <figcaption>Stamped cobblestone driveway</figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/pnr/images/job-3-400.webp" srcset="/pnr/images/job-3-400.webp 400w, /pnr/images/job-3-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="Curved concrete walkway beside an exposed-aggregate pool deck, by P&amp;R General Contractors">
+        <figcaption>Walkway &amp; exposed-aggregate pool deck</figcaption>
+      </figure></li>
+    </ul>
+  </section>
+
+  <!-- ═══ Meet the owner ═══ -->
+  <section class="section wrap">
+    <div class="owner">
+      <!-- TODO: swap the monogram for Ricardo's photo:
+           <img src="/pnr/images/ricardo.webp" width="480" height="600" alt="Ricardo Cazares, owner of P&R General Contractors"> -->
+      <figure class="owner-photo" aria-label="Photo of Ricardo coming soon">
+        <span class="mono" aria-hidden="true">RC</span>
+      </figure>
+      <div>
+        <p class="eyebrow">Meet the Owner</p>
+        <h2 class="h2">I&rsquo;m Ricardo. <span class="blue">I&rsquo;ve been pouring concrete in Houston for 32 years.</span></h2>
+        <p class="lead">I run a 15-person local crew. We look at the job with you, explain what it needs, and put the price in writing before anything is scheduled.</p>
+        <ul class="checks">
+          <li><svg class="ico"><use href="#i-check"/></svg>Owner of P&amp;R General Contractors</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>15-person local crew</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>Written price before any work starts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ How it works ═══ -->
+  <section class="band">
+    <div class="section wrap">
+      <p class="eyebrow">How It Works</p>
+      <h2 class="h2">Three steps. <span class="blue">Zero runaround.</span></h2>
+      <ol class="steps">
+        <li><span class="n" aria-hidden="true">1</span><h3>Tell us about your project</h3><p>Five quick taps &mdash; what, where, how big, and when. Takes about 30 seconds.</p></li>
+        <li><span class="n" aria-hidden="true">2</span><h3>We call you back</h3><p>We call you back to talk through the job and set up a time to come out.</p></li>
+        <li><span class="n" aria-hidden="true">3</span><h3>We come out, measure, and give you a firm written price</h3><p>A real on-site estimate &mdash; not a ballpark over the phone, not a sales pitch.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ═══ Service area ═══ -->
+  <section class="section wrap">
+    <div class="area">
+      <div>
+        <p class="eyebrow">Service Area</p>
+        <h2 class="h2">Local crew. <span class="blue">Local schedule.</span></h2>
+      </div>
+      <div>
+        <ul class="towns" id="towns"></ul>
+        <p class="area-note">Plus the communities around them across Harris, Fort Bend, Montgomery, Brazoria &amp; Galveston counties. Not sure if we reach you? Put your city in the form &mdash; we&rsquo;ll confirm when we call.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Concrete season + final CTA ═══ -->
+  <section class="season">
+    <div class="wrap"><div class="inner">
+      <p class="eyebrow bare"><svg class="ico-sm"><use href="#i-sun"/></svg>Concrete Season</p>
+      <h2>The dry months are pour season.<br><span class="blue">The calendar fills fast.</span></h2>
+      <p class="lead">Houston&rsquo;s cooler, drier winter months are the best time to pour: fewer storms, lower humidity, and a steadier cure than in the summer heat. Calendars fill quickly for the dry season &mdash; get your estimate now and your pour lands in it.</p>
+      <div class="cta-row">
+        <button type="button" class="btn js-to-form">Get My Free Estimate <svg class="ico"><use href="#i-right"/></svg></button>
+        <a class="btn-ghost js-call" href="tel:+19562371842"><svg class="ico blue"><use href="#i-phone"/></svg>Call 956-237-1842</a>
+      </div>
+      <p class="small"><svg class="ico-sm"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded · 32 Years in Business</p>
+    </div></div>
+  </section>
+</main>
+
+<footer class="ftr">
+  <div class="wrap">
+    <div>
+      <p class="name">P&amp;R General Contractors</p>
+      <p class="badges">Licensed, Insured &amp; Bonded · 32 Years in Business · 15-Person Local Crew</p>
+      <p class="cities" id="footer-cities"></p>
+    </div>
+    <div class="right">
+      <a class="phone js-call" href="tel:+19562371842">956-237-1842</a>
+      <a class="email" href="mailto:cazaresrick76@yahoo.com">cazaresrick76@yahoo.com</a>
+      <a href="/pnr/privacy">Privacy Policy</a>
+      <a href="/pnr/terms">Terms &amp; Conditions</a>
+      <p class="copy">© <span id="yr">2026</span> P&amp;R General Contractor LLC · Houston, TX</p>
+    </div>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky" aria-hidden="true">
+  <button type="button" class="btn js-to-form" tabindex="-1">Get My Free Estimate</button>
+  <a class="sq js-call" href="tel:+19562371842" tabindex="-1" aria-label="Call 956-237-1842"><svg class="ico"><use href="#i-phone"/></svg></a>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PHONE_DISPLAY = '956-237-1842';
+  var PHONE_HREF = 'tel:+19562371842';
+  var BUSINESS = 'P&R General Contractors';
+  var ENDPOINT = '/api/submit-pnr-inquiry';
+  var ADVANCE_DELAY_MS = 170;
+
+  /* ─── Form vocabulary. VALUES must match api/submit-pnr-inquiry.js. ─── */
+  var PROJECT_OPTIONS = [
+    { value: 'driveway-replacement', label: 'Driveway Replacement', hint: 'Tear out & re-pour' },
+    { value: 'new-driveway', label: 'New Driveway', hint: 'Fresh pour on bare ground' },
+    { value: 'patio', label: 'Patio' },
+    { value: 'sidewalk', label: 'Sidewalk' },
+    { value: 'pool-deck', label: 'Pool Deck' },
+    { value: 'foundation-slab', label: 'Foundation / Slab', hint: 'Additions, garages, shops, sheds' }
+  ];
+  var NEW_OR_REPLACEMENT_OPTIONS = [
+    { value: 'new', label: 'New — nothing there now' },
+    { value: 'replacement', label: 'Replacing existing concrete' }
+  ];
+  var SIZE_OPTIONS = [
+    { value: 'small', label: 'Small', hint: 'Under ~400 sq ft · walkway, small pad' },
+    { value: 'medium', label: 'Medium', hint: '~400–1,000 sq ft · standard driveway, patio' },
+    { value: 'large', label: 'Large', hint: 'Over ~1,000 sq ft · big driveway, multi-area' },
+    { value: 'not-sure', label: 'Not sure', hint: "We'll measure it on-site" }
+  ];
+  var TIMELINE_OPTIONS = [
+    { value: 'asap', label: 'As soon as possible' },
+    { value: 'within-month', label: 'Within a month' },
+    { value: '1-3-months', label: '1–3 months' },
+    { value: 'pricing', label: 'Just getting prices for now' }
+  ];
+  var CITIES = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'The Woodlands', 'Spring', 'Cypress', 'Humble',
+    'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Tomball', 'Friendswood', 'Richmond'];
+  /* Project types whose new-vs-replacement answer is implied; step 2 is skipped. */
+  var IMPLIED = { 'driveway-replacement': 'replacement', 'new-driveway': 'new' };
+
+  var QUESTION = {
+    project: "What's your project?",
+    newOrReplacement: 'New pour or replacing existing concrete?',
+    size: 'About how big is the area?',
+    timeline: 'When are you hoping to get this done?',
+    location: "Where's the project located?",
+    contact: 'Where should we send your estimate details?'
+  };
+
+  /* ─── Meta Pixel: dormant until the API reports an id ─── */
+  var pixelOn = false;
+  function fbq() { if (pixelOn && typeof window.fbq === 'function') { try { window.fbq.apply(null, arguments); } catch (e) {} } }
+  fetch(ENDPOINT, { method: 'GET' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (cfg) {
+    var id = cfg && typeof cfg.pixelId === 'string' ? cfg.pixelId.trim() : '';
+    if (!/^\d{6,20}$/.test(id)) return;
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    window.fbq('init', id);
+    pixelOn = true;
+    fbq('track', 'PageView');
+  }).catch(function () {});
+  document.querySelectorAll('.js-call').forEach(function (a) { a.addEventListener('click', function () { fbq('track', 'Contact'); }); });
+
+  /* ─── Attribution: first touch of the visit (same rules as Montara's lib/attribution.ts) ─── */
+  var ATTR_KEY = 'pnr_attribution_v1';
+  var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  function classify(a) {
+    if (a.fbclid) return 'meta-paid';
+    var src = ((a.utm && a.utm.utm_source) || '').toLowerCase();
+    if (src) {
+      if (/facebook|instagram|meta|ig|fb/.test(src)) return /paid|cpc|ppc/.test(((a.utm && a.utm.utm_medium) || '').toLowerCase()) ? 'meta-paid' : 'meta-organic';
+      if (/google|bing|search/.test(src)) return 'search';
+      return 'referral';
+    }
+    if (!a.referrer) return 'direct';
+    var host = '';
+    try { host = new URL(a.referrer).hostname; } catch (e) { return 'unknown'; }
+    if (/(^|\.)(facebook|instagram|fb|messenger|threads)\.(com|me|net)$/i.test(host)) return 'meta-organic';
+    if (/(^|\.)(google|bing|duckduckgo|yahoo|ecosia|brave)\./i.test(host)) return 'search';
+    return 'referral';
+  }
+  function captureAttribution() {
+    var p = new URLSearchParams(location.search);
+    var take = function (k) { return (p.get(k) || '').trim().slice(0, 300) || undefined; };
+    var utm = {}, any = false;
+    UTM_KEYS.forEach(function (k) { var v = take(k); if (v) { utm[k] = v; any = true; } });
+    var a = { fbclid: take('fbclid'), gclid: take('gclid'), referrer: (document.referrer || '').slice(0, 500),
+      landingPath: location.pathname.slice(0, 200), firstSeen: new Date().toISOString() };
+    if (any) a.utm = utm;
+    a.channel = classify(a);
+    return a;
+  }
+  var attribution = (function () {
+    try { var s = sessionStorage.getItem(ATTR_KEY); if (s) return JSON.parse(s); } catch (e) {}
+    var a = captureAttribution();
+    try { sessionStorage.setItem(ATTR_KEY, JSON.stringify(a)); } catch (e) {}
+    return a;
+  })();
+
+  /* ─── Phone helpers (lib/phone.ts) ─── */
+  function nationalDigits(v) { var d = String(v).replace(/\D/g, ''); if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1); return d.slice(0, 10); }
+  function formatUsPhone(v) {
+    var d = nationalDigits(v);
+    if (!d.length) return '';
+    if (d.length < 4) return '(' + d;
+    if (d.length < 7) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  function isValidUsPhone(v) { return /^[2-9]\d{2}[2-9]\d{6}$/.test(nationalDigits(v)); }
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  /* ─── Tiny DOM helper ─── */
+  function h(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v === undefined || v === null || v === false) return;
+      if (k === 'text') n.textContent = v;
+      else if (k === 'class') n.className = v;
+      else if (k === 'html') n.innerHTML = v;
+      else if (k.slice(0, 2) === 'on') n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? '' : v);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function icon(id, cls) { return h('span', { html: '<svg class="' + (cls || 'ico-sm') + '" aria-hidden="true"><use href="#' + id + '"/></svg>' }).firstChild; }
+
+  /* ─── Service-area lists ─── */
+  var towns = document.getElementById('towns');
+  CITIES.forEach(function (c) { towns.appendChild(h('li', null, [icon('i-pin'), c])); });
+  document.getElementById('footer-cities').textContent = 'Serving ' + CITIES.join(' · ');
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  /* ─── Form state ─── */
+  var card = document.getElementById('estimate-form');
+  var answers = { location: '', locationOther: false };
+  var contact = { firstName: '', lastName: '', phone: '', email: '', consent: false, website: '' };
+  var stepIndex = 0, direction = 'forward', touched = false, status = 'idle', timer = null;
+  /* True while re-rendering only to mark a tapped tile: that render must not
+     replay the slide-in or move focus. */
+  var justSelected = false;
+  function choose(apply, advance) { apply(); justSelected = true; render(); justSelected = false; if (advance !== false) advanceSoon(); }
+
+  function steps() {
+    var p = answers.projectType;
+    var needs2 = p ? IMPLIED[p] === undefined : false;
+    return ['project'].concat(needs2 ? ['newOrReplacement'] : [], ['size', 'timeline', 'location', 'contact']);
+  }
+  function go(dir) {
+    touched = true; direction = dir;
+    stepIndex = dir === 'forward' ? stepIndex + 1 : Math.max(0, stepIndex - 1);
+    render();
+  }
+  function advanceSoon() { clearTimeout(timer); timer = setTimeout(function () { go('forward'); }, ADVANCE_DELAY_MS); }
+
+  function optionStep(name, options, value, onSelect) {
+    return h('div', { role: 'radiogroup', 'aria-label': name, class: 'opts' }, options.map(function (o) {
+      var sel = o.value === value;
+      return h('button', { type: 'button', role: 'radio', 'aria-checked': String(sel), class: 'opt', onclick: function () { onSelect(o.value); } }, [
+        h('span', { class: 'opt-txt' }, [h('span', { text: o.label }), o.hint ? h('span', { class: 'opt-hint', text: o.hint }) : null]),
+        h('span', { class: 'opt-dot', 'aria-hidden': 'true' }, [icon(sel ? 'i-check' : 'i-right')])
+      ]);
+    }));
+  }
+
+  function locationStep() {
+    var wrap = h('div', { class: 'stack' });
+    var grid = h('div', { role: 'radiogroup', 'aria-label': 'City', class: 'opts opts-city' });
+    CITIES.forEach(function (c) {
+      grid.appendChild(h('button', { type: 'button', role: 'radio', 'aria-checked': String(!answers.locationOther && answers.location === c), class: 'opt',
+        onclick: function () { choose(function () { answers.location = c; answers.locationOther = false; }); } }, [h('span', { text: c })]));
+    });
+    grid.appendChild(h('button', { type: 'button', role: 'radio', 'aria-checked': String(answers.locationOther), class: 'opt other',
+      onclick: function () { clearTimeout(timer); choose(function () { if (!answers.locationOther) { answers.locationOther = true; answers.location = ''; } }, false); var i = document.getElementById('location'); if (i) i.focus(); } },
+      [h('span', { text: 'Other / Not Listed' })]));
+    wrap.appendChild(grid);
+
+    if (answers.locationOther) {
+      var err = null;
+      var input = h('input', { id: 'location', name: 'location', type: 'text', class: 'input', autocomplete: 'address-level2', placeholder: 'e.g. Rosenberg 77471', value: answers.location,
+        oninput: function (e) { answers.location = e.target.value; if (err) { err.remove(); err = null; input.removeAttribute('aria-invalid'); } } });
+      var form = h('form', { novalidate: true, class: 'stack', onsubmit: function (e) {
+        e.preventDefault();
+        if (answers.location.trim().length < 2) {
+          if (!err) { err = h('p', { id: 'location-error', role: 'alert', class: 'err', text: 'Enter your city or ZIP so we can confirm we serve your area.' }); field.appendChild(err); }
+          input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', 'location-error'); input.focus(); return;
+        }
+        go('forward');
+      } });
+      var field = h('div', { class: 'field' }, [
+        h('label', { for: 'location' }, ['City + ZIP ', h('span', { class: 'opt-l', text: '— so we can confirm we serve your area.' })]),
+        input,
+        h('p', { class: 'note', text: 'Not one of our usual cities — no problem. We’ll confirm we can reach you when we call.' })
+      ]);
+      form.appendChild(field);
+      form.appendChild(h('button', { type: 'submit', class: 'btn submit' }, ['Continue ', icon('i-right', 'ico')]));
+      wrap.appendChild(form);
+    }
+    return wrap;
+  }
+
+  var CONSENT_HTML = 'By checking this box, I agree to receive text messages from P&amp;R General Contractors about my estimate request, including appointment confirmations, reminders, and follow-up about my project. Consent is not a condition of purchase. Message frequency varies. Message &amp; data rates may apply. Reply STOP to opt out or HELP for help. See our <a href="/pnr/privacy#sms-terms" target="_blank" rel="noopener">Privacy Policy &amp; SMS Terms</a>.';
+
+  function contactStep() {
+    var errs = {};
+    var form = h('form', { novalidate: true, class: 'stack' });
+    function field(id, label, input) {
+      var f = h('div', { class: 'field', 'data-for': id }, [h('label', { for: 'contact-' + id }, label), input]);
+      return f;
+    }
+    function textInput(id, extra) {
+      var a = { id: 'contact-' + id, name: id, class: 'input', value: contact[id], oninput: function (e) {
+        contact[id] = id === 'phone' ? formatUsPhone(e.target.value) : e.target.value;
+        if (id === 'phone') e.target.value = contact.phone;
+        clearErr(id);
+      } };
+      Object.keys(extra).forEach(function (k) { a[k] = extra[k]; });
+      return h('input', a);
+    }
+    function clearErr(id) {
+      var el = document.getElementById('contact-' + id + '-error');
+      if (el) el.remove();
+      var i = document.getElementById('contact-' + id); if (i) { i.removeAttribute('aria-invalid'); i.removeAttribute('aria-describedby'); }
+      if (id === 'consent') consentBox.classList.remove('bad');
+    }
+    var first = textInput('firstName', { type: 'text', autocomplete: 'given-name', autocapitalize: 'words' });
+    form.appendChild(h('div', { class: 'grid2' }, [field('firstName', ['First name'], first), field('lastName', ['Last name'], textInput('lastName', { type: 'text', autocomplete: 'family-name', autocapitalize: 'words' }))]));
+    form.appendChild(field('phone', ['Mobile phone'], textInput('phone', { type: 'tel', inputmode: 'tel', autocomplete: 'tel-national', placeholder: '(713) 555-0100', class: 'input tnum' })));
+    form.appendChild(field('email', ['Email ', h('span', { class: 'opt-l', text: '(optional)' })], textInput('email', { type: 'email', inputmode: 'email', autocomplete: 'email', autocapitalize: 'none' })));
+    form.appendChild(h('div', { class: 'hp', 'aria-hidden': 'true' }, [h('label', { for: 'contact-website', text: 'Website' }),
+      h('input', { id: 'contact-website', name: 'website', type: 'text', tabindex: '-1', autocomplete: 'off', oninput: function (e) { contact.website = e.target.value; } })]));
+    var consentInput = h('input', { id: 'contact-consent', name: 'consent', type: 'checkbox', onchange: function (e) { contact.consent = e.target.checked; clearErr('consent'); } });
+    if (contact.consent) consentInput.checked = true;
+    var consentBox = h('label', { for: 'contact-consent', class: 'consent' }, [consentInput, h('span', { html: CONSENT_HTML })]);
+    var consentWrap = h('div', { 'data-for': 'consent' }, [consentBox]);
+    form.appendChild(consentWrap);
+    var submitBtn = h('button', { type: 'submit', class: 'btn submit' }, ['Get My Free Estimate ', icon('i-right', 'ico')]);
+    form.appendChild(submitBtn);
+    form.appendChild(h('p', { class: 'next-line', text: 'Next: we call you to arrange your on-site visit. No pressure, no obligation.' }));
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (status === 'submitting') return;
+      // Read the DOM, not listener state: iOS AutoFill fills fields without
+      // firing `input` (the /book bug), so state alone can read empty.
+      ['firstName', 'lastName', 'email'].forEach(function (k) { contact[k] = document.getElementById('contact-' + k).value; });
+      contact.phone = formatUsPhone(document.getElementById('contact-phone').value);
+      contact.consent = consentInput.checked;
+      contact.website = document.getElementById('contact-website').value;
+      errs = {};
+      if (!contact.firstName.trim()) errs.firstName = 'Please enter your first name.';
+      if (!contact.lastName.trim()) errs.lastName = 'Please enter your last name.';
+      if (!contact.phone.trim()) errs.phone = 'We need a phone number to send your estimate details.';
+      else if (!isValidUsPhone(contact.phone)) errs.phone = "That doesn't look like a complete US number.";
+      if (contact.email.trim() && !EMAIL_RE.test(contact.email.trim())) errs.email = 'That email looks incomplete — or leave it blank.';
+      if (!contact.consent) errs.consent = 'Please check the box so we can text you about your estimate.';
+      var keys = Object.keys(errs);
+      ['firstName', 'lastName', 'phone', 'email', 'consent'].forEach(clearErr);
+      keys.forEach(function (k) {
+        var host = form.querySelector('[data-for="' + k + '"]');
+        host.appendChild(h('p', { id: 'contact-' + k + '-error', role: 'alert', class: 'err', text: errs[k] }));
+        var i = document.getElementById('contact-' + k);
+        i.setAttribute('aria-invalid', 'true'); i.setAttribute('aria-describedby', 'contact-' + k + '-error');
+        if (k === 'consent') consentBox.classList.add('bad');
+      });
+      if (keys.length) { document.getElementById('contact-' + keys[0]).focus(); return; }
+      submitBtn.disabled = true; submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.innerHTML = '<svg class="ico spin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> Sending…';
+      submit();
+    });
+    setTimeout(function () { first.focus({ preventScroll: true }); }, 0);
+    return form;
+  }
+
+  function submit() {
+    status = 'submitting';
+    var back = card.querySelector('.back-btn'); if (back) back.disabled = true;
+    var payload = {
+      firstName: contact.firstName.trim(),
+      lastName: contact.lastName.trim(),
+      phone: contact.phone,
+      email: contact.email.trim() || undefined,
+      projectType: answers.projectType,
+      newOrReplacement: answers.newOrReplacement,
+      sizeRange: answers.sizeRange,
+      timeline: answers.timeline,
+      location: answers.location.trim(),
+      inServiceArea: !answers.locationOther,
+      consent: contact.consent,
+      website: contact.website,
+      attribution: attribution || undefined
+    };
+    // Assume the worst; only a 200 that doesn't say captured:false counts.
+    var captured = false;
+    fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive: true })
+      .then(function (res) {
+        if (!res.ok) { console.error('[lead] submit returned', res.status); return null; }
+        return res.json().catch(function () { return null; }).then(function (b) { captured = !(b && b.captured === false); });
+      })
+      .catch(function (err) { console.error('[lead] submit failed', err); })
+      .then(function () {
+        // Fires whenever the visitor finished the form, captured or not —
+        // that action is what the ads should optimise toward.
+        fbq('track', 'Lead', { content_name: payload.projectType });
+        status = 'done';
+        showThanks(payload.firstName, captured);
+      });
+  }
+
+  function showThanks(firstName, captured) {
+    card.innerHTML = '';
+    var heading;
+    var box = h('div', { class: 'ty rise', role: 'status' });
+    if (!captured) {
+      heading = h('h2', { tabindex: '-1', text: 'Let’s get you on the phone' + (firstName ? ', ' + firstName : '') + '.' });
+      box.appendChild(heading);
+      box.appendChild(h('p', { text: 'Something went wrong on our end and your details didn’t reach us. Nothing you did — but rather than leave you waiting on a call that won’t come, give us a ring and we’ll take it from here.' }));
+      box.appendChild(h('a', { class: 'btn submit js-call', href: PHONE_HREF, style: 'margin-top:20px', onclick: function () { fbq('track', 'Contact'); } }, [icon('i-phone', 'ico'), ' Call ' + PHONE_DISPLAY]));
+    } else {
+      heading = h('h2', { tabindex: '-1', text: 'Thank you' + (firstName ? ', ' + firstName : '') + '.' });
+      box.appendChild(h('div', { class: 'ty-head' }, [h('span', { class: 'ty-check' }, [icon('i-check', 'ico')]),
+        h('div', null, [heading, h('p', { text: 'We have your project details, and we appreciate you considering ' + BUSINESS + '.' })])]));
+      box.appendChild(h('p', { text: 'A member of our team will call you as soon as possible to talk through the job and arrange your free on-site estimate. No pressure, no obligation — just a straight answer on what the work takes and what it costs.' }));
+      box.appendChild(h('p', { class: 'call-line' }, ['Would rather talk now? ', h('a', { href: PHONE_HREF, onclick: function () { fbq('track', 'Contact'); }, text: 'Call ' + PHONE_DISPLAY })]));
+    }
+    card.appendChild(box);
+    heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    heading.focus({ preventScroll: true });
+  }
+
+  function render() {
+    var list = steps();
+    if (stepIndex > list.length - 1) stepIndex = list.length - 1;
+    var id = list[stepIndex], total = list.length;
+    card.innerHTML = '';
+
+    card.appendChild(h('div', { class: 'prog-row' }, [
+      h('p', { class: 'prog-step', html: 'Step <b>' + (stepIndex + 1) + '</b> of ' + total }),
+      h('p', { class: 'prog-note', text: 'Free · No obligation · ~30 seconds' })
+    ]));
+    card.appendChild(h('div', { class: 'prog-bar', role: 'progressbar', 'aria-valuemin': '1', 'aria-valuemax': String(total), 'aria-valuenow': String(stepIndex + 1), 'aria-label': 'Form progress' },
+      list.map(function (s, i) { return h('span', { class: i <= stepIndex ? 'on' : '' }); })));
+
+    var heading = h('h2', { class: 'q', tabindex: '-1', text: QUESTION[id] });
+    var body = h('div', { class: 'step-body' });
+    if (id === 'project') body.appendChild(optionStep('projectType', PROJECT_OPTIONS, answers.projectType, function (v) {
+      choose(function () {
+        var implied = IMPLIED[v];
+        // Carry the implied answer; drop a stale one if they switched to a type that asks.
+        answers.newOrReplacement = implied || (IMPLIED[answers.projectType || v] ? undefined : answers.newOrReplacement);
+        answers.projectType = v;
+      });
+    }));
+    if (id === 'newOrReplacement') body.appendChild(optionStep('newOrReplacement', NEW_OR_REPLACEMENT_OPTIONS, answers.newOrReplacement, function (v) { choose(function () { answers.newOrReplacement = v; }); }));
+    if (id === 'size') body.appendChild(optionStep('sizeRange', SIZE_OPTIONS, answers.sizeRange, function (v) { choose(function () { answers.sizeRange = v; }); }));
+    if (id === 'timeline') body.appendChild(optionStep('timeline', TIMELINE_OPTIONS, answers.timeline, function (v) { choose(function () { answers.timeline = v; }); }));
+    if (id === 'location') body.appendChild(locationStep());
+    if (id === 'contact') body.appendChild(contactStep());
+
+    var stepWrap = h('div', { class: touched && !justSelected ? (direction === 'forward' ? 'fwd' : 'back') : '' }, [heading, body]);
+    card.appendChild(stepWrap);
+
+    card.appendChild(h('div', { class: 'form-foot' }, [
+      stepIndex > 0 ? h('button', { type: 'button', class: 'back-btn', onclick: function () { if (status !== 'submitting') { clearTimeout(timer); go('back'); } } }, [icon('i-left'), 'Back']) : h('span'),
+      h('p', { class: 'form-trust' }, [icon('i-shield'), 'Licensed, Insured & Bonded'])
+    ]));
+
+    // Focus the new question on step change, never on first paint.
+    if (touched && !justSelected && id !== 'contact') heading.focus({ preventScroll: true });
+  }
+
+  render();
+
+  /* ─── Repeated CTAs scroll back to the form ─── */
+  function scrollToForm() {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(function () { var t = card.querySelector('button[role="radio"], input:not([type="hidden"]), button[type="submit"]'); if (t) t.focus({ preventScroll: true }); }, 450);
+  }
+  document.querySelectorAll('.js-to-form').forEach(function (b) { b.addEventListener('click', scrollToForm); });
+
+  /* ─── Sticky bar: only once the form has been scrolled past ─── */
+  var sticky = document.getElementById('sticky');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      var e = entries[0];
+      var past = !e.isIntersecting && e.boundingClientRect.bottom < 0;
+      sticky.classList.toggle('show', past);
+      sticky.setAttribute('aria-hidden', String(!past));
+      sticky.querySelectorAll('button,a').forEach(function (el) { el.tabIndex = past ? 0 : -1; });
+    }).observe(card);
+  }
+})();
+</script>
+</body>
+</html>
