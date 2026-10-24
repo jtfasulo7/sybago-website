@@ -2,8 +2,6 @@
 // Isolated from every other route on this site: nothing here is shared with
 // /book or the dashboard.
 //
-//   GET  → { pixelId } — the public Meta Pixel id for the page. The page is
-//          static HTML with no build step, so it cannot read an env var itself.
 //   POST → validates the lead and forwards it to the GHL inbound webhook in
 //          PNR_GHL_WEBHOOK_URL. The URL never reaches the browser.
 //
@@ -57,12 +55,8 @@ const CONSENT_TEXT =
   'By checking this box, I agree to receive text messages from P&R General Contractors about my estimate request, including appointment confirmations, reminders, and follow-up about my project. Consent is not a condition of purchase. Message frequency varies. Message & data rates may apply. Reply STOP to opt out or HELP for help. See our Privacy Policy & SMS Terms.';
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    return res.status(200).json({ pixelId: (process.env.NEXT_PUBLIC_PNR_META_PIXEL_ID || '').trim() });
-  }
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'GET, POST');
+    res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 

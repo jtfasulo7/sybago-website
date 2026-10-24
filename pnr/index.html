@@ -259,6 +259,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </style>
 </head>
 <body>
+<noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=966499526044246&amp;ev=PageView&amp;noscript=1"></noscript>
 
 <!-- Icon sprite: one inline copy, referenced with <use>. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -466,17 +467,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     contact: 'Where should we send your estimate details?'
   };
 
-  /* ─── Meta Pixel: dormant until the API reports an id ─── */
-  var pixelOn = false;
-  function fbq() { if (pixelOn && typeof window.fbq === 'function') { try { window.fbq.apply(null, arguments); } catch (e) {} } }
-  fetch(ENDPOINT, { method: 'GET' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (cfg) {
-    var id = cfg && typeof cfg.pixelId === 'string' ? cfg.pixelId.trim() : '';
-    if (!/^\d{6,20}$/.test(id)) return;
-    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-    window.fbq('init', id);
-    pixelOn = true;
-    fbq('track', 'PageView');
-  }).catch(function () {});
+  /* ─── Meta Pixel ─── */
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  window.fbq('init', '966499526044246');
+  window.fbq('track', 'PageView');
+  function fbq() { try { window.fbq.apply(null, arguments); } catch (e) {} }
   document.querySelectorAll('.js-call').forEach(function (a) { a.addEventListener('click', function () { fbq('track', 'Contact'); }); });
 
   /* ─── Attribution: first touch of the visit ─── */
