@@ -1,32 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!--
-═══════════════════════════════════════════════════════════════════════════════
-  P&R GENERAL CONTRACTORS — HOUSTON CONCRETE LANDING PAGE   (/pnr)
-  Client: Ricardo Cazares, P&R General Contractor LLC. Meta ad traffic.
-═══════════════════════════════════════════════════════════════════════════════
-  A port of the Montara Forge landing page (montara-forge/, Next.js) into this
-  site's no-build static HTML. Same sections in the same order, same form flow,
-  same copy pattern — only the client, the colours (Ricardo's own site:
-  white, Inter, #1D4ED8) and the Houston specifics change.
-
-  ISOLATED ON PURPOSE: it shares a domain with Sybago and nothing else. No
-  Sybago nav, footer, chat widget, GA tag or stylesheet, and no links back.
-  Everything it needs lives in /pnr/ and /api/submit-pnr-inquiry.
-
-  FORM (mirrors montara-forge/components/form/LeadForm.tsx):
-    project → [new or replacement, only when the project doesn't imply it]
-    → size → timeline → location → contact          (5 or 6 steps)
-  Tiles auto-advance after 170ms. POSTs to /api/submit-pnr-inquiry, which
-  forwards to PNR_GHL_WEBHOOK_URL. The thank-you replaces the form in place.
-  `captured:false` from the API (webhook unset or down) shows the call-us
-  version, so nobody is promised a callback that cannot happen.
-
-  Option VALUES must match api/submit-pnr-inquiry.js. Labels may change freely.
-  Meta Pixel id comes from GET /api/submit-pnr-inquiry (NEXT_PUBLIC_PNR_META_PIXEL_ID);
-  unset = no pixel code loads at all.
-═══════════════════════════════════════════════════════════════════════════════
--->
+<!-- P&R General Contractors — Houston concrete estimate page. Notes for editing: see CLAUDE.md (`/pnr`). -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -510,7 +484,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   }).catch(function () {});
   document.querySelectorAll('.js-call').forEach(function (a) { a.addEventListener('click', function () { fbq('track', 'Contact'); }); });
 
-  /* ─── Attribution: first touch of the visit (same rules as Montara's lib/attribution.ts) ─── */
+  /* ─── Attribution: first touch of the visit ─── */
   var ATTR_KEY = 'pnr_attribution_v1';
   var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
   function classify(a) {
@@ -546,7 +520,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     return a;
   })();
 
-  /* ─── Phone helpers (lib/phone.ts) ─── */
+  /* ─── Phone helpers ─── */
   function nationalDigits(v) { var d = String(v).replace(/\D/g, ''); if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1); return d.slice(0, 10); }
   function formatUsPhone(v) {
     var d = nationalDigits(v);
@@ -692,7 +666,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       ev.preventDefault();
       if (status === 'submitting') return;
       // Read the DOM, not listener state: iOS AutoFill fills fields without
-      // firing `input` (the /book bug), so state alone can read empty.
+      // firing `input`, so state alone can read empty.
       ['firstName', 'lastName', 'email'].forEach(function (k) { contact[k] = document.getElementById('contact-' + k).value; });
       contact.phone = formatUsPhone(document.getElementById('contact-phone').value);
       contact.consent = consentInput.checked;
