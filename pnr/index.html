@@ -187,17 +187,16 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 8px 6px;background:linear-gradient(to top,rgba(15,23,42,.85),transparent);color:#fff;font-size:.62rem;font-weight:600;line-height:1.25}
 @media (min-width:640px){.gallery figcaption{padding:32px 12px 10px;font-size:.8rem}}
 
-/* ─── Meet the owner ─── */
+/* ─── Meet the owner — no photo by Ricardo's choice; the credentials panel takes its place ─── */
 .owner{display:grid;gap:32px;align-items:center}
-@media (min-width:640px){.owner{grid-template-columns:.8fr 1.2fr;gap:48px}}
-.owner-photo{position:relative;width:100%;max-width:15rem;margin:0 auto;aspect-ratio:4/5;border-radius:14px;border:1px solid var(--line);background:var(--blue-tint);overflow:hidden;display:grid;place-items:center}
-@media (min-width:640px){.owner-photo{max-width:none}}
-.owner-photo .mono{font-size:5rem;font-weight:800;letter-spacing:-.04em;color:var(--blue);opacity:.9}
-.owner-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@media (min-width:1024px){.owner{grid-template-columns:1.1fr .9fr;gap:48px}}
 .owner p.lead{margin-top:20px;max-width:36rem;color:var(--ink-mute);font-size:1.05rem;line-height:1.65}
-.checks{list-style:none;display:grid;gap:10px;margin-top:24px}
-.checks li{display:flex;align-items:center;gap:10px;font-weight:600;font-size:.97rem}
-.checks .ico{color:var(--blue)}
+.creds{list-style:none;border:1px solid var(--line);border-top:4px solid var(--blue);border-radius:14px;background:var(--bg-2)}
+.creds li{display:flex;align-items:center;gap:14px;padding:16px 20px}
+.creds li+li{border-top:1px solid var(--line)}
+.creds .ico{width:24px;height:24px;color:var(--blue)}
+.creds b{display:block;font-size:1.15rem;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.creds span{display:block;font-size:.9rem;color:var(--ink-mute)}
 
 /* ─── How it works ─── */
 .steps{list-style:none;display:grid;gap:16px;margin-top:32px}
@@ -340,21 +339,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <!-- ═══ Meet the owner ═══ -->
   <section class="section wrap">
     <div class="owner">
-      <!-- TODO: swap the monogram for Ricardo's photo:
-           <img src="/pnr/images/ricardo.webp" width="480" height="600" alt="Ricardo Cazares, owner of P&R General Contractors"> -->
-      <figure class="owner-photo" aria-label="Photo of Ricardo coming soon">
-        <span class="mono" aria-hidden="true">RC</span>
-      </figure>
       <div>
         <p class="eyebrow">Meet the Owner</p>
-        <h2 class="h2">I&rsquo;m Ricardo. <span class="blue">I&rsquo;ve been pouring concrete in Houston for 32 years.</span></h2>
-        <p class="lead">I run a 15-person local crew. We look at the job with you, explain what it needs, and put the price in writing before anything is scheduled.</p>
-        <ul class="checks">
-          <li><svg class="ico"><use href="#i-check"/></svg>Owner of P&amp;R General Contractors</li>
-          <li><svg class="ico"><use href="#i-check"/></svg>15-person local crew</li>
-          <li><svg class="ico"><use href="#i-check"/></svg>Written price before any work starts</li>
-        </ul>
+        <h2 class="h2">Owned and run by Ricardo Cazares. <span class="blue">32 years pouring concrete in Houston.</span></h2>
+        <p class="lead">Ricardo runs a 15-person local crew. They look at the job with you, explain what it needs, and put the price in writing before anything is scheduled.</p>
       </div>
+      <ul class="creds" aria-label="Ricardo's credentials">
+        <li><svg class="ico"><use href="#i-clock"/></svg><div><b>32 years in business</b><span>Pouring concrete across Greater Houston</span></div></li>
+        <li><svg class="ico"><use href="#i-pin"/></svg><div><b>15-person local crew</b><span>Led by Ricardo, owner of P&amp;R General Contractors</span></div></li>
+        <li><svg class="ico"><use href="#i-shield"/></svg><div><b>Licensed, insured &amp; bonded</b></div></li>
+        <li><svg class="ico"><use href="#i-check"/></svg><div><b>Written price up front</b><span>Before any work starts</span></div></li>
+      </ul>
     </div>
   </section>
 

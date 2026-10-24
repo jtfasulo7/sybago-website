@@ -128,7 +128,7 @@ Ricardo's own site (white, Inter, `#1D4ED8`).
   completion, Contact on tap-to-call.
 - Option VALUES in `pnr/index.html` must match `LABELS` in the route; the consent text is
   duplicated in both (`CONSENT_HTML` / `CONSENT_TEXT`).
-- Owner photo is a monogram placeholder — swap in the `<img>` noted in the TODO comment.
+- **No owner photo, by Ricardo's choice.** Meet the Owner is text-only and third person, with a credentials panel where Montara has the photo. Do not add a photo or placeholder.
 
 ### `/book` — qualification form → calendar (`book.html`, `api/book-lead.js`)
 
