@@ -53,18 +53,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .ico{width:20px;height:20px;flex:none}
 .ico-sm{width:16px;height:16px;flex:none}
 
-/* ─── Header: logo + tap-to-call. No navigation. ─── */
+/* ─── Header: logo only. No navigation. ─── */
 .hdr{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:saturate(1.4) blur(8px);-webkit-backdrop-filter:saturate(1.4) blur(8px)}
 .hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;height:60px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;min-width:0}
 .brand img{height:40px;width:auto}
 .brand span{font-weight:800;font-size:.95rem;line-height:1.05;letter-spacing:-.01em}
 .brand small{display:block;font-weight:600;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
-.call-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:1.5px solid var(--blue);border-radius:8px;color:var(--blue);font-weight:700;font-size:.88rem;text-decoration:none;white-space:nowrap;transition:background .15s,color .15s}
-.call-btn:hover{background:var(--blue);color:#fff}
-/* The logo already spells out the name; on phones the text would crowd the call button. */
-@media (max-width:419px){.brand span{display:none}}
-@media (min-width:640px){.hdr .wrap{height:68px}.brand img{height:46px}.call-btn{height:44px;padding:0 16px;font-size:.95rem}}
+@media (min-width:640px){.hdr .wrap{height:68px}.brand img{height:46px}}
 
 /* ─── Shared section bits ─── */
 .eyebrow{display:flex;align-items:center;gap:12px;font-size:.75rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
@@ -77,8 +73,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .band{background:var(--bg-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 24px;border-radius:10px;background:var(--blue);color:#fff;font-weight:700;font-size:1.08rem;text-decoration:none;transition:background .15s;box-shadow:0 8px 20px -10px rgba(29,78,216,.6)}
 .btn:hover{background:var(--blue-d)}
-.btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 22px;border-radius:10px;border:1.5px solid var(--line-strong);background:#fff;color:var(--ink);font-weight:600;text-decoration:none;transition:border-color .15s,color .15s}
-.btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
 
 /* ─── Hero + form. On phones the form IS the hero. ─── */
 .hero{background:var(--bg-3);border-bottom:1px solid var(--line)}
@@ -167,8 +161,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .ty-check{display:grid;place-items:center;width:36px;height:36px;flex:none;margin-top:2px;border-radius:50%;background:var(--blue);color:#fff}
 .ty h2{font-size:1.7rem;line-height:1.1;font-weight:800;letter-spacing:-.02em;outline:none}
 .ty p{margin-top:8px;color:var(--ink-mute);font-size:.97rem}
-.ty .call-line{margin-top:20px;text-align:center;font-size:.9rem}
-.ty .call-line a{font-weight:700;color:var(--blue)}
 
 /* ─── Trust strip (phones/tablets; desktop has it in the hero) ─── */
 .strip{background:#fff;border-bottom:1px solid var(--line)}
@@ -187,16 +179,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 8px 6px;background:linear-gradient(to top,rgba(15,23,42,.85),transparent);color:#fff;font-size:.62rem;font-weight:600;line-height:1.25}
 @media (min-width:640px){.gallery figcaption{padding:32px 12px 10px;font-size:.8rem}}
 
-/* ─── Meet the owner — no photo by Ricardo's choice; the credentials panel takes its place ─── */
-.owner{display:grid;gap:32px;align-items:center}
-@media (min-width:1024px){.owner{grid-template-columns:1.1fr .9fr;gap:48px}}
-.owner p.lead{margin-top:20px;max-width:36rem;color:var(--ink-mute);font-size:1.05rem;line-height:1.65}
-.creds{list-style:none;border:1px solid var(--line);border-top:4px solid var(--blue);border-radius:14px;background:var(--bg-2)}
-.creds li{display:flex;align-items:center;gap:14px;padding:16px 20px}
-.creds li+li{border-top:1px solid var(--line)}
-.creds .ico{width:24px;height:24px;color:var(--blue)}
-.creds b{display:block;font-size:1.15rem;font-weight:800;letter-spacing:-.01em;line-height:1.2}
-.creds span{display:block;font-size:.9rem;color:var(--ink-mute)}
 
 /* ─── How it works ─── */
 .steps{list-style:none;display:grid;gap:16px;margin-top:32px}
@@ -242,15 +224,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 @media (min-width:768px){.ftr .right{justify-items:end;text-align:right}}
 .ftr a{text-decoration:none}
 .ftr a:hover{color:#fff;text-decoration:underline;text-underline-offset:4px}
-.ftr .phone{font-weight:700;color:#fff;font-size:1rem}
-.ftr .email{color:#94a3b8;font-size:.8rem}
 .ftr .copy{font-size:.75rem;color:#94a3b8}
 
 /* ─── Mobile sticky bar: shows only once the form is scrolled past ─── */
 .sticky{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--line);transform:translateY(100%);transition:transform .3s}
 .sticky.show{transform:none}
 .sticky .btn{flex:1;min-height:48px;font-size:1rem;padding:0 16px}
-.sticky .sq{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:10px;border:1.5px solid var(--blue);color:var(--blue)}
 @media (min-width:768px){.sticky{display:none}}
 
 @media (prefers-reduced-motion:reduce){
@@ -263,7 +242,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 <!-- Icon sprite: one inline copy, referenced with <use>. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-phone" viewBox="0 0 24 24"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 7.5V12l3 2"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></symbol>
@@ -279,10 +257,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <img src="/pnr/images/logo.png" width="57" height="40" alt="P&amp;R General Contractors logo">
       <span>P&amp;R General<small>Contractors</small></span>
     </span>
-    <a class="call-btn js-call" href="tel:+19562371842" aria-label="Call P&amp;R General Contractors at 956-237-1842">
-      <svg class="ico-sm"><use href="#i-phone"/></svg>
-      <span>Call <span class="tnum">956-237-1842</span></span>
-    </a>
   </div>
 </header>
 
@@ -302,7 +276,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       </div>
       <div class="form-col">
         <div class="card" id="estimate-form" aria-live="polite">
-          <noscript><p class="q">Call us for a free estimate: <a href="tel:+19562371842">956-237-1842</a></p></noscript>
+          <noscript><p class="q">Please turn on JavaScript to request your free estimate.</p></noscript>
         </div>
       </div>
     </div>
@@ -335,23 +309,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
         <figcaption>Walkway &amp; exposed-aggregate pool deck</figcaption>
       </figure></li>
     </ul>
-  </section>
-
-  <!-- ═══ Meet the owner ═══ -->
-  <section class="section wrap">
-    <div class="owner">
-      <div>
-        <p class="eyebrow">Meet the Owner</p>
-        <h2 class="h2">Owned and run by Ricardo Cazares. <span class="blue">32 years pouring concrete in Houston.</span></h2>
-        <p class="lead">Ricardo runs a 15-person local crew. They look at the job with you, explain what it needs, and put the price in writing before anything is scheduled.</p>
-      </div>
-      <ul class="creds" aria-label="Ricardo's credentials">
-        <li><svg class="ico"><use href="#i-clock"/></svg><div><b>32 years in business</b><span>Pouring concrete across Greater Houston</span></div></li>
-        <li><svg class="ico"><use href="#i-pin"/></svg><div><b>15-person local crew</b><span>Led by Ricardo, owner of P&amp;R General Contractors</span></div></li>
-        <li><svg class="ico"><use href="#i-shield"/></svg><div><b>Licensed, insured &amp; bonded</b></div></li>
-        <li><svg class="ico"><use href="#i-check"/></svg><div><b>Written price up front</b><span>Before any work starts</span></div></li>
-      </ul>
-    </div>
   </section>
 
   <!-- ═══ How it works ═══ -->
@@ -389,7 +346,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <p class="lead">Houston&rsquo;s cooler, drier winter months are the best time to pour: fewer storms, lower humidity, and a steadier cure than in the summer heat. Calendars fill quickly for the dry season &mdash; get your estimate now and your pour lands in it.</p>
       <div class="cta-row">
         <button type="button" class="btn js-to-form">Get My Free Estimate <svg class="ico"><use href="#i-right"/></svg></button>
-        <a class="btn-ghost js-call" href="tel:+19562371842"><svg class="ico blue"><use href="#i-phone"/></svg>Call 956-237-1842</a>
       </div>
       <p class="small"><svg class="ico-sm"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded · 32 Years in Business</p>
     </div></div>
@@ -404,8 +360,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <p class="cities" id="footer-cities"></p>
     </div>
     <div class="right">
-      <a class="phone js-call" href="tel:+19562371842">956-237-1842</a>
-      <a class="email" href="mailto:cazaresrick76@yahoo.com">cazaresrick76@yahoo.com</a>
       <a href="/pnr/privacy">Privacy Policy</a>
       <a href="/pnr/terms">Terms &amp; Conditions</a>
       <p class="copy">© <span id="yr">2026</span> P&amp;R General Contractor LLC · Houston, TX</p>
@@ -415,15 +369,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 <div class="sticky" id="sticky" aria-hidden="true">
   <button type="button" class="btn js-to-form" tabindex="-1">Get My Free Estimate</button>
-  <a class="sq js-call" href="tel:+19562371842" tabindex="-1" aria-label="Call 956-237-1842"><svg class="ico"><use href="#i-phone"/></svg></a>
 </div>
 
 <script>
 (function () {
   'use strict';
 
-  var PHONE_DISPLAY = '956-237-1842';
-  var PHONE_HREF = 'tel:+19562371842';
   var BUSINESS = 'P&R General Contractors';
   var ENDPOINT = '/api/submit-pnr-inquiry';
   var ADVANCE_DELAY_MS = 170;
@@ -472,7 +423,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   window.fbq('init', '966499526044246');
   window.fbq('track', 'PageView');
   function fbq() { try { window.fbq.apply(null, arguments); } catch (e) {} }
-  document.querySelectorAll('.js-call').forEach(function (a) { a.addEventListener('click', function () { fbq('track', 'Contact'); }); });
 
   /* ─── Attribution: first touch of the visit ─── */
   var ATTR_KEY = 'pnr_attribution_v1';
@@ -726,17 +676,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     var heading;
     var box = h('div', { class: 'ty rise', role: 'status' });
     if (!captured) {
-      heading = h('h2', { tabindex: '-1', text: 'Let’s get you on the phone' + (firstName ? ', ' + firstName : '') + '.' });
+      heading = h('h2', { tabindex: '-1', text: 'Sorry' + (firstName ? ', ' + firstName : '') + ' — that didn’t go through.' });
       box.appendChild(heading);
-      box.appendChild(h('p', { text: 'Something went wrong on our end and your details didn’t reach us. Nothing you did — but rather than leave you waiting on a call that won’t come, give us a ring and we’ll take it from here.' }));
-      box.appendChild(h('a', { class: 'btn submit js-call', href: PHONE_HREF, style: 'margin-top:20px', onclick: function () { fbq('track', 'Contact'); } }, [icon('i-phone', 'ico'), ' Call ' + PHONE_DISPLAY]));
+      box.appendChild(h('p', { text: 'Something went wrong on our end and your details didn’t reach us. Nothing you did. Please try sending them again.' }));
+      box.appendChild(h('button', { type: 'button', class: 'btn submit', style: 'margin-top:20px', onclick: function () { status = 'idle'; contact.consent = false; render(); } }, ['Try Again']));
     } else {
       heading = h('h2', { tabindex: '-1', text: 'Thank you' + (firstName ? ', ' + firstName : '') + '.' });
       box.appendChild(h('div', { class: 'ty-head' }, [h('span', { class: 'ty-check' }, [icon('i-check', 'ico')]),
         h('div', null, [heading, h('p', { text: 'We have your project details, and we appreciate you considering ' + BUSINESS + '.' })])]));
-      box.appendChild(h('p', { text: 'A member of our team will call you as soon as possible to talk through the job and arrange your free on-site estimate. No pressure, no obligation — just a straight answer on what the work takes and what it costs.' }));
-      box.appendChild(h('p', { class: 'call-line' }, ['Would rather talk now? ', h('a', { href: PHONE_HREF, onclick: function () { fbq('track', 'Contact'); }, text: 'Call ' + PHONE_DISPLAY })]));
-    }
+      box.appendChild(h('p', { text: 'A member of our team will call you as soon as possible to talk through the job and arrange your free on-site estimate. No pressure, no obligation — just a straight answer on what the work takes and what it costs.' }));    }
     card.appendChild(box);
     heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
     heading.focus({ preventScroll: true });

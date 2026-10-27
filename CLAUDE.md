@@ -122,13 +122,17 @@ Ricardo's own site (white, Inter, `#1D4ED8`).
 - `noindex` so it never outranks pnrgeneralcontractors.com.
 - **Form → `api/submit-pnr-inquiry.js` → `PNR_GHL_WEBHOOK_URL`** (flat JSON). With the
   webhook unset or failing, the route still answers 200 with `captured:false` and logs the
-  full lead; the page then shows the "call us" thank-you instead of promising a callback.
+  full lead (recover it from `vercel logs`); the page then shows a "didn't go through" screen
+  with a Try Again button back to the contact step, instead of promising a callback.
 - **Meta Pixel `966499526044246` is hardcoded in `pnr/index.html`** (the init in the script,
-  plus the `<noscript>` img right after `<body>`). PageView on load, Lead on form completion,
-  Contact on tap-to-call.
+  plus the `<noscript>` img right after `<body>`). PageView on load, Lead on form completion.
+- **No phone number or email anywhere on the page**, by request: the form is the only way in.
+  Do not add tap-to-call buttons back. (The privacy/terms pages still list them as legal contact.)
 - Option VALUES in `pnr/index.html` must match `LABELS` in the route; the consent text is
   duplicated in both (`CONSENT_HTML` / `CONSENT_TEXT`).
-- **No owner photo, by Ricardo's choice.** Meet the Owner is text-only and third person, with a credentials panel where Montara has the photo. Do not add a photo or placeholder.
+- **No Meet the Owner section, and no mention of Ricardo by name.** He won't supply a photo,
+  so the section was cut. Years in business and crew size live in the hero trust list, the
+  trust strip and the footer badges. Do not add an owner section back.
 
 ### `/book` — qualification form → calendar (`book.html`, `api/book-lead.js`)
 
