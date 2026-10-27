@@ -126,6 +126,8 @@ Ricardo's own site (white, Inter, `#1D4ED8`).
   with a Try Again button back to the contact step, instead of promising a callback.
 - **Meta Pixel `966499526044246` is hardcoded in `pnr/index.html`** (the init in the script,
   plus the `<noscript>` img right after `<body>`). PageView on load, Lead on form completion.
+- **Microsoft Clarity project `z4ib8grsuo` is hardcoded at the end of `<head>` in `pnr/index.html`**
+  (no build step, so no env var). `/pnr` only, not privacy/terms. Montara has its own project.
 - **No phone number or email anywhere on the page**, by request: the form is the only way in.
   Do not add tap-to-call buttons back. (The privacy/terms pages still list them as legal contact.)
 - Option VALUES in `pnr/index.html` must match `LABELS` in the route; the consent text is
