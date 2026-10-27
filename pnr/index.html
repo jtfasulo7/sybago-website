@@ -386,12 +386,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     { value: 'new', label: 'New — nothing there now' },
     { value: 'replacement', label: 'Replacing existing concrete' }
   ];
-  var SIZE_OPTIONS = [
-    { value: 'small', label: 'Small', hint: 'Under ~400 sq ft · walkway, small pad' },
-    { value: 'medium', label: 'Medium', hint: '~400–1,000 sq ft · standard driveway, patio' },
-    { value: 'large', label: 'Large', hint: 'Over ~1,000 sq ft · big driveway, multi-area' },
-    { value: 'not-sure', label: 'Not sure', hint: "We'll measure it on-site" }
-  ];
   var TIMELINE_OPTIONS = [
     { value: 'asap', label: 'As soon as possible' },
     { value: 'within-month', label: 'Within a month' },
@@ -406,7 +400,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   var QUESTION = {
     project: "What's your project?",
     newOrReplacement: 'New pour or replacing existing concrete?',
-    size: 'About how big is the area?',
     timeline: 'When are you hoping to get this done?',
     location: "Where's the project located?",
     contact: 'Where should we send your estimate details?'
@@ -502,7 +495,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   function steps() {
     var p = answers.projectType;
     var needs2 = p ? IMPLIED[p] === undefined : false;
-    return ['project'].concat(needs2 ? ['newOrReplacement'] : [], ['size', 'timeline', 'location', 'contact']);
+    return ['project'].concat(needs2 ? ['newOrReplacement'] : [], ['timeline', 'location', 'contact']);
   }
   function go(dir) {
     touched = true; direction = dir;
@@ -640,7 +633,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       email: contact.email.trim() || undefined,
       projectType: answers.projectType,
       newOrReplacement: answers.newOrReplacement,
-      sizeRange: answers.sizeRange,
       timeline: answers.timeline,
       location: answers.location.trim(),
       inServiceArea: !answers.locationOther,
@@ -704,7 +696,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       });
     }));
     if (id === 'newOrReplacement') body.appendChild(optionStep('newOrReplacement', NEW_OR_REPLACEMENT_OPTIONS, answers.newOrReplacement, function (v) { choose(function () { answers.newOrReplacement = v; }); }));
-    if (id === 'size') body.appendChild(optionStep('sizeRange', SIZE_OPTIONS, answers.sizeRange, function (v) { choose(function () { answers.sizeRange = v; }); }));
     if (id === 'timeline') body.appendChild(optionStep('timeline', TIMELINE_OPTIONS, answers.timeline, function (v) { choose(function () { answers.timeline = v; }); }));
     if (id === 'location') body.appendChild(locationStep());
     if (id === 'contact') body.appendChild(contactStep());

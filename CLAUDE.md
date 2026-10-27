@@ -113,7 +113,7 @@ These are targets for **Sybago's own Meta ads** when prospecting for clients. Ru
 
 **A client page, not a Sybago page.** Ricardo Cazares, P&R General Contractor LLC. Meta ad
 traffic. It is a static port of the Montara Forge landing page (`montara-forge/`, Next.js):
-same sections in the same order, same 5–6 step form, same thank-you logic, restyled to
+same sections in the same order, same 4–5 step form (no size question), same thank-you logic, restyled to
 Ricardo's own site (white, Inter, `#1D4ED8`).
 
 - **Fully isolated.** No Sybago nav, footer, chat widget, GA tag or styles, and no links back.

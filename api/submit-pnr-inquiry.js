@@ -28,12 +28,6 @@ const LABELS = {
     new: 'New pour (no tear-out)',
     replacement: 'Replacing existing (tear-out required)',
   },
-  sizeRange: {
-    small: 'Small — under ~400 sq ft',
-    medium: 'Medium — ~400–1,000 sq ft',
-    large: 'Large — over ~1,000 sq ft',
-    'not-sure': 'Not sure',
-  },
   timeline: {
     asap: 'ASAP',
     'within-month': 'Within a month',
@@ -117,7 +111,6 @@ function validate(b) {
   if (!(b.projectType in LABELS.projectType)) return { ok: false, error: 'Invalid project type' };
   const newOrReplacement = IMPLIED[b.projectType] || b.newOrReplacement;
   if (!(newOrReplacement in LABELS.newOrReplacement)) return { ok: false, error: 'Invalid new/replacement value' };
-  if (!(b.sizeRange in LABELS.sizeRange)) return { ok: false, error: 'Invalid size range' };
   if (!(b.timeline in LABELS.timeline)) return { ok: false, error: 'Invalid timeline' };
   if (!location) return { ok: false, error: 'Location is required' };
   if (b.consent !== true) return { ok: false, error: 'SMS consent is required' };
@@ -128,7 +121,6 @@ function validate(b) {
       firstName, lastName, phone, email, location,
       projectType: b.projectType,
       newOrReplacement,
-      sizeRange: b.sizeRange,
       timeline: b.timeline,
       inServiceArea: b.inServiceArea === true,
       attribution: validateAttribution(b.attribution),
@@ -158,7 +150,6 @@ function buildPayload(d) {
   const L = {
     projectType: LABELS.projectType[d.projectType],
     newOrReplacement: LABELS.newOrReplacement[d.newOrReplacement],
-    sizeRange: LABELS.sizeRange[d.sizeRange],
     timeline: LABELS.timeline[d.timeline],
   };
   const location = d.location + (d.inServiceArea ? '' : ' (not a listed city — confirm)');
@@ -170,14 +161,12 @@ function buildPayload(d) {
     email: d.email,
     project_type: L.projectType,
     new_or_replacement: L.newOrReplacement,
-    size_range: L.sizeRange,
     timeline: L.timeline,
     location: d.location,
     in_service_area: d.inServiceArea,
     estimate_summary: [
       `PROJECT: ${L.projectType}`,
       `TEAR-OUT: ${d.newOrReplacement === 'replacement' ? 'Yes (replacing existing)' : 'No (new pour)'}`,
-      `SIZE: ${L.sizeRange}`,
       `TIMELINE: ${L.timeline}`,
       `LOCATION: ${location}`,
     ].join(' | '),
