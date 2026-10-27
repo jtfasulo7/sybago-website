@@ -99,13 +99,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 /* ─── Form card ─── */
 .card{position:relative;scroll-margin-top:76px;background:#fff;border:1px solid var(--line-strong);border-top:4px solid var(--blue);border-radius:14px;padding:16px;box-shadow:0 24px 48px -24px rgba(15,23,42,.25)}
 @media (min-width:640px){.card{padding:24px}}
-.prog-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.prog-step{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
-.prog-step b{color:var(--ink)}
 .prog-note{font-size:.75rem;font-weight:500;color:var(--ink-soft)}
-.prog-bar{display:flex;gap:4px;margin-top:10px}
-.prog-bar span{height:4px;flex:1;border-radius:4px;background:var(--line-strong);transition:background .3s}
-.prog-bar span.on{background:var(--blue)}
 .q{margin-top:20px;font-size:1.5rem;line-height:1.12;font-weight:800;letter-spacing:-.02em;outline:none}
 @media (min-width:640px){.q{font-size:1.7rem}}
 .step-body{margin-top:16px}
@@ -693,15 +687,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   function render() {
     var list = steps();
     if (stepIndex > list.length - 1) stepIndex = list.length - 1;
-    var id = list[stepIndex], total = list.length;
+    var id = list[stepIndex];
     card.innerHTML = '';
 
-    card.appendChild(h('div', { class: 'prog-row' }, [
-      h('p', { class: 'prog-step', html: 'Step <b>' + (stepIndex + 1) + '</b> of ' + total }),
-      h('p', { class: 'prog-note', text: 'Free · No obligation · ~30 seconds' })
-    ]));
-    card.appendChild(h('div', { class: 'prog-bar', role: 'progressbar', 'aria-valuemin': '1', 'aria-valuemax': String(total), 'aria-valuenow': String(stepIndex + 1), 'aria-label': 'Form progress' },
-      list.map(function (s, i) { return h('span', { class: i <= stepIndex ? 'on' : '' }); })));
+    // No step counter or progress bar, on purpose: testing whether hiding progress lifts completion.
+    card.appendChild(h('p', { class: 'prog-note', text: 'Free · No obligation · ~30 seconds' }));
 
     var heading = h('h2', { class: 'q', tabindex: '-1', text: QUESTION[id] });
     var body = h('div', { class: 'step-body' });
