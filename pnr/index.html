@@ -263,7 +263,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
         <h1>New Driveways, Patios &amp; Concrete Work <span class="blue">in Houston</span> &amp; Surrounding Areas</h1>
         <p class="hero-sub">Tell us about your project in 30 seconds and we&rsquo;ll call you back to set up a visit &mdash; then come out, measure, and give you a firm written price.</p>
         <ul class="hero-trust">
-          <li><svg class="ico"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded</li>
+          <li><svg class="ico"><use href="#i-shield"/></svg>Insured &amp; Bonded</li>
           <li><svg class="ico"><use href="#i-clock"/></svg>32 Years in Business, 15-Person Local Crew</li>
           <li><svg class="ico"><use href="#i-pin"/></svg>Serving Harris, Fort Bend, Montgomery, Brazoria &amp; Galveston Counties</li>
         </ul>
@@ -279,7 +279,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <!-- ═══ Trust strip (phones/tablets) ═══ -->
   <section class="strip" aria-label="Trust">
     <ul class="wrap">
-      <li><svg class="ico"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded</li>
+      <li><svg class="ico"><use href="#i-shield"/></svg>Insured &amp; Bonded</li>
       <li><svg class="ico"><use href="#i-clock"/></svg>32 Years in Business, 15-Person Local Crew</li>
       <li><svg class="ico"><use href="#i-pin"/></svg>Serving Harris, Fort Bend, Montgomery, Brazoria &amp; Galveston Counties</li>
     </ul>
@@ -341,7 +341,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
       <div class="cta-row">
         <button type="button" class="btn js-to-form">Get My Free Estimate <svg class="ico"><use href="#i-right"/></svg></button>
       </div>
-      <p class="small"><svg class="ico-sm"><use href="#i-shield"/></svg>Licensed, Insured &amp; Bonded · 32 Years in Business</p>
+      <p class="small"><svg class="ico-sm"><use href="#i-shield"/></svg>Insured &amp; Bonded · 32 Years in Business</p>
     </div></div>
   </section>
 </main>
@@ -350,7 +350,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <div class="wrap">
     <div>
       <p class="name">P&amp;R General Contractors</p>
-      <p class="badges">Licensed, Insured &amp; Bonded · 32 Years in Business · 15-Person Local Crew</p>
+      <p class="badges">Insured &amp; Bonded · 32 Years in Business · 15-Person Local Crew</p>
       <p class="cities" id="footer-cities"></p>
     </div>
     <div class="right">
@@ -683,7 +683,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     card.innerHTML = '';
 
     // No step counter or progress bar, on purpose: testing whether hiding progress lifts completion.
-    card.appendChild(h('p', { class: 'prog-note', text: 'Licensed Texas contractor since 1994' }));
+    card.appendChild(h('p', { class: 'prog-note', text: 'Texas contractor since 1994' }));
 
     var heading = h('h2', { class: 'q', tabindex: '-1', text: QUESTION[id] });
     var body = h('div', { class: 'step-body' });
@@ -705,7 +705,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
     card.appendChild(h('div', { class: 'form-foot' }, [
       stepIndex > 0 ? h('button', { type: 'button', class: 'back-btn', onclick: function () { if (status !== 'submitting') { clearTimeout(timer); go('back'); } } }, [icon('i-left'), 'Back']) : h('span'),
-      h('p', { class: 'form-trust' }, [icon('i-shield'), 'Licensed, Insured & Bonded'])
+      h('p', { class: 'form-trust' }, [icon('i-shield'), 'Insured & Bonded'])
     ]));
 
     // Focus the new question on step change, never on first paint.
