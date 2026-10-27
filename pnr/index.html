@@ -166,11 +166,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 @media (min-width:1024px){.strip{display:none}}
 
 /* ─── Recent work: three photos, one row at every width ─── */
-.gallery{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:32px}
-@media (min-width:640px){.gallery{gap:16px}}
+.gallery{list-style:none;display:grid;grid-template-columns:1fr;gap:12px;margin-top:32px}
+/* Stacked full-width on phones so each photo is as big as possible; one row of three from 640px. */
+@media (min-width:640px){.gallery{grid-template-columns:repeat(3,1fr);gap:16px}}
 .gallery figure{position:relative;aspect-ratio:3/4;overflow:hidden;border-radius:10px;border:1px solid var(--line);background:var(--bg-3)}
 .gallery img{width:100%;height:100%;object-fit:cover}
-.gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:20px 8px 6px;background:linear-gradient(to top,rgba(15,23,42,.85),transparent);color:#fff;font-size:.62rem;font-weight:600;line-height:1.25}
+.gallery figcaption{position:absolute;left:0;right:0;bottom:0;padding:32px 14px 12px;background:linear-gradient(to top,rgba(15,23,42,.85),transparent);color:#fff;font-size:.9rem;font-weight:600;line-height:1.25}
 @media (min-width:640px){.gallery figcaption{padding:32px 12px 10px;font-size:.8rem}}
 
 
@@ -291,15 +292,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <h2 class="h2">Poured right. Finished clean. <span class="blue">Built for Houston clay.</span></h2>
     <ul class="gallery">
       <li><figure>
-        <img src="/pnr/images/job-1-400.webp" srcset="/pnr/images/job-1-400.webp 400w, /pnr/images/job-1-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="New broom-finish concrete driveway in front of a brick home, by P&amp;R General Contractors">
+        <img src="/pnr/images/job-1-400.webp" srcset="/pnr/images/job-1-400.webp 400w, /pnr/images/job-1-720.webp 720w" sizes="(min-width:1152px) 368px, (min-width:640px) 33vw, 100vw" width="400" height="533" loading="lazy" decoding="async" alt="New broom-finish concrete driveway in front of a brick home, by P&amp;R General Contractors">
         <figcaption>Broom-finish driveway</figcaption>
       </figure></li>
       <li><figure>
-        <img src="/pnr/images/job-2-400.webp" srcset="/pnr/images/job-2-400.webp 400w, /pnr/images/job-2-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="Gray stamped cobblestone-pattern concrete driveway, by P&amp;R General Contractors">
+        <img src="/pnr/images/job-2-400.webp" srcset="/pnr/images/job-2-400.webp 400w, /pnr/images/job-2-720.webp 720w" sizes="(min-width:1152px) 368px, (min-width:640px) 33vw, 100vw" width="400" height="533" loading="lazy" decoding="async" alt="Gray stamped cobblestone-pattern concrete driveway, by P&amp;R General Contractors">
         <figcaption>Stamped cobblestone driveway</figcaption>
       </figure></li>
       <li><figure>
-        <img src="/pnr/images/job-3-400.webp" srcset="/pnr/images/job-3-400.webp 400w, /pnr/images/job-3-720.webp 720w" sizes="(min-width:1152px) 368px, 33vw" width="400" height="533" loading="lazy" decoding="async" alt="Curved concrete walkway beside an exposed-aggregate pool deck, by P&amp;R General Contractors">
+        <img src="/pnr/images/job-3-400.webp" srcset="/pnr/images/job-3-400.webp 400w, /pnr/images/job-3-720.webp 720w" sizes="(min-width:1152px) 368px, (min-width:640px) 33vw, 100vw" width="400" height="533" loading="lazy" decoding="async" alt="Curved concrete walkway beside an exposed-aggregate pool deck, by P&amp;R General Contractors">
         <figcaption>Walkway &amp; exposed-aggregate pool deck</figcaption>
       </figure></li>
     </ul>
